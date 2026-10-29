@@ -7,7 +7,7 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  let body: { id?: number } = {}
+  let body: { id?: number; banIp?: boolean } = {}
   try {
     body = await req.json()
   } catch {
@@ -30,6 +30,24 @@ export async function DELETE(req: Request) {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
+  let bannedIp: string | null = null
+  if (body.banIp) {
+    const { data, error: banErr } = await supabase.rpc('admin_ban_message_ip', {
+      p_message_id: id,
+      p_token: token,
+      p_reason: '刪除訊息時一併封鎖',
+    })
+    if (banErr) {
+      const msg = banErr.message.toLowerCase()
+      if (!msg.includes('ip_unknown')) {
+        console.error('ban before delete failed', banErr.message)
+        return NextResponse.json({ error: 'ban_failed' }, { status: 500 })
+      }
+    } else if (typeof data === 'string') {
+      bannedIp = data
+    }
+  }
+
   const { error } = await supabase.rpc('admin_delete_message', {
     p_id: id,
     p_token: token,
@@ -40,5 +58,5 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'delete_failed' }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, bannedIp })
 }

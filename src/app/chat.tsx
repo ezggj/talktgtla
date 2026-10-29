@@ -15,6 +15,12 @@ import {
   type AchievementId,
   type Stats,
 } from '@/lib/client-progress'
+import {
+  MAX_CONTENT_LENGTH,
+  MAX_USERNAME_LENGTH,
+  sanitizeContent,
+  sanitizeUsername,
+} from '@/lib/sanitize'
 
 type Message = {
   id: number
@@ -115,6 +121,14 @@ export default function Chat() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [achievementToast, setAchievementToast] = useState<AchievementId | null>(null)
   const [showBadges, setShowBadges] = useState(false)
+  const [showSlang, setShowSlang] = useState(false)
+  const [sendError, setSendError] = useState('')
+  const [showBanList, setShowBanList] = useState(false)
+  const [bannedIps, setBannedIps] = useState<
+    { client_ip: string; reason: string | null; created_at: string; source_message_id: number | null }[]
+  >([])
+  const [banBusy, setBanBusy] = useState(false)
+  const clientFpRef = useRef<string>('')
   const toastTimerRef = useRef<number | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -167,6 +181,16 @@ export default function Chat() {
     setShowWelcome(!isWelcomeDismissed())
     setUnlocked(loadUnlocked())
     setStats(loadStats())
+    const FP_KEY = 'talktgtla-fp'
+    let fp = localStorage.getItem(FP_KEY)
+    if (!fp) {
+      fp =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `fp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      localStorage.setItem(FP_KEY, fp)
+    }
+    clientFpRef.current = fp
     return () => {
       if (toastTimerRef.current != null) window.clearTimeout(toastTimerRef.current)
     }
@@ -178,7 +202,7 @@ export default function Chat() {
     toastTimerRef.current = window.setTimeout(() => {
       setAchievementToast(null)
       toastTimerRef.current = null
-    }, 3200)
+    }, 2200)
   }, [])
 
   const applyStats = useCallback(
@@ -197,7 +221,7 @@ export default function Chat() {
           showAchievementToast(newly[0])
           // queue remaining toasts briefly
           newly.slice(1).forEach((id, i) => {
-            window.setTimeout(() => showAchievementToast(id), (i + 1) * 3400)
+            window.setTimeout(() => showAchievementToast(id), (i + 1) * 2400)
           })
         }
         return next
@@ -364,31 +388,62 @@ export default function Chat() {
     e?.preventDefault()
     if (!isSupabaseConfigured || !newMessage.trim() || sending) return
 
-    const displayName = isAnonymous ? '匿名' : username.trim() || '匿名'
-    const content = newMessage.trim()
+    setSendError('')
+    const draft = newMessage
     const reply_to = replyToId
+
+    if (!isAnonymous) {
+      const u = sanitizeUsername(username)
+      if (!u.ok) {
+        setSendError(u.error)
+        return
+      }
+    }
+    const c = sanitizeContent(draft)
+    if (!c.ok) {
+      setSendError(c.error)
+      return
+    }
 
     setSending(true)
     setNewMessage('')
     setReplyToId(null)
     setShowEmoji(false)
+    setShowSlang(false)
     stickToBottomRef.current = true
     setShowJump(false)
 
     try {
-      await supabase.from('messages').insert([
-        {
-          username: displayName,
-          content,
-          reply_to,
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-client-fingerprint': clientFpRef.current || '',
         },
-      ])
+        body: JSON.stringify({
+          anonymous: isAnonymous,
+          username: isAnonymous ? undefined : username,
+          content: draft,
+          reply_to,
+        }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { error?: string }
+      if (!res.ok) {
+        setNewMessage(draft)
+        setReplyToId(reply_to)
+        setSendError(data.error || '傳送失敗，請再試一次')
+        return
+      }
       applyStats((s) => ({
         ...s,
         messagesSent: s.messagesSent + 1,
         repliesSent: s.repliesSent + (reply_to != null ? 1 : 0),
       }))
       requestAnimationFrame(() => scrollToLatest('smooth'))
+    } catch {
+      setNewMessage(draft)
+      setReplyToId(reply_to)
+      setSendError('網絡錯誤，請再試一次')
     } finally {
       setSending(false)
       inputRef.current?.focus()
@@ -436,20 +491,80 @@ export default function Chat() {
     setIsAdmin(false)
   }
 
-  const deleteMessage = async (id: number) => {
+  const deleteMessage = async (id: number, banIp = false) => {
     if (!isAdmin) return
-    if (!window.confirm('確定刪除呢條訊息？')) return
+    const ok = window.confirm(
+      banIp ? '刪除訊息並封鎖呢個 IP？' : '確定刪除呢條訊息？'
+    )
+    if (!ok) return
     const res = await fetch('/api/admin/messages', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ id, banIp }),
     })
     if (!res.ok) {
-      window.alert('刪除失敗')
+      window.alert(banIp ? '刪除／封鎖失敗' : '刪除失敗')
       return
     }
+    const data = (await res.json().catch(() => ({}))) as { bannedIp?: string | null }
     setMessages((prev) => prev.filter((m) => m.id !== id))
     if (replyToId === id) setReplyToId(null)
+    if (banIp && data.bannedIp) {
+      window.alert(`已封鎖 IP：${data.bannedIp}`)
+    } else if (banIp && !data.bannedIp) {
+      window.alert('已刪除；呢條舊訊息冇 IP 記錄，未有封鎖')
+    }
+  }
+
+  const banMessageIp = async (id: number) => {
+    if (!isAdmin) return
+    if (!window.confirm('封鎖呢條訊息嘅 IP？（唔刪訊息）')) return
+    setBanBusy(true)
+    try {
+      const res = await fetch('/api/admin/bans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId: id, reason: '管理員封鎖' }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { error?: string; ip?: string }
+      if (!res.ok) {
+        window.alert(data.error || '封鎖失敗')
+        return
+      }
+      window.alert(`已封鎖 IP：${data.ip || ''}`)
+    } finally {
+      setBanBusy(false)
+    }
+  }
+
+  const loadBans = async () => {
+    const res = await fetch('/api/admin/bans')
+    if (!res.ok) {
+      window.alert('讀取封鎖名單失敗')
+      return
+    }
+    const data = (await res.json()) as { bans?: typeof bannedIps }
+    setBannedIps(data.bans || [])
+    setShowBanList(true)
+  }
+
+  const unbanIp = async (ip: string) => {
+    if (!window.confirm(`解除封鎖 ${ip}？`)) return
+    setBanBusy(true)
+    try {
+      const res = await fetch('/api/admin/bans', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip }),
+      })
+      if (!res.ok) {
+        window.alert('解除失敗')
+        return
+      }
+      setBannedIps((prev) => prev.filter((b) => b.client_ip !== ip))
+    } finally {
+      setBanBusy(false)
+    }
   }
 
   const previewText = (text: string) =>
@@ -457,28 +572,44 @@ export default function Chat() {
 
   return (
     <div className="flex flex-col h-dvh max-w-2xl mx-auto bg-white dark:bg-zinc-900 overflow-hidden">
-      <header className="p-3 border-b bg-zinc-100/90 dark:bg-zinc-800/90 backdrop-blur-sm shrink-0 z-10">
-        <div className="relative">
-          <h1 className="text-xl font-bold text-center tracking-tight">Talk tgt la</h1>
-          <div className="absolute left-0 top-0">
-            <button
-              type="button"
-              onClick={() => setShowBadges(true)}
-              className="text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-              aria-label="我的徽章"
-            >
-              徽章{unlocked.size > 0 ? ` · ${unlocked.size}` : ''}
-            </button>
+      <header className="px-3 py-2 border-b bg-zinc-100/90 dark:bg-zinc-800/90 backdrop-blur-sm shrink-0 z-10">
+        <div className="relative flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowBadges(true)}
+            className="absolute left-0 text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+            aria-label="徽章"
+          >
+            徽章{unlocked.size > 0 ? ` ${unlocked.size}` : ''}
+          </button>
+          <div className="text-center">
+            <h1 className="text-base font-bold tracking-tight leading-tight">Talk tgt la</h1>
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 tabular-nums" aria-live="polite">
+              {onlineCount == null
+                ? '…'
+                : onlineCount <= 0
+                  ? '0 人在線'
+                  : `${onlineCount} 人在線`}
+            </p>
           </div>
-          <div className="absolute right-0 top-0">
+          <div className="absolute right-0 flex items-center gap-2">
             {isAdmin ? (
-              <button
-                type="button"
-                onClick={() => void logoutAdmin()}
-                className="text-[10px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 underline"
-              >
-                管理員登出
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => void loadBans()}
+                  className="text-[10px] text-amber-700 dark:text-amber-300"
+                >
+                  封鎖
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void logoutAdmin()}
+                  className="text-[10px] text-zinc-500 underline"
+                >
+                  登出
+                </button>
+              </>
             ) : (
               <button
                 type="button"
@@ -486,30 +617,14 @@ export default function Chat() {
                   setShowAdminLogin(true)
                   setAdminError('')
                 }}
-                className="text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                aria-label="管理員登入"
+                className="text-[10px] text-zinc-400"
+                aria-label="管理"
               >
                 管理
               </button>
             )}
           </div>
         </div>
-        <p className="text-sm text-center text-zinc-500">香港人一齊傾偈</p>
-        <p className="mt-1 text-xs text-center text-emerald-600 dark:text-emerald-400 tabular-nums" aria-live="polite">
-          {onlineCount == null
-            ? '連線中…'
-            : onlineCount <= 0
-              ? '而家冇人在線'
-              : `而家有 ${onlineCount} 人在線`}
-        </p>
-        <p className="mt-1.5 text-[10px] text-center text-zinc-400 leading-snug">
-          公開聊天室 · 訊息由用戶發佈，唔代表本平台立場 · 請遵守下方使用條款
-        </p>
-        {isAdmin && (
-          <p className="mt-1 text-[10px] text-center text-amber-700 dark:text-amber-300">
-            管理員模式：可刪除違規訊息
-          </p>
-        )}
       </header>
 
       {!isSupabaseConfigured && (
@@ -578,13 +693,31 @@ export default function Chat() {
                     回覆
                   </button>
                   {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={() => void deleteMessage(msg.id)}
-                      className="text-xs text-red-600 dark:text-red-400 hover:underline active:opacity-70 transition-opacity"
-                    >
-                      刪除
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void deleteMessage(msg.id, false)}
+                        className="text-xs text-red-600 dark:text-red-400 hover:underline"
+                      >
+                        刪
+                      </button>
+                      <button
+                        type="button"
+                        disabled={banBusy}
+                        onClick={() => void deleteMessage(msg.id, true)}
+                        className="text-xs text-red-700 dark:text-red-300 hover:underline disabled:opacity-40"
+                      >
+                        刪+封
+                      </button>
+                      <button
+                        type="button"
+                        disabled={banBusy}
+                        onClick={() => void banMessageIp(msg.id)}
+                        className="text-xs text-amber-700 dark:text-amber-300 hover:underline disabled:opacity-40"
+                      >
+                        封 IP
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -636,26 +769,29 @@ export default function Chat() {
           {!isAnonymous && (
             <input
               type="text"
-              placeholder="你的名字"
+              placeholder="暱稱"
               value={username}
+              maxLength={MAX_USERNAME_LENGTH}
               onChange={(e) => setUsername(e.target.value)}
               className="flex-1 border rounded-lg px-3 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-400/50 transition"
             />
           )}
         </div>
 
-        <div className="mb-2 flex gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {HK_SLANG.map((phrase) => (
-            <button
-              key={phrase}
-              type="button"
-              onClick={() => insertSlang(phrase)}
-              className="shrink-0 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 active:scale-95 transition-all"
-            >
-              {phrase}
-            </button>
-          ))}
-        </div>
+        {showSlang && (
+          <div className="mb-2 flex gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {HK_SLANG.map((phrase) => (
+              <button
+                key={phrase}
+                type="button"
+                onClick={() => insertSlang(phrase)}
+                className="shrink-0 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 active:scale-95 transition-all"
+              >
+                {phrase}
+              </button>
+            ))}
+          </div>
+        )}
 
         {showEmoji && (
           <div className="emoji-picker mb-2 max-h-36 overflow-y-auto overscroll-contain flex flex-wrap gap-1 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 p-2">
@@ -673,16 +809,35 @@ export default function Chat() {
           </div>
         )}
 
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-1.5">
           <button
             type="button"
-            onClick={() => setShowEmoji((v) => !v)}
+            onClick={() => {
+              setShowSlang((v) => !v)
+              if (!showSlang) setShowEmoji(false)
+            }}
+            className={`shrink-0 h-10 px-2.5 rounded-full border text-xs transition-all active:scale-95 ${
+              showSlang
+                ? 'bg-blue-50 border-blue-300 dark:bg-blue-950 dark:border-blue-700'
+                : 'border-zinc-200 dark:border-zinc-700'
+            }`}
+            aria-label="潮語"
+            aria-expanded={showSlang}
+          >
+            潮語
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowEmoji((v) => !v)
+              if (!showEmoji) setShowSlang(false)
+            }}
             className={`shrink-0 h-10 w-10 rounded-full border text-lg flex items-center justify-center transition-all active:scale-95 ${
               showEmoji
                 ? 'bg-blue-50 border-blue-300 dark:bg-blue-950 dark:border-blue-700'
-                : 'border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                : 'border-zinc-200 dark:border-zinc-700'
             }`}
-            aria-label="表情符號"
+            aria-label="表情"
             aria-expanded={showEmoji}
           >
             😊
@@ -690,9 +845,13 @@ export default function Chat() {
           <textarea
             ref={inputRef}
             rows={1}
-            placeholder={replyTarget ? '回覆訊息…（Enter 傳送）' : '輸入訊息…（Enter 傳送）'}
+            maxLength={MAX_CONTENT_LENGTH}
+            placeholder={replyTarget ? '回覆…' : '講啲咩…'}
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={(e) => {
+              setNewMessage(e.target.value)
+              if (sendError) setSendError('')
+            }}
             onKeyDown={onComposerKeyDown}
             disabled={sending}
             enterKeyHint="send"
@@ -701,27 +860,24 @@ export default function Chat() {
           <button
             type="submit"
             disabled={sending || !newMessage.trim()}
-            className="shrink-0 bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 h-10"
+            className="shrink-0 bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 h-10 text-sm"
           >
-            {sending ? '…' : '傳送'}
+            {sending ? '…' : '送'}
           </button>
         </div>
-        <p className="mt-1.5 text-[10px] text-zinc-400 text-center">
-          Enter 傳送 · Shift+Enter 換行
-        </p>
+        {sendError && (
+          <p className="mt-1.5 text-xs text-red-600 dark:text-red-400 text-center">{sendError}</p>
+        )}
       </form>
 
-      <footer className="px-4 py-2 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/95 dark:bg-zinc-950/95 shrink-0">
+      <footer className="px-3 py-1.5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/95 dark:bg-zinc-950/95 shrink-0">
         <button
           type="button"
           onClick={() => setShowTerms((v) => !v)}
-          className="w-full text-left text-[11px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+          className="w-full text-center text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
           aria-expanded={showTerms}
         >
-          <span className="font-medium text-zinc-600 dark:text-zinc-300">使用條款／免責聲明</span>
-          <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">·</span>
-          <span>用戶須為言論負責 · 嚴禁違法／誹謗／色情／仇恨內容 · 平台可刪除及封鎖 · 唔對用戶內容負責</span>
-          <span className="ml-1 text-blue-600 dark:text-blue-400">{showTerms ? '收起' : '詳情'}</span>
+          免責聲明{showTerms ? ' · 收起' : ' · 詳情'}
         </button>
         {showTerms && (
           <ul className="mt-2 list-disc pl-4 space-y-1 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400 marker:text-zinc-400">
@@ -748,23 +904,18 @@ export default function Chat() {
             aria-labelledby="welcome-title"
             className="welcome-card w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 p-5 shadow-xl border border-zinc-200 dark:border-zinc-700"
           >
-            <h2 id="welcome-title" className="text-lg font-semibold mb-1">
-              歡迎嚟到 Talk tgt la 👋
+            <h2 id="welcome-title" className="text-base font-semibold mb-2">
+              Talk tgt la
             </h2>
-            <p className="text-sm text-zinc-500 mb-3">香港人一齊傾偈。幾秒就上手：</p>
-            <ul className="text-sm text-zinc-700 dark:text-zinc-300 space-y-2 mb-4">
-              <li>· 撳訊息可以<strong className="font-medium">回覆</strong></li>
-              <li>· <strong className="font-medium">Enter</strong> 傳送 · Shift+Enter 換行</li>
-              <li>· 底部有<strong className="font-medium">潮語</strong>同<strong className="font-medium">表情</strong>快速掣</li>
-              <li>· 可以揀匿名或者用自己個名</li>
-              <li>· 公開聊天室，請遵守使用條款，自己負責言論</li>
-            </ul>
+            <p className="text-sm text-zinc-600 dark:text-zinc-300 mb-4 leading-relaxed">
+              公開聊天室。Enter 傳送，自己負責言論。
+            </p>
             <button
               type="button"
               onClick={closeWelcome}
               className="w-full rounded-full bg-blue-600 text-white py-2.5 text-sm font-medium hover:bg-blue-700 active:scale-[0.98] transition-all"
             >
-              明白，開始傾偈
+              開始
             </button>
           </div>
         </div>
@@ -779,15 +930,9 @@ export default function Chat() {
             role="status"
             aria-live="polite"
           >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl" aria-hidden>
-                {a.emoji}
-              </span>
-              <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-wide opacity-70">解鎖徽章</div>
-                <div className="font-semibold text-sm">{a.title}</div>
-                <div className="text-xs opacity-80 truncate">{a.description}</div>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl" aria-hidden>{a.emoji}</span>
+              <div className="font-medium text-sm">{a.title}</div>
             </div>
           </div>
         )
@@ -814,8 +959,7 @@ export default function Chat() {
               </button>
             </div>
             <p className="text-xs text-zinc-500 mb-3">
-              徽章只喺你部裝置顯示（本地記錄），唔會公開。
-              {stats ? ` 已傳送 ${stats.messagesSent} 句。` : ''}
+              只喺本機{stats ? ` · 已送 ${stats.messagesSent}` : ''}
             </p>
             <ul className="space-y-2">
               {ACHIEVEMENTS.map((a) => {
@@ -844,14 +988,47 @@ export default function Chat() {
         </div>
       )}
 
+
+      {showBanList && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 p-4 shadow-xl border border-zinc-200 dark:border-zinc-700 max-h-[80dvh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold">封鎖名單</h2>
+              <button type="button" onClick={() => setShowBanList(false)} className="text-sm px-2 text-zinc-500" aria-label="關閉">✕</button>
+            </div>
+            {bannedIps.length === 0 ? (
+              <p className="text-sm text-zinc-500">而家冇封鎖任何 IP</p>
+            ) : (
+              <ul className="space-y-2">
+                {bannedIps.map((b) => (
+                  <li key={b.client_ip} className="flex items-center justify-between gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-mono truncate">{b.client_ip}</div>
+                      {b.reason && <div className="text-[10px] text-zinc-500 truncate">{b.reason}</div>}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={banBusy}
+                      onClick={() => void unbanIp(b.client_ip)}
+                      className="shrink-0 text-xs text-blue-600 dark:text-blue-400 disabled:opacity-40"
+                    >
+                      解除
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
       {showAdminLogin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <form
             onSubmit={loginAdmin}
             className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 p-4 shadow-xl border border-zinc-200 dark:border-zinc-700"
           >
-            <h2 className="text-base font-semibold mb-1">管理員登入</h2>
-            <p className="text-xs text-zinc-500 mb-3">登入後可以刪除違規訊息。一般用戶唔使登入。</p>
+            <h2 className="text-base font-semibold mb-3">管理員</h2>
             <input
               type="password"
               autoFocus
