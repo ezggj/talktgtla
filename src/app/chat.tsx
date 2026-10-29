@@ -136,6 +136,12 @@ export default function Chat() {
           </button>
         </div>
       </form>
+
+      <footer className="px-4 pb-3 pt-1 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
+        <p className="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400 text-center">
+          免責聲明：呢個係公開聊天室。用戶須為自己言論負責，唔好發佈違法、誹謗、侵權或其他不當內容。網站營運者唔對用戶訊息負責，亦可能刪除違規內容。
+        </p>
+      </footer>
     </div>
   )
 }
