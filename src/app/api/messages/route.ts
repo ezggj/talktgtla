@@ -30,6 +30,13 @@ function rateKey(ip: string, fingerprint: string | null): string {
 
 function mapRpcError(message: string): { status: number; error: string } {
   const m = message.toLowerCase()
+  if (m.includes('ip_auto_banned')) {
+    return {
+      status: 403,
+      error:
+        '偵測到洗版（1 分鐘超過 20 句），你嘅 IP 已被自動封鎖。如有誤會請聯絡管理員解除。',
+    }
+  }
   if (m.includes('ip_banned') || m.includes('banned')) {
     return {
       status: 403,

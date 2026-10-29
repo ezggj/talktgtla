@@ -45,6 +45,12 @@ export function checkRateLimit(
   return { ok: true, remaining: opts.limit - hits.length }
 }
 
-/** Primary: 8 msgs / 60s. Burst: 3 msgs / 10s. */
+/**
+ * Soft in-memory limits (per serverless instance + rate key).
+ * Burst: 3 / 10s. Window: 8 / 60s → 429 「傾得太密」.
+ * Hard auto-ban (DB, per IP): >20 msgs / 60s → private.banned_ips.
+ */
 export const RATE_LIMIT_WINDOW = { limit: 8, windowMs: 60_000 } as const
 export const RATE_LIMIT_BURST = { limit: 3, windowMs: 10_000 } as const
+/** Durable IP auto-ban threshold (must match post_message RPC). */
+export const AUTO_BAN_IP_LIMIT = { limit: 20, windowMs: 60_000 } as const

@@ -18,12 +18,13 @@ ADMIN_DELETE_TOKEN=   # 同 private.admin_config.delete_token 一致；亦用於
 ADMIN_SESSION_SECRET=
 ```
 
-## 限速
+## 限速同自動封鎖
 
-- Burst：10 秒內最多 3 句
-- Window：60 秒內最多 8 句
+- Burst：10 秒內最多 3 句（暫時減速）
+- Soft window：60 秒內最多 8 句／rate key（暫時減速）
+- **自動封 IP**：同一 IP 60 秒內超過 20 句 → 寫入 `private.banned_ips`
 - 訊息最多 500 字、暱稱最多 24 字
-- DB 層亦有 per-key 60 秒 / 8 句限速同 IP 封鎖檢查
+- DB `post_message` 負責 durable 限速、IP 封鎖檢查同自動封
 
 ## 管理員
 
