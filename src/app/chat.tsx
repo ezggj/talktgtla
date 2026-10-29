@@ -31,6 +31,25 @@ const EMOJIS = [
   '🌸', '🌺', '🌻', '🌈', '☀️', '🌙', '☁️', '⚡', '🌊', '🍀',
 ] as const
 
+/** Quick-insert chips — light HK net slang, keep SFW */
+const HK_SLANG = [
+  '師兄',
+  '大癲',
+  '笑死',
+  '真係',
+  '勁呀',
+  '好呀',
+  '冇問題',
+  '哈哈哈',
+  '不如',
+  '傾下偈',
+  '見到',
+  '明白',
+  '沖涼先',
+  '晚安',
+  '早晨',
+] as const
+
 function formatRelativeTime(iso: string, nowMs: number): string {
   const then = new Date(iso).getTime()
   if (Number.isNaN(then)) return ''
@@ -209,23 +228,25 @@ export default function Chat() {
 
   const cancelReply = () => setReplyToId(null)
 
-  const insertEmoji = (emoji: string) => {
+  const insertText = (chunk: string) => {
     const el = inputRef.current
     if (!el) {
-      setNewMessage((prev) => prev + emoji)
+      setNewMessage((prev) => prev + chunk)
       return
     }
     const start = el.selectionStart ?? newMessage.length
     const end = el.selectionEnd ?? newMessage.length
-    const next = newMessage.slice(0, start) + emoji + newMessage.slice(end)
+    const next = newMessage.slice(0, start) + chunk + newMessage.slice(end)
     setNewMessage(next)
     requestAnimationFrame(() => {
       el.focus()
-      const pos = start + emoji.length
+      const pos = start + chunk.length
       el.setSelectionRange(pos, pos)
       resizeComposer()
     })
   }
+
+  const insertEmoji = (emoji: string) => insertText(emoji)
 
   const sendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -487,6 +508,19 @@ export default function Chat() {
               className="flex-1 border rounded-lg px-3 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-400/50 transition"
             />
           )}
+        </div>
+
+        <div className="mb-2 flex gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {HK_SLANG.map((phrase) => (
+            <button
+              key={phrase}
+              type="button"
+              onClick={() => insertText(phrase)}
+              className="shrink-0 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 active:scale-95 transition-all"
+            >
+              {phrase}
+            </button>
+          ))}
         </div>
 
         {showEmoji && (
