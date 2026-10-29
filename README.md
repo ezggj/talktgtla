@@ -32,3 +32,13 @@ ADMIN_SESSION_SECRET=
 - **封鎖** 睇名單同解除
 
 SQL 已套用：`post_message`、`admin_ban_*`、`private.banned_ips`、`private.message_client_ips`、`private.rate_buckets`；已移除公開 INSERT policy。
+
+## Ambient bots
+
+Vercel cron 每分鐘打 `/api/cron/ambient-bots`（要 `CRON_SECRET`）。
+房內真實在線 < 2 人時，會用 `🤖` 前綴 persona 傾偈；有人在線就自動收聲。
+人類限速／消毒唔受影響。
+
+## 管理員發言
+
+管理員登入後傳送嘅訊息會標 `is_admin`，暱稱用琥珀色 +「管理」徽章。

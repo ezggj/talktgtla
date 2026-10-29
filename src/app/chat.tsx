@@ -28,6 +28,7 @@ type Message = {
   content: string
   created_at: string
   reply_to: number | null
+  is_admin?: boolean
 }
 
 const EMOJIS = [
@@ -240,6 +241,22 @@ export default function Chat() {
       .then((r) => r.json())
       .then((d) => setIsAdmin(Boolean(d?.admin)))
       .catch(() => setIsAdmin(false))
+  }, [])
+
+  // Heartbeat so server cron knows real humans are online (bots dial down)
+  useEffect(() => {
+    const key = clientFpRef.current
+    if (!key) return
+    const beat = () => {
+      void fetch('/api/presence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientKey: clientFpRef.current || key }),
+      })
+    }
+    beat()
+    const id = window.setInterval(beat, 45_000)
+    return () => window.clearInterval(id)
   }, [])
 
   useEffect(() => {
@@ -648,14 +665,33 @@ export default function Chat() {
             const isReplying = replyToId === msg.id
             return (
               <div key={msg.id} className="chat-msg flex flex-col">
-                <div className="text-xs text-zinc-500 mb-0.5">{msg.username}</div>
+                <div className="text-xs mb-0.5 flex items-center gap-1.5">
+                <span
+                  className={
+                    msg.is_admin
+                      ? 'font-semibold text-amber-700 dark:text-amber-300'
+                      : msg.username.includes('🤖')
+                        ? 'text-zinc-400'
+                        : 'text-zinc-500'
+                  }
+                >
+                  {msg.username}
+                </span>
+                {msg.is_admin && (
+                  <span className="rounded px-1 py-px text-[9px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                    管理
+                  </span>
+                )}
+              </div>
                 <button
                   type="button"
                   onClick={() => startReply(msg)}
                   className={`text-left rounded-2xl p-3 max-w-[85%] transition-all duration-150 ease-out active:scale-[0.98] ${
                     isReplying
                       ? 'bg-blue-100 dark:bg-blue-950 ring-2 ring-blue-400/60'
-                      : 'bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200/90 dark:hover:bg-zinc-700'
+                      : msg.is_admin
+                        ? 'bg-amber-50 dark:bg-amber-950/40 border border-amber-200/70 dark:border-amber-800/60'
+                        : 'bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200/90 dark:hover:bg-zinc-700'
                   }`}
                 >
                   {parent && (

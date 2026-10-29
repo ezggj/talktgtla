@@ -13,8 +13,8 @@ import {
   checkRateLimit,
 } from '@/lib/rate-limit'
 import { clientIpFromRequest } from '@/lib/request-ip'
+import { isAdminRequest } from '@/lib/admin-auth'
 
-export const runtime = 'nodejs'
 
 type Body = {
   username?: unknown
@@ -96,7 +96,16 @@ export async function POST(req: Request) {
   const ip = clientIpFromRequest(req)
   const fp = req.headers.get('x-client-fingerprint')?.trim() || null
   const key = rateKey(ip, fp)
+  const asAdmin = await isAdminRequest()
 
+  // Force a clear admin display name when moderating account posts
+  if (asAdmin) {
+    if (isAnonymous || username === '匿名') {
+      username = '管理員'
+    }
+  }
+
+  if (!asAdmin) {
   const burst = checkRateLimit(`burst:${key}`, RATE_LIMIT_BURST)
   if (!burst.ok) {
     return NextResponse.json(
@@ -124,6 +133,7 @@ export async function POST(req: Request) {
       }
     )
   }
+  }
 
   const supabase = createClient(url, anon, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -134,8 +144,9 @@ export async function POST(req: Request) {
     p_content: contentResult.value,
     p_reply_to: replyTo,
     p_token: token,
-    p_rate_key: key,
+    p_rate_key: asAdmin ? null : key,
     p_client_ip: ip === 'unknown' ? null : ip,
+    p_is_admin: asAdmin,
   })
 
   if (error) {
