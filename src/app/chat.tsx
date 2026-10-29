@@ -21,6 +21,7 @@ import {
   sanitizeContent,
   sanitizeUsername,
 } from '@/lib/sanitize'
+import { applyTheme, resolveInitialTheme, type ThemeMode } from '@/lib/theme'
 
 type Message = {
   id: number
@@ -123,6 +124,7 @@ export default function Chat() {
   const [achievementToast, setAchievementToast] = useState<AchievementId | null>(null)
   const [showBadges, setShowBadges] = useState(false)
   const [showSlang, setShowSlang] = useState(false)
+  const [themeMode, setThemeMode] = useState<ThemeMode>('light')
   const [sendError, setSendError] = useState('')
   const [showBanList, setShowBanList] = useState(false)
   const [bannedIps, setBannedIps] = useState<
@@ -179,6 +181,9 @@ export default function Chat() {
   }, [])
 
   useEffect(() => {
+    const mode = resolveInitialTheme()
+    setThemeMode(mode)
+    applyTheme(mode)
     setShowWelcome(!isWelcomeDismissed())
     setUnlocked(loadUnlocked())
     setStats(loadStats())
@@ -258,6 +263,23 @@ export default function Chat() {
     const id = window.setInterval(beat, 45_000)
     return () => window.clearInterval(id)
   }, [])
+
+  // Hobby plan: client nudges ambient bots when room is quiet
+  useEffect(() => {
+    if (!isSupabaseConfigured) return
+    const tick = () => {
+      const humans = onlineCount
+      if (humans != null && humans >= 2) return
+      void fetch('/api/ambient/tick', { method: 'POST' })
+    }
+    const id = window.setInterval(tick, 55_000)
+    // first nudge after a short delay so presence can register
+    const first = window.setTimeout(tick, 8_000)
+    return () => {
+      window.clearInterval(id)
+      window.clearTimeout(first)
+    }
+  }, [onlineCount])
 
   useEffect(() => {
     if (!isSupabaseConfigured) return
@@ -587,18 +609,35 @@ export default function Chat() {
   const previewText = (text: string) =>
     text.length > 60 ? `${text.slice(0, 60)}…` : text
 
+  const toggleTheme = () => {
+    const next: ThemeMode = themeMode === 'dark' ? 'light' : 'dark'
+    setThemeMode(next)
+    applyTheme(next)
+  }
+
   return (
     <div className="flex flex-col h-dvh max-w-2xl mx-auto bg-white dark:bg-zinc-900 overflow-hidden">
       <header className="px-3 py-2 border-b bg-zinc-100/90 dark:bg-zinc-800/90 backdrop-blur-sm shrink-0 z-10">
         <div className="relative flex items-center justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowBadges(true)}
-            className="absolute left-0 text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-            aria-label="徽章"
-          >
-            徽章{unlocked.size > 0 ? ` ${unlocked.size}` : ''}
-          </button>
+          <div className="absolute left-0 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              aria-label={themeMode === 'dark' ? '轉日間模式' : '轉夜間模式'}
+              title={themeMode === 'dark' ? '日間' : '夜間'}
+            >
+              {themeMode === 'dark' ? '☀️' : '🌙'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowBadges(true)}
+              className="text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              aria-label="徽章"
+            >
+              徽章{unlocked.size > 0 ? ` ${unlocked.size}` : ''}
+            </button>
+          </div>
           <div className="text-center">
             <h1 className="text-base font-bold tracking-tight leading-tight">Talk tgt la</h1>
             <p className="text-[11px] text-emerald-600 dark:text-emerald-400 tabular-nums" aria-live="polite">

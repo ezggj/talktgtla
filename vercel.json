@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/ambient-bots",
-      "schedule": "* * * * *"
+      "schedule": "0 12 * * *"
     }
   ]
 }
