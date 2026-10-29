@@ -28,7 +28,12 @@ ADMIN_SESSION_SECRET=
 
 ## 管理員
 
-右上角「管理」登入後：
+公開 UI **冇**「管理」掣。登入方法（揀一種）：
+- 開 `https://talktgtla.com/admin` 輸入 `ADMIN_PASSWORD`
+- 主頁長按標題「Talk tgt la」約 1.2 秒
+- 鍵盤：`Ctrl+Shift+A`（開密碼框）
+
+登入後右上角會出現「封鎖」「登出」；可：
 - **刪**／**刪+封**／**封 IP**
 - **封鎖** 睇名單同解除
 

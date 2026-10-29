@@ -246,6 +246,32 @@ export default function Chat() {
       .then((r) => r.json())
       .then((d) => setIsAdmin(Boolean(d?.admin)))
       .catch(() => setIsAdmin(false))
+
+    // Discreet admin entry: /?admin=1 or /#admin (no visible 管理 button)
+    try {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('admin') === '1' || window.location.hash === '#admin') {
+        setShowAdminLogin(true)
+        setAdminError('')
+        // Clean URL so casual users don't see the flag after refresh
+        const url = new URL(window.location.href)
+        url.searchParams.delete('admin')
+        url.hash = ''
+        window.history.replaceState({}, '', url.pathname + url.search)
+      }
+    } catch {
+      /* ignore */
+    }
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        e.preventDefault()
+        setShowAdminLogin(true)
+        setAdminError('')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
   // Heartbeat so server cron knows real humans are online (bots dial down)
@@ -650,7 +676,28 @@ export default function Chat() {
             </button>
           </div>
           <div className="text-center">
-            <h1 className="text-base font-bold tracking-tight leading-tight">Talk tgt la</h1>
+            <h1
+              className="text-base font-bold tracking-tight leading-tight select-none"
+              onPointerDown={(e) => {
+                // Long-press title (~1.2s) opens discreet admin login
+                const target = e.currentTarget
+                const timer = window.setTimeout(() => {
+                  setShowAdminLogin(true)
+                  setAdminError('')
+                }, 1200)
+                const clear = () => {
+                  window.clearTimeout(timer)
+                  target.removeEventListener('pointerup', clear)
+                  target.removeEventListener('pointerleave', clear)
+                  target.removeEventListener('pointercancel', clear)
+                }
+                target.addEventListener('pointerup', clear)
+                target.addEventListener('pointerleave', clear)
+                target.addEventListener('pointercancel', clear)
+              }}
+            >
+              Talk tgt la
+            </h1>
             <p className="text-[11px] text-emerald-600 dark:text-emerald-400 tabular-nums" aria-live="polite">
               {onlineCount == null
                 ? '…'
@@ -677,19 +724,7 @@ export default function Chat() {
                   登出
                 </button>
               </>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAdminLogin(true)
-                  setAdminError('')
-                }}
-                className="text-[10px] text-zinc-400"
-                aria-label="管理"
-              >
-                管理
-              </button>
-            )}
+            ) : null}
           </div>
         </div>
       </header>
