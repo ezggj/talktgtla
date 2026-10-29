@@ -62,13 +62,29 @@ body {
   animation: reply-bar-in 180ms ease-out both;
 }
 
+@keyframes emoji-picker-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.emoji-picker {
+  animation: emoji-picker-in 160ms ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chat-messages {
     scroll-behavior: auto;
   }
 
   .chat-msg,
-  .chat-reply-bar {
+  .chat-reply-bar,
+  .emoji-picker {
     animation: none;
   }
 }

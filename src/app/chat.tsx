@@ -11,6 +11,38 @@ type Message = {
   reply_to: number | null
 }
 
+const EMOJIS = ['😀', '😂', '😍', '👍', '🙏', '🔥', '❤️', '🎉', '😢', '🤔', '👏', '✨'] as const
+
+function formatRelativeTime(iso: string, nowMs: number): string {
+  const then = new Date(iso).getTime()
+  if (Number.isNaN(then)) return ''
+
+  const diffSec = Math.round((nowMs - then) / 1000)
+  if (diffSec < 45) return '剛剛'
+  if (diffSec < 3600) {
+    const mins = Math.max(1, Math.floor(diffSec / 60))
+    return `${mins} 分鐘前`
+  }
+  if (diffSec < 86400) {
+    const hours = Math.max(1, Math.floor(diffSec / 3600))
+    return `${hours} 小時前`
+  }
+  if (diffSec < 86400 * 7) {
+    const days = Math.max(1, Math.floor(diffSec / 86400))
+    return `${days} 日前`
+  }
+
+  const d = new Date(iso)
+  const sameYear = d.getFullYear() === new Date(nowMs).getFullYear()
+  return d.toLocaleString('zh-HK', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  })
+}
+
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
@@ -19,10 +51,13 @@ export default function Chat() {
   const [replyToId, setReplyToId] = useState<number | null>(null)
   const [sending, setSending] = useState(false)
   const [showJump, setShowJump] = useState(false)
+  const [showEmoji, setShowEmoji] = useState(false)
+  const [nowMs, setNowMs] = useState(() => Date.now())
   const listRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const stickToBottomRef = useRef(true)
+  const initialScrollDone = useRef(false)
 
   const messagesById = useMemo(() => {
     const map = new Map<number, Message>()
@@ -35,11 +70,20 @@ export default function Chat() {
   const isNearBottom = useCallback(() => {
     const el = listRef.current
     if (!el) return true
-    return el.scrollHeight - el.scrollTop - el.clientHeight < 80
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 100
   }, [])
 
   const scrollToLatest = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' })
+    const el = listRef.current
+    if (el) {
+      if (behavior === 'auto') {
+        el.scrollTop = el.scrollHeight
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' })
+      }
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' })
+    }
     stickToBottomRef.current = true
     setShowJump(false)
   }, [])
@@ -49,6 +93,11 @@ export default function Chat() {
     stickToBottomRef.current = near
     setShowJump(!near)
   }
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 30_000)
+    return () => window.clearInterval(id)
+  }, [])
 
   useEffect(() => {
     if (!isSupabaseConfigured) return
@@ -61,8 +110,6 @@ export default function Chat() {
         .limit(100)
       if (data) {
         setMessages(data as Message[])
-        // First paint: jump without animation to avoid jank
-        requestAnimationFrame(() => scrollToLatest('auto'))
       }
     }
     loadMessages()
@@ -85,16 +132,34 @@ export default function Chat() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [scrollToLatest])
+  }, [])
 
   useEffect(() => {
     if (!messages.length) return
+    if (!initialScrollDone.current) {
+      requestAnimationFrame(() => {
+        scrollToLatest('auto')
+        initialScrollDone.current = true
+      })
+      return
+    }
     if (stickToBottomRef.current) {
-      scrollToLatest('smooth')
+      requestAnimationFrame(() => scrollToLatest('smooth'))
     } else {
       setShowJump(true)
     }
   }, [messages, scrollToLatest])
+
+  const resizeComposer = useCallback(() => {
+    const el = inputRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+  }, [])
+
+  useEffect(() => {
+    resizeComposer()
+  }, [newMessage, resizeComposer])
 
   const startReply = (msg: Message) => {
     setReplyToId(msg.id)
@@ -103,8 +168,26 @@ export default function Chat() {
 
   const cancelReply = () => setReplyToId(null)
 
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const insertEmoji = (emoji: string) => {
+    const el = inputRef.current
+    if (!el) {
+      setNewMessage((prev) => prev + emoji)
+      return
+    }
+    const start = el.selectionStart ?? newMessage.length
+    const end = el.selectionEnd ?? newMessage.length
+    const next = newMessage.slice(0, start) + emoji + newMessage.slice(end)
+    setNewMessage(next)
+    requestAnimationFrame(() => {
+      el.focus()
+      const pos = start + emoji.length
+      el.setSelectionRange(pos, pos)
+      resizeComposer()
+    })
+  }
+
+  const sendMessage = async (e?: React.FormEvent) => {
+    e?.preventDefault()
     if (!isSupabaseConfigured || !newMessage.trim() || sending) return
 
     const displayName = isAnonymous ? '匿名' : username.trim() || '匿名'
@@ -114,7 +197,9 @@ export default function Chat() {
     setSending(true)
     setNewMessage('')
     setReplyToId(null)
+    setShowEmoji(false)
     stickToBottomRef.current = true
+    setShowJump(false)
 
     try {
       await supabase.from('messages').insert([
@@ -124,10 +209,23 @@ export default function Chat() {
           reply_to,
         },
       ])
+      requestAnimationFrame(() => scrollToLatest('smooth'))
     } finally {
       setSending(false)
       inputRef.current?.focus()
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto'
+      }
     }
+  }
+
+  const onComposerKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== 'Enter') return
+    // Avoid sending while IME is composing (Canto/Mandarin input)
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return
+    if (e.shiftKey) return // newline
+    e.preventDefault()
+    void sendMessage()
   }
 
   const previewText = (text: string) =>
@@ -184,11 +282,14 @@ export default function Chat() {
                       回覆一則訊息
                     </div>
                   )}
-                  <div className="leading-relaxed break-words">{msg.content}</div>
+                  <div className="leading-relaxed break-words whitespace-pre-wrap">{msg.content}</div>
                 </button>
                 <div className="flex items-center gap-2 mt-1 pl-0.5">
-                  <span className="text-xs text-zinc-400">
-                    {new Date(msg.created_at).toLocaleTimeString('zh-HK')}
+                  <span
+                    className="text-xs text-zinc-400"
+                    title={new Date(msg.created_at).toLocaleString('zh-HK')}
+                  >
+                    {formatRelativeTime(msg.created_at, nowMs)}
                   </span>
                   <button
                     type="button"
@@ -254,24 +355,59 @@ export default function Chat() {
             />
           )}
         </div>
-        <div className="flex gap-2">
-          <input
+
+        {showEmoji && (
+          <div className="emoji-picker mb-2 flex flex-wrap gap-1 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 p-2">
+            {EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => insertEmoji(emoji)}
+                className="h-9 w-9 rounded-lg text-xl leading-none hover:bg-zinc-200/80 dark:hover:bg-zinc-700 active:scale-90 transition-transform"
+                aria-label={`插入 ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-end gap-2">
+          <button
+            type="button"
+            onClick={() => setShowEmoji((v) => !v)}
+            className={`shrink-0 h-10 w-10 rounded-full border text-lg flex items-center justify-center transition-all active:scale-95 ${
+              showEmoji
+                ? 'bg-blue-50 border-blue-300 dark:bg-blue-950 dark:border-blue-700'
+                : 'border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+            }`}
+            aria-label="表情符號"
+            aria-expanded={showEmoji}
+          >
+            😊
+          </button>
+          <textarea
             ref={inputRef}
-            type="text"
-            placeholder={replyTarget ? '回覆訊息...' : '輸入訊息...'}
+            rows={1}
+            placeholder={replyTarget ? '回覆訊息…（Enter 傳送）' : '輸入訊息…（Enter 傳送）'}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={onComposerKeyDown}
             disabled={sending}
-            className="flex-1 border rounded-full px-4 py-2 outline-none focus:ring-2 focus:ring-blue-400/50 transition disabled:opacity-60"
+            enterKeyHint="send"
+            className="flex-1 border rounded-2xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-400/50 transition disabled:opacity-60 resize-none max-h-[120px] leading-relaxed"
           />
           <button
             type="submit"
             disabled={sending || !newMessage.trim()}
-            className="bg-blue-600 text-white px-6 py-2 rounded-full hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+            className="shrink-0 bg-blue-600 text-white px-5 py-2 rounded-full hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 h-10"
           >
-            {sending ? '傳送中…' : '傳送'}
+            {sending ? '…' : '傳送'}
           </button>
         </div>
+        <p className="mt-1.5 text-[10px] text-zinc-400 text-center">
+          Enter 傳送 · Shift+Enter 換行
+        </p>
       </form>
 
       <footer className="px-4 pb-3 pt-1 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
