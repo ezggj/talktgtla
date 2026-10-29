@@ -2,6 +2,19 @@
 
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import {
+  ACHIEVEMENTS,
+  achievementById,
+  dismissWelcome,
+  evaluateAchievements,
+  isWelcomeDismissed,
+  loadStats,
+  loadUnlocked,
+  saveStats,
+  saveUnlocked,
+  type AchievementId,
+  type Stats,
+} from '@/lib/client-progress'
 
 type Message = {
   id: number
@@ -97,6 +110,12 @@ export default function Chat() {
   const [showTerms, setShowTerms] = useState(false)
   const [nowMs, setNowMs] = useState(0) // set after mount (avoid prerender Date.now)
   const [onlineCount, setOnlineCount] = useState<number | null>(null)
+  const [showWelcome, setShowWelcome] = useState(false)
+  const [unlocked, setUnlocked] = useState<Set<AchievementId>>(new Set())
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [achievementToast, setAchievementToast] = useState<AchievementId | null>(null)
+  const [showBadges, setShowBadges] = useState(false)
+  const toastTimerRef = useRef<number | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -143,6 +162,54 @@ export default function Chat() {
     const id = window.setInterval(() => setNowMs(Date.now()), 30_000)
     return () => window.clearInterval(id)
   }, [])
+
+  useEffect(() => {
+    setShowWelcome(!isWelcomeDismissed())
+    setUnlocked(loadUnlocked())
+    setStats(loadStats())
+    return () => {
+      if (toastTimerRef.current != null) window.clearTimeout(toastTimerRef.current)
+    }
+  }, [])
+
+  const showAchievementToast = useCallback((id: AchievementId) => {
+    if (toastTimerRef.current != null) window.clearTimeout(toastTimerRef.current)
+    setAchievementToast(id)
+    toastTimerRef.current = window.setTimeout(() => {
+      setAchievementToast(null)
+      toastTimerRef.current = null
+    }, 3200)
+  }, [])
+
+  const applyStats = useCallback(
+    (updater: (prev: Stats) => Stats) => {
+      setStats((prev) => {
+        const base = prev ?? loadStats()
+        const next = updater(base)
+        saveStats(next)
+        const already = loadUnlocked()
+        const newly = evaluateAchievements(next, already)
+        if (newly.length) {
+          const merged = new Set(already)
+          for (const id of newly) merged.add(id)
+          saveUnlocked(merged)
+          setUnlocked(merged)
+          showAchievementToast(newly[0])
+          // queue remaining toasts briefly
+          newly.slice(1).forEach((id, i) => {
+            window.setTimeout(() => showAchievementToast(id), (i + 1) * 3400)
+          })
+        }
+        return next
+      })
+    },
+    [showAchievementToast]
+  )
+
+  const closeWelcome = () => {
+    dismissWelcome()
+    setShowWelcome(false)
+  }
 
   useEffect(() => {
     fetch('/api/admin/me')
@@ -283,7 +350,15 @@ export default function Chat() {
     })
   }
 
-  const insertEmoji = (emoji: string) => insertText(emoji)
+  const insertEmoji = (emoji: string) => {
+    insertText(emoji)
+    applyStats((s) => ({ ...s, emojiUsed: s.emojiUsed + 1 }))
+  }
+
+  const insertSlang = (phrase: string) => {
+    insertText(phrase)
+    applyStats((s) => ({ ...s, slangUsed: s.slangUsed + 1 }))
+  }
 
   const sendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -308,6 +383,11 @@ export default function Chat() {
           reply_to,
         },
       ])
+      applyStats((s) => ({
+        ...s,
+        messagesSent: s.messagesSent + 1,
+        repliesSent: s.repliesSent + (reply_to != null ? 1 : 0),
+      }))
       requestAnimationFrame(() => scrollToLatest('smooth'))
     } finally {
       setSending(false)
@@ -380,6 +460,16 @@ export default function Chat() {
       <header className="p-3 border-b bg-zinc-100/90 dark:bg-zinc-800/90 backdrop-blur-sm shrink-0 z-10">
         <div className="relative">
           <h1 className="text-xl font-bold text-center tracking-tight">Talk tgt la</h1>
+          <div className="absolute left-0 top-0">
+            <button
+              type="button"
+              onClick={() => setShowBadges(true)}
+              className="text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              aria-label="我的徽章"
+            >
+              徽章{unlocked.size > 0 ? ` · ${unlocked.size}` : ''}
+            </button>
+          </div>
           <div className="absolute right-0 top-0">
             {isAdmin ? (
               <button
@@ -559,7 +649,7 @@ export default function Chat() {
             <button
               key={phrase}
               type="button"
-              onClick={() => insertText(phrase)}
+              onClick={() => insertSlang(phrase)}
               className="shrink-0 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 active:scale-95 transition-all"
             >
               {phrase}
@@ -650,6 +740,109 @@ export default function Chat() {
           </ul>
         )}
       </footer>
+
+      {showWelcome && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
+          <div
+            role="dialog"
+            aria-labelledby="welcome-title"
+            className="welcome-card w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 p-5 shadow-xl border border-zinc-200 dark:border-zinc-700"
+          >
+            <h2 id="welcome-title" className="text-lg font-semibold mb-1">
+              歡迎嚟到 Talk tgt la 👋
+            </h2>
+            <p className="text-sm text-zinc-500 mb-3">香港人一齊傾偈。幾秒就上手：</p>
+            <ul className="text-sm text-zinc-700 dark:text-zinc-300 space-y-2 mb-4">
+              <li>· 撳訊息可以<strong className="font-medium">回覆</strong></li>
+              <li>· <strong className="font-medium">Enter</strong> 傳送 · Shift+Enter 換行</li>
+              <li>· 底部有<strong className="font-medium">潮語</strong>同<strong className="font-medium">表情</strong>快速掣</li>
+              <li>· 可以揀匿名或者用自己個名</li>
+              <li>· 公開聊天室，請遵守使用條款，自己負責言論</li>
+            </ul>
+            <button
+              type="button"
+              onClick={closeWelcome}
+              className="w-full rounded-full bg-blue-600 text-white py-2.5 text-sm font-medium hover:bg-blue-700 active:scale-[0.98] transition-all"
+            >
+              明白，開始傾偈
+            </button>
+          </div>
+        </div>
+      )}
+
+      {achievementToast && (() => {
+        const a = achievementById(achievementToast)
+        if (!a) return null
+        return (
+          <div
+            className="achievement-toast fixed top-16 left-1/2 z-[60] -translate-x-1/2 max-w-[90vw] rounded-2xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-3 shadow-xl"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl" aria-hidden>
+                {a.emoji}
+              </span>
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-wide opacity-70">解鎖徽章</div>
+                <div className="font-semibold text-sm">{a.title}</div>
+                <div className="text-xs opacity-80 truncate">{a.description}</div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {showBadges && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div
+            role="dialog"
+            aria-labelledby="badges-title"
+            className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 p-4 shadow-xl border border-zinc-200 dark:border-zinc-700 max-h-[80dvh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 id="badges-title" className="text-base font-semibold">
+                我的徽章
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowBadges(false)}
+                className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 text-sm px-2"
+                aria-label="關閉"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-zinc-500 mb-3">
+              徽章只喺你部裝置顯示（本地記錄），唔會公開。
+              {stats ? ` 已傳送 ${stats.messagesSent} 句。` : ''}
+            </p>
+            <ul className="space-y-2">
+              {ACHIEVEMENTS.map((a) => {
+                const got = unlocked.has(a.id)
+                return (
+                  <li
+                    key={a.id}
+                    className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 ${
+                      got
+                        ? 'border-amber-300/80 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40'
+                        : 'border-zinc-200 dark:border-zinc-700 opacity-55'
+                    }`}
+                  >
+                    <span className="text-xl leading-none mt-0.5" aria-hidden>
+                      {got ? a.emoji : '🔒'}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">{a.title}</div>
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">{a.description}</div>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {showAdminLogin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
