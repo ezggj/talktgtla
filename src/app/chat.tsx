@@ -236,6 +236,9 @@ export default function Chat() {
       <header className="p-4 border-b bg-zinc-100/90 dark:bg-zinc-800/90 backdrop-blur-sm sticky top-0 z-10">
         <h1 className="text-2xl font-bold text-center tracking-tight">Talk tgt la</h1>
         <p className="text-sm text-center text-zinc-500">香港人一齊傾偈</p>
+        <p className="mt-1.5 text-[10px] text-center text-zinc-400 leading-snug">
+          公開聊天室 · 訊息由用戶發佈，唔代表本平台立場 · 請遵守下方使用條款
+        </p>
       </header>
 
       {!isSupabaseConfigured && (
@@ -410,10 +413,26 @@ export default function Chat() {
         </p>
       </form>
 
-      <footer className="px-4 pb-3 pt-1 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
-        <p className="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400 text-center">
-          免責聲明：呢個係公開聊天室。用戶須為自己言論負責，唔好發佈違法、誹謗、侵權或其他不當內容。網站營運者唔對用戶訊息負責，亦可能刪除違規內容。
-        </p>
+      <footer className="px-4 pb-3 pt-1 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
+        <div className="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400 space-y-1.5">
+          <p className="font-medium text-zinc-600 dark:text-zinc-300 text-center">
+            使用條款／免責聲明
+          </p>
+          <ul className="list-disc pl-4 space-y-1 marker:text-zinc-400">
+            <li>
+              呢個係<strong className="font-medium">公開、可匿名</strong>嘅聊天室。你喺此發佈嘅所有言論、回覆同表情內容，均由你本人全權負責。
+            </li>
+            <li>
+              <strong className="font-medium">嚴禁</strong>發佈違法、誹謗、色情、仇恨、侵權、欺詐、騷擾或其他不當內容。違規內容唔代表本平台立場。
+            </li>
+            <li>
+              本平台可隨時<strong className="font-medium">刪除內容、限制或封鎖使用者</strong>，無需事先通知，亦唔保證服務不中斷或內容永久保存。
+            </li>
+            <li>
+              所有訊息均為用戶自行產生；本平台<strong className="font-medium">唔對用戶內容負責</strong>，亦唔承擔因此引起嘅任何損失或法律責任。繼續使用即表示你同意以上條款。
+            </li>
+          </ul>
+        </div>
       </footer>
     </div>
   )
