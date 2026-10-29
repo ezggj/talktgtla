@@ -96,6 +96,7 @@ export default function Chat() {
   const [adminBusy, setAdminBusy] = useState(false)
   const [showTerms, setShowTerms] = useState(false)
   const [nowMs, setNowMs] = useState(0) // set after mount (avoid prerender Date.now)
+  const [onlineCount, setOnlineCount] = useState<number | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -165,8 +166,28 @@ export default function Chat() {
     }
     loadMessages()
 
+    // One presence key per browser tab (= one online person while the tab is open)
+    const PRESENCE_KEY = 'talktgtla-presence-id'
+    let presenceKey = sessionStorage.getItem(PRESENCE_KEY)
+    if (!presenceKey) {
+      presenceKey =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `anon-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      sessionStorage.setItem(PRESENCE_KEY, presenceKey)
+    }
+
+    const updateOnlineCount = (channel: ReturnType<typeof supabase.channel>) => {
+      const state = channel.presenceState()
+      setOnlineCount(Object.keys(state).length)
+    }
+
     const channel = supabase
-      .channel('public:messages')
+      .channel('public:messages', {
+        config: {
+          presence: { key: presenceKey },
+        },
+      })
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
@@ -187,9 +208,25 @@ export default function Chat() {
           setMessages((prev) => prev.filter((m) => m.id !== oldRow.id))
         }
       )
-      .subscribe()
+      .on('presence', { event: 'sync' }, () => {
+        updateOnlineCount(channel)
+      })
+      .on('presence', { event: 'join' }, () => {
+        updateOnlineCount(channel)
+      })
+      .on('presence', { event: 'leave' }, () => {
+        updateOnlineCount(channel)
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            online_at: new Date().toISOString(),
+          })
+        }
+      })
 
     return () => {
+      void channel.untrack()
       supabase.removeChannel(channel)
     }
   }, [])
@@ -368,6 +405,13 @@ export default function Chat() {
           </div>
         </div>
         <p className="text-sm text-center text-zinc-500">香港人一齊傾偈</p>
+        <p className="mt-1 text-xs text-center text-emerald-600 dark:text-emerald-400 tabular-nums" aria-live="polite">
+          {onlineCount == null
+            ? '連線中…'
+            : onlineCount <= 0
+              ? '而家冇人在線'
+              : `而家有 ${onlineCount} 人在線`}
+        </p>
         <p className="mt-1.5 text-[10px] text-center text-zinc-400 leading-snug">
           公開聊天室 · 訊息由用戶發佈，唔代表本平台立場 · 請遵守下方使用條款
         </p>
