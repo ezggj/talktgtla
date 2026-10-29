@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 
 type Message = {
@@ -8,6 +8,7 @@ type Message = {
   username: string
   content: string
   created_at: string
+  reply_to: number | null
 }
 
 export default function Chat() {
@@ -15,23 +16,31 @@ export default function Chat() {
   const [newMessage, setNewMessage] = useState('')
   const [username, setUsername] = useState('')
   const [isAnonymous, setIsAnonymous] = useState(true)
+  const [replyToId, setReplyToId] = useState<number | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const messagesById = useMemo(() => {
+    const map = new Map<number, Message>()
+    for (const msg of messages) map.set(msg.id, msg)
+    return map
+  }, [messages])
+
+  const replyTarget = replyToId != null ? messagesById.get(replyToId) ?? null : null
 
   useEffect(() => {
     if (!isSupabaseConfigured) return
 
-    // Load existing messages
     const loadMessages = async () => {
       const { data } = await supabase
         .from('messages')
         .select('*')
         .order('created_at', { ascending: true })
         .limit(100)
-      if (data) setMessages(data)
+      if (data) setMessages(data as Message[])
     }
     loadMessages()
 
-    // Realtime subscription
     const channel = supabase
       .channel('public:messages')
       .on(
@@ -52,6 +61,13 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  const startReply = (msg: Message) => {
+    setReplyToId(msg.id)
+    inputRef.current?.focus()
+  }
+
+  const cancelReply = () => setReplyToId(null)
+
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!isSupabaseConfigured || !newMessage.trim()) return
@@ -62,11 +78,16 @@ export default function Chat() {
       {
         username: displayName,
         content: newMessage.trim(),
+        reply_to: replyToId,
       },
     ])
 
     setNewMessage('')
+    setReplyToId(null)
   }
+
+  const previewText = (text: string) =>
+    text.length > 60 ? `${text.slice(0, 60)}…` : text
 
   return (
     <div className="flex flex-col h-screen max-w-2xl mx-auto bg-white dark:bg-zinc-900">
@@ -86,21 +107,66 @@ export default function Chat() {
       )}
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.map((msg) => (
-          <div key={msg.id} className="flex flex-col">
-            <div className="text-xs text-zinc-500">{msg.username}</div>
-            <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-3 max-w-[80%]">
-              {msg.content}
+        {messages.map((msg) => {
+          const parent = msg.reply_to != null ? messagesById.get(msg.reply_to) : null
+          return (
+            <div key={msg.id} className="flex flex-col">
+              <div className="text-xs text-zinc-500">{msg.username}</div>
+              <button
+                type="button"
+                onClick={() => startReply(msg)}
+                className="text-left bg-zinc-100 dark:bg-zinc-800 rounded-lg p-3 max-w-[80%] hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+              >
+                {parent && (
+                  <div className="mb-2 rounded border-l-2 border-blue-400 bg-white/60 dark:bg-black/20 px-2 py-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    <div className="font-medium text-zinc-600 dark:text-zinc-300">
+                      回覆 {parent.username}
+                    </div>
+                    <div className="truncate">{previewText(parent.content)}</div>
+                  </div>
+                )}
+                {!parent && msg.reply_to != null && (
+                  <div className="mb-2 rounded border-l-2 border-zinc-300 px-2 py-1 text-xs text-zinc-400">
+                    回覆一則訊息
+                  </div>
+                )}
+                <div>{msg.content}</div>
+              </button>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs text-zinc-400">
+                  {new Date(msg.created_at).toLocaleTimeString('zh-HK')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => startReply(msg)}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  回覆
+                </button>
+              </div>
             </div>
-            <div className="text-xs text-zinc-400 mt-1">
-              {new Date(msg.created_at).toLocaleTimeString('zh-HK')}
-            </div>
-          </div>
-        ))}
+          )
+        })}
         <div ref={messagesEndRef} />
       </div>
 
       <form onSubmit={sendMessage} className="p-4 border-t bg-white dark:bg-zinc-900">
+        {replyTarget && (
+          <div className="mb-2 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/40 px-3 py-2">
+            <div className="flex-1 min-w-0 text-xs text-zinc-600 dark:text-zinc-300">
+              <div className="font-medium">回覆 {replyTarget.username}</div>
+              <div className="truncate">{previewText(replyTarget.content)}</div>
+            </div>
+            <button
+              type="button"
+              onClick={cancelReply}
+              className="shrink-0 text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+              aria-label="取消回覆"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <div className="flex items-center gap-2 mb-2">
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -122,8 +188,9 @@ export default function Chat() {
         </div>
         <div className="flex gap-2">
           <input
+            ref={inputRef}
             type="text"
-            placeholder="輸入訊息..."
+            placeholder={replyTarget ? '回覆訊息...' : '輸入訊息...'}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             className="flex-1 border rounded-full px-4 py-2"
