@@ -11,7 +11,25 @@ type Message = {
   reply_to: number | null
 }
 
-const EMOJIS = ['😀', '😂', '😍', '👍', '🙏', '🔥', '❤️', '🎉', '😢', '🤔', '👏', '✨'] as const
+const EMOJIS = [
+  // smileys
+  '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
+  '🙂', '😉', '😍', '🥰', '😘', '😗', '😜', '🤪', '😎', '🤩',
+  '🥳', '😏', '😒', '🙄', '😬', '😮', '😯', '😲', '😳', '🥺',
+  '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '🤔', '🤭', '🤫',
+  '😴', '🤤', '😷', '🤒', '🤕', '🤢', '🤮', '🥵', '🥶', '🥴',
+  // gestures / people
+  '👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙', '👏', '🙌',
+  '👐', '🤝', '🙏', '💪', '🫶', '❤️', '🧡', '💛', '💚', '💙',
+  '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗',
+  // celebration / objects
+  '🔥', '✨', '⭐', '🌟', '💥', '🎉', '🎊', '🎈', '🎁', '🏆',
+  '🥇', '🎯', '💡', '📌', '✅', '❌', '❓', '❗', '💯', '🚀',
+  // animals / nature
+  '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯',
+  '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🦄', '🐝',
+  '🌸', '🌺', '🌻', '🌈', '☀️', '🌙', '☁️', '⚡', '🌊', '🍀',
+] as const
 
 function formatRelativeTime(iso: string, nowMs: number): string {
   const then = new Date(iso).getTime()
@@ -472,10 +490,10 @@ export default function Chat() {
         </div>
 
         {showEmoji && (
-          <div className="emoji-picker mb-2 flex flex-wrap gap-1 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 p-2">
-            {EMOJIS.map((emoji) => (
+          <div className="emoji-picker mb-2 max-h-36 overflow-y-auto overscroll-contain flex flex-wrap gap-1 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 p-2">
+            {EMOJIS.map((emoji, i) => (
               <button
-                key={emoji}
+                key={`${emoji}-${i}`}
                 type="button"
                 onClick={() => insertEmoji(emoji)}
                 className="h-9 w-9 rounded-lg text-xl leading-none hover:bg-zinc-200/80 dark:hover:bg-zinc-700 active:scale-90 transition-transform"
