@@ -47,3 +47,15 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=你的_anon_key
 喺 Vercel 設定加你嘅 talktgtla.com domain。
 
 完成後就有一個完全自己控制嘅聊天網站。
+
+### 5. 管理員（刪除訊息）
+喺 Vercel Environment Variables 加（加密／唔公開）：
+
+- `ADMIN_PASSWORD` — 管理員登入密碼
+- `ADMIN_DELETE_TOKEN` — 伺服器刪除用 token（要同 Supabase `private.admin_config` 入面 `delete_token` 一致）
+- `ADMIN_SESSION_SECRET` — 簽署 admin cookie 用
+
+網站右上角撳「管理」輸入密碼。刪除經 `/api/admin/messages`，一般用戶嘅 anon key **冇** DELETE RLS policy，唔可以自己刪。
+
+SQL（已套用可跳過）：`admin_delete_message` SECURITY DEFINER RPC + `private.admin_config`。
+

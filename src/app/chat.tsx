@@ -52,6 +52,12 @@ export default function Chat() {
   const [sending, setSending] = useState(false)
   const [showJump, setShowJump] = useState(false)
   const [showEmoji, setShowEmoji] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [showAdminLogin, setShowAdminLogin] = useState(false)
+  const [adminPassword, setAdminPassword] = useState('')
+  const [adminError, setAdminError] = useState('')
+  const [adminBusy, setAdminBusy] = useState(false)
+  const [showTerms, setShowTerms] = useState(false)
   const [nowMs, setNowMs] = useState(0) // set after mount (avoid prerender Date.now)
   const listRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -101,6 +107,13 @@ export default function Chat() {
   }, [])
 
   useEffect(() => {
+    fetch('/api/admin/me')
+      .then((r) => r.json())
+      .then((d) => setIsAdmin(Boolean(d?.admin)))
+      .catch(() => setIsAdmin(false))
+  }, [])
+
+  useEffect(() => {
     if (!isSupabaseConfigured) return
 
     const loadMessages = async () => {
@@ -126,6 +139,15 @@ export default function Chat() {
             if (prev.some((m) => m.id === next.id)) return prev
             return [...prev, next]
           })
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'messages' },
+        (payload) => {
+          const oldRow = payload.old as { id?: number }
+          if (oldRow?.id == null) return
+          setMessages((prev) => prev.filter((m) => m.id !== oldRow.id))
         }
       )
       .subscribe()
@@ -229,17 +251,92 @@ export default function Chat() {
     void sendMessage()
   }
 
+  const loginAdmin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAdminBusy(true)
+    setAdminError('')
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: adminPassword }),
+      })
+      if (!res.ok) {
+        setAdminError(res.status === 401 ? '密碼錯誤' : '登入失敗')
+        return
+      }
+      setIsAdmin(true)
+      setShowAdminLogin(false)
+      setAdminPassword('')
+    } catch {
+      setAdminError('網絡錯誤')
+    } finally {
+      setAdminBusy(false)
+    }
+  }
+
+  const logoutAdmin = async () => {
+    await fetch('/api/admin/logout', { method: 'POST' })
+    setIsAdmin(false)
+  }
+
+  const deleteMessage = async (id: number) => {
+    if (!isAdmin) return
+    if (!window.confirm('確定刪除呢條訊息？')) return
+    const res = await fetch('/api/admin/messages', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    if (!res.ok) {
+      window.alert('刪除失敗')
+      return
+    }
+    setMessages((prev) => prev.filter((m) => m.id !== id))
+    if (replyToId === id) setReplyToId(null)
+  }
+
   const previewText = (text: string) =>
     text.length > 60 ? `${text.slice(0, 60)}…` : text
 
   return (
-    <div className="flex flex-col h-screen max-w-2xl mx-auto bg-white dark:bg-zinc-900">
-      <header className="p-4 border-b bg-zinc-100/90 dark:bg-zinc-800/90 backdrop-blur-sm sticky top-0 z-10">
-        <h1 className="text-2xl font-bold text-center tracking-tight">Talk tgt la</h1>
+    <div className="flex flex-col h-dvh max-w-2xl mx-auto bg-white dark:bg-zinc-900 overflow-hidden">
+      <header className="p-3 border-b bg-zinc-100/90 dark:bg-zinc-800/90 backdrop-blur-sm shrink-0 z-10">
+        <div className="relative">
+          <h1 className="text-xl font-bold text-center tracking-tight">Talk tgt la</h1>
+          <div className="absolute right-0 top-0">
+            {isAdmin ? (
+              <button
+                type="button"
+                onClick={() => void logoutAdmin()}
+                className="text-[10px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 underline"
+              >
+                管理員登出
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAdminLogin(true)
+                  setAdminError('')
+                }}
+                className="text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                aria-label="管理員登入"
+              >
+                管理
+              </button>
+            )}
+          </div>
+        </div>
         <p className="text-sm text-center text-zinc-500">香港人一齊傾偈</p>
         <p className="mt-1.5 text-[10px] text-center text-zinc-400 leading-snug">
           公開聊天室 · 訊息由用戶發佈，唔代表本平台立場 · 請遵守下方使用條款
         </p>
+        {isAdmin && (
+          <p className="mt-1 text-[10px] text-center text-amber-700 dark:text-amber-300">
+            管理員模式：可刪除違規訊息
+          </p>
+        )}
       </header>
 
       {!isSupabaseConfigured && (
@@ -307,6 +404,15 @@ export default function Chat() {
                   >
                     回覆
                   </button>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => void deleteMessage(msg.id)}
+                      className="text-xs text-red-600 dark:text-red-400 hover:underline active:opacity-70 transition-opacity"
+                    >
+                      刪除
+                    </button>
+                  )}
                 </div>
               </div>
             )
@@ -327,7 +433,7 @@ export default function Chat() {
 
       <form
         onSubmit={sendMessage}
-        className="p-4 border-t bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm"
+        className="p-3 border-t bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm shrink-0"
       >
         {replyTarget && (
           <div className="chat-reply-bar mb-2 flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/40 px-3 py-2">
@@ -419,12 +525,20 @@ export default function Chat() {
         </p>
       </form>
 
-      <footer className="px-4 pb-3 pt-1 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
-        <div className="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400 space-y-1.5">
-          <p className="font-medium text-zinc-600 dark:text-zinc-300 text-center">
-            使用條款／免責聲明
-          </p>
-          <ul className="list-disc pl-4 space-y-1 marker:text-zinc-400">
+      <footer className="px-4 py-2 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/95 dark:bg-zinc-950/95 shrink-0">
+        <button
+          type="button"
+          onClick={() => setShowTerms((v) => !v)}
+          className="w-full text-left text-[11px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+          aria-expanded={showTerms}
+        >
+          <span className="font-medium text-zinc-600 dark:text-zinc-300">使用條款／免責聲明</span>
+          <span className="mx-1.5 text-zinc-300 dark:text-zinc-600">·</span>
+          <span>用戶須為言論負責 · 嚴禁違法／誹謗／色情／仇恨內容 · 平台可刪除及封鎖 · 唔對用戶內容負責</span>
+          <span className="ml-1 text-blue-600 dark:text-blue-400">{showTerms ? '收起' : '詳情'}</span>
+        </button>
+        {showTerms && (
+          <ul className="mt-2 list-disc pl-4 space-y-1 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400 marker:text-zinc-400">
             <li>
               呢個係<strong className="font-medium">公開、可匿名</strong>嘅聊天室。你喺此發佈嘅所有言論、回覆同表情內容，均由你本人全權負責。
             </li>
@@ -438,8 +552,51 @@ export default function Chat() {
               所有訊息均為用戶自行產生；本平台<strong className="font-medium">唔對用戶內容負責</strong>，亦唔承擔因此引起嘅任何損失或法律責任。繼續使用即表示你同意以上條款。
             </li>
           </ul>
-        </div>
+        )}
       </footer>
+
+      {showAdminLogin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <form
+            onSubmit={loginAdmin}
+            className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 p-4 shadow-xl border border-zinc-200 dark:border-zinc-700"
+          >
+            <h2 className="text-base font-semibold mb-1">管理員登入</h2>
+            <p className="text-xs text-zinc-500 mb-3">登入後可以刪除違規訊息。一般用戶唔使登入。</p>
+            <input
+              type="password"
+              autoFocus
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              placeholder="管理員密碼"
+              className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400/50 mb-2"
+            />
+            {adminError && (
+              <p className="text-xs text-red-600 mb-2">{adminError}</p>
+            )}
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAdminLogin(false)
+                  setAdminPassword('')
+                  setAdminError('')
+                }}
+                className="text-sm px-3 py-1.5 rounded-lg text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              >
+                取消
+              </button>
+              <button
+                type="submit"
+                disabled={adminBusy || !adminPassword}
+                className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {adminBusy ? '登入中…' : '登入'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   )
 }
