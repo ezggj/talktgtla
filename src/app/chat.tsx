@@ -466,12 +466,23 @@ export default function Chat() {
           reply_to,
         }),
       })
-      const data = (await res.json().catch(() => ({}))) as { error?: string }
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string
+        message?: Message
+      }
       if (!res.ok) {
         setNewMessage(draft)
         setReplyToId(reply_to)
         setSendError(data.error || '傳送失敗，請再試一次')
         return
+      }
+      // Don't wait on Realtime — append returned row immediately (dedupe by id)
+      if (data.message && typeof data.message.id === 'number') {
+        const row = data.message
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === row.id)) return prev
+          return [...prev, row]
+        })
       }
       applyStats((s) => ({
         ...s,
@@ -941,7 +952,12 @@ export default function Chat() {
           </button>
         </div>
         {sendError && (
-          <p className="mt-1.5 text-xs text-red-600 dark:text-red-400 text-center">{sendError}</p>
+          <p
+            role="alert"
+            className="mt-2 rounded-lg border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/50 px-3 py-2 text-xs text-red-700 dark:text-red-300 text-center"
+          >
+            {sendError}
+          </p>
         )}
       </form>
 
