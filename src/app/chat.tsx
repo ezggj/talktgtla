@@ -52,7 +52,7 @@ export default function Chat() {
   const [sending, setSending] = useState(false)
   const [showJump, setShowJump] = useState(false)
   const [showEmoji, setShowEmoji] = useState(false)
-  const [nowMs, setNowMs] = useState(() => Date.now())
+  const [nowMs, setNowMs] = useState(0) // set after mount (avoid prerender Date.now)
   const listRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -95,6 +95,7 @@ export default function Chat() {
   }
 
   useEffect(() => {
+    setNowMs(Date.now())
     const id = window.setInterval(() => setNowMs(Date.now()), 30_000)
     return () => window.clearInterval(id)
   }, [])
@@ -292,7 +293,12 @@ export default function Chat() {
                     className="text-xs text-zinc-400"
                     title={new Date(msg.created_at).toLocaleString('zh-HK')}
                   >
-                    {formatRelativeTime(msg.created_at, nowMs)}
+                    {nowMs
+                      ? formatRelativeTime(msg.created_at, nowMs)
+                      : new Date(msg.created_at).toLocaleTimeString('zh-HK', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                   </span>
                   <button
                     type="button"
