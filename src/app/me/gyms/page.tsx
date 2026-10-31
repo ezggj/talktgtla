@@ -6,6 +6,11 @@ import { PageTransition } from '@/components/motion/page-transition'
 import { PageHeader } from '@/components/ui/page-header'
 import { HkGymCompare } from '@/components/fitness/hk-gym-compare'
 
+export const metadata = {
+  title: '香港健身房對比 · Talk tgt la',
+  description: '按地區、價錢、24小時同器材，對比香港常見健身房——價錢僅供參考。',
+}
+
 export default function MeGymsPage() {
   return (
     <AppShell>
