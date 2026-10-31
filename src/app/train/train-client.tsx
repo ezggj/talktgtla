@@ -174,6 +174,44 @@ export function TrainClient() {
   const restEndedFocus = useRef(false)
   const [restReadyNext, setRestReadyNext] = useState(false)
 
+  // Derived / secondary state — must stay above ready/authReady gate (React #310)
+  const [todayDone, setTodayDone] = useState<WorkoutSession[]>([])
+  const [weekVolume, setWeekVolume] = useState(0)
+  const [historyCurve, setHistoryCurve] = useState<{ key: string; label: string; volume: number }[]>([])
+  const [weekDays, setWeekDays] = useState<WeekDay[]>([])
+  const [weekTrainCount, setWeekTrainCount] = useState(0)
+  const [streak, setStreak] = useState(0)
+
+  const filtered = useMemo(
+    () =>
+      filterExercises({
+        query: search,
+        muscle: muscleFilter,
+        equipment: equipmentFilter,
+      }),
+    [search, muscleFilter, equipmentFilter]
+  )
+
+  const setsByExercise = useMemo(() => {
+    if (!active) return [] as { id: string; name: string; sets: WorkoutSet[] }[]
+    const map = new Map<string, WorkoutSet[]>()
+    for (const s of active.sets) {
+      const list = map.get(s.exerciseId) || []
+      list.push(s)
+      map.set(s.exerciseId, list)
+    }
+    return [...map.entries()].map(([id, sets]) => ({
+      id,
+      name: sets[0]?.exerciseName || id,
+      sets,
+    }))
+  }, [active])
+
+  const coachTip = useMemo(
+    () => buildTrainCoachBlurb(sessions).lines[0] || '',
+    [sessions]
+  )
+
   useEffect(() => {
     const s = loadSessions()
     setSessions(s)
@@ -182,6 +220,27 @@ export function TrainClient() {
     setActive(a)
     setReady(true)
   }, [])
+
+  useEffect(() => {
+    if (!ready) return
+    setTodayHint(getTodayPlanHint(sessions))
+    setCustomPlans(loadCustomDayPlans())
+    setWeekSlots(loadWeeklySchedule())
+    setWeekProgress(computeWeeklySlotProgress(sessions))
+    setTodayDone(sessions.filter((s) => s.endedAt && isSameDay(s.startedAt)))
+    const w = weekConsistency(sessions)
+    setWeekDays(w.days)
+    setWeekTrainCount(w.trainedCount)
+    setStreak(w.streak)
+    const now = Date.now()
+    const weekAgo = now - 7 * 86400000
+    setWeekVolume(
+      sessions
+        .filter((s) => new Date(s.startedAt).getTime() >= weekAgo)
+        .reduce((a, s) => a + volumeOf(s.sets), 0)
+    )
+    setHistoryCurve(volumeByDay(sessions, 14))
+  }, [sessions, ready])
 
   // Cloud hydrate + idempotent local → cloud migrate when logged in
   useEffect(() => {
@@ -556,64 +615,6 @@ export function TrainClient() {
     setRestLeft(null)
     setRestReadyNext(false)
   }
-
-  const filtered = useMemo(
-    () =>
-      filterExercises({
-        query: search,
-        muscle: muscleFilter,
-        equipment: equipmentFilter,
-      }),
-    [search, muscleFilter, equipmentFilter]
-  )
-
-  const [todayDone, setTodayDone] = useState<WorkoutSession[]>([])
-  const [weekVolume, setWeekVolume] = useState(0)
-  const [historyCurve, setHistoryCurve] = useState<{ key: string; label: string; volume: number }[]>([])
-  const [weekDays, setWeekDays] = useState<WeekDay[]>([])
-  const [weekTrainCount, setWeekTrainCount] = useState(0)
-  const [streak, setStreak] = useState(0)
-
-  useEffect(() => {
-    if (!ready) return
-    setTodayHint(getTodayPlanHint(sessions))
-    setCustomPlans(loadCustomDayPlans())
-    setWeekSlots(loadWeeklySchedule())
-    setWeekProgress(computeWeeklySlotProgress(sessions))
-    setTodayDone(sessions.filter((s) => s.endedAt && isSameDay(s.startedAt)))
-    const w = weekConsistency(sessions)
-    setWeekDays(w.days)
-    setWeekTrainCount(w.trainedCount)
-    setStreak(w.streak)
-    const now = Date.now()
-    const weekAgo = now - 7 * 86400000
-    setWeekVolume(
-      sessions
-        .filter((s) => new Date(s.startedAt).getTime() >= weekAgo)
-        .reduce((a, s) => a + volumeOf(s.sets), 0)
-    )
-    setHistoryCurve(volumeByDay(sessions, 14))
-  }, [sessions, ready])
-
-  const setsByExercise = useMemo(() => {
-    if (!active) return [] as { id: string; name: string; sets: WorkoutSet[] }[]
-    const map = new Map<string, WorkoutSet[]>()
-    for (const s of active.sets) {
-      const list = map.get(s.exerciseId) || []
-      list.push(s)
-      map.set(s.exerciseId, list)
-    }
-    return [...map.entries()].map(([id, sets]) => ({
-      id,
-      name: sets[0]?.exerciseName || id,
-      sets,
-    }))
-  }, [active])
-
-  const coachTip = useMemo(
-    () => buildTrainCoachBlurb(sessions).lines[0] || '',
-    [sessions]
-  )
 
   if (!ready || !authReady) {
     return (
