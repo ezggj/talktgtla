@@ -24,6 +24,13 @@ import {
 } from '@/lib/fitness/meetups'
 import { cn } from '@/lib/utils'
 import {
+  checkinMinutesLeft,
+  clearGymCheckin,
+  loadGymCheckin,
+  saveGymCheckin,
+  type GymCheckin,
+} from '@/lib/fitness/gym-checkin'
+import {
   showAppNotification,
   requestNotificationPermissionCantonese,
   notificationPermission,
@@ -84,12 +91,20 @@ export function MeetupBoard({ className }: { className?: string }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [checkin, setCheckin] = useState<GymCheckin | null>(null)
+  const [checkinArea, setCheckinArea] = useState('')
+  const [checkinBusy, setCheckinBusy] = useState(false)
   const [composer, setComposer] = useState(false)
   const [filterArea, setFilterArea] = useState<string | null>(null)
 
   const gyms = useMemo(() => featuredMeetupGyms(), [])
   const hotBranches = useMemo(() => popularMeetupBranches(12), [])
   const [hostName, setHostName] = useState('')
+  useEffect(() => {
+    setCheckin(loadGymCheckin())
+    const pref = loadPrefArea()
+    if (pref) setCheckinArea(pref)
+  }, [])
   const [gymId, setGymId] = useState(gyms[0]?.id || '247-fitness')
   const selectedGym = gyms.find((g) => g.id === gymId) || gyms[0]
   const [area, setArea] = useState(selectedGym?.areas[0] || '旺角')
@@ -412,7 +427,7 @@ export function MeetupBoard({ className }: { className?: string }) {
           <div>
             <CardTitle className="text-lg leading-snug">開台凑局</CardTitle>
             <CardDesc className="mt-1">
-              揀分店睇邊度有人開台——街坊凑埋練同一部位。
+              揀分店睇邊度有人開台——街坊凑埋練同一部位。線下見面請小心人身安全，風險自負；平台唔擔保對方身份。
             </CardDesc>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -678,6 +693,13 @@ export function MeetupBoard({ className }: { className?: string }) {
       ) : (
         renderMeetupList(filtered)
       )}
+
+      <p className="mt-3 text-center text-[10px] text-muted leading-relaxed px-2">
+        凑局線下風險自負 · 唔擔保身份。{' '}
+        <a href="/disclaimer" className="text-accent font-medium hover:underline">
+          免責
+        </a>
+      </p>
 
       <AnimatePresence>
         {toast && (

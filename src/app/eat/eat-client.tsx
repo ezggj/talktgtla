@@ -96,6 +96,8 @@ type Draft = {
   status: 'estimating' | 'ready'
   name: string
   baseMacros: MealMacros
+  /** Frozen when AI／示範估算到位 — 用嚟對比「你改完 vs AI 估」 */
+  aiSnapshot?: MealMacros
   portion: number
   estimated: boolean
   source: 'ai' | 'mock' | 'manual'
@@ -492,6 +494,7 @@ export function EatClient() {
                 status: 'ready',
                 name: data.name!,
                 baseMacros: data.macros!,
+                aiSnapshot: { ...data.macros! },
                 estimated: true,
                 source: 'ai',
                 note: data.note
@@ -511,6 +514,7 @@ export function EatClient() {
                 status: 'ready',
                 name: est.name,
                 baseMacros: est.macros,
+                aiSnapshot: billingish ? undefined : { ...est.macros },
                 estimated: true,
                 source: billingish ? 'manual' : 'mock',
                 note: billingish
@@ -1713,8 +1717,11 @@ export function EatClient() {
                     )}
                     <p className="text-[11px] text-muted text-center mt-3 leading-relaxed">
                       {draft.source === 'manual'
-                        ? 'AI 額用晒或者暫時唔得都冇問題——自己改完數字再入日記就得。'
-                        : '估算啫，唔係實驗室數字。登入後會入雲端歷史，之後可以睇月計。'}
+                        ? 'AI 額用晒或者暫時唔得都冇問題——自己改完數字再入日記就得。數字仍係你負責，唔係營養師建議。'
+                        : 'AI／示範估算可有誤差，唔係營養師或醫療飲食建議。登入後入雲端歷史；過敏或疾病請咨詢專業人士。'}{' '}
+                      <a href="/disclaimer" className="text-accent font-medium hover:underline">
+                        免責
+                      </a>
                     </p>
                   </>
                 )}

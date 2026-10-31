@@ -2711,7 +2711,10 @@ export function TrainClient() {
                   ))}
                 </ul>
                 <p className="text-[10px] text-muted mt-3 leading-relaxed">
-                  提示只係一般訓練參考，唔係醫療建議。身體唔舒服就停低休息。
+                  提示只係一般健身參考，唔係醫療、物理治療或私人教練建議。身體唔舒服就停低並求醫。{' '}
+                  <a href="/disclaimer" className="text-accent font-medium hover:underline">
+                    免責
+                  </a>
                 </p>
               </div>
 

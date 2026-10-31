@@ -25,7 +25,7 @@ export default function MeGymsPage() {
         <PageHeader
           eyebrow="香港"
           title="健身房對比"
-          description="想 join 邊間？按地區、價錢、24 小時同器材篩一篩，最多並排三間再決定。"
+          description="想 join 邊間？按地區、價錢、24 小時同器材篩一篩。價錢同資料僅供參考，以會所官方為準。"
         />
         <Suspense
           fallback={
@@ -34,6 +34,12 @@ export default function MeGymsPage() {
         >
           <HkGymCompare />
         </Suspense>
+        <p className="mt-3 text-center text-[10px] text-muted leading-relaxed px-2">
+          靜態整理可能過時；標「參考 · 非報價」。{' '}
+          <Link href="/disclaimer" className="text-accent font-medium hover:underline">
+            免責聲明
+          </Link>
+        </p>
       </PageTransition>
     </AppShell>
   )

@@ -504,6 +504,21 @@ export function MeClient() {
           </StaggerItem>
 
           <StaggerItem>
+            <Link
+              href="/disclaimer"
+              className="flex items-center justify-between rounded-[20px] border border-border bg-surface px-4 py-3.5 shadow-soft hover:shadow-hover transition touch-manipulation"
+            >
+              <div>
+                <div className="text-sm font-semibold text-foreground">免責聲明</div>
+                <p className="mt-0.5 text-[11px] text-muted leading-relaxed">
+                  傾偈 · 訓練 · AI 影餐 · 凑局 · 數據
+                </p>
+              </div>
+              <span className="text-accent text-sm font-medium shrink-0">睇 →</span>
+            </Link>
+          </StaggerItem>
+
+          <StaggerItem>
             <CardDesc className="text-center text-[11px] px-2">
               Talk tgt la · 你嘅訓練同飲食，淨得你睇到。
             </CardDesc>

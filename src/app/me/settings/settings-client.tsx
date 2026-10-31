@@ -71,6 +71,23 @@ export function SettingsClient() {
           </StaggerItem>
 
           <StaggerItem>
+            <div className="pt-1 text-[11px] font-medium text-muted px-0.5">私隱同免責</div>
+          </StaggerItem>
+          <StaggerItem>
+            <CardDesc className="text-[12px] leading-relaxed px-1">
+              傾偈可以匿名；凑局花名唔會自動綁去聊天室。訓練／飲食登入後可上雲，本機設定清瀏覽器會冇。詳情見免責聲明。
+            </CardDesc>
+          </StaggerItem>
+          <StaggerItem>
+            <Link
+              href="/disclaimer"
+              className="flex items-center justify-between rounded-[20px] border border-border bg-surface px-4 py-3.5 shadow-soft hover:border-accent/40 transition touch-manipulation"
+            >
+              <span className="text-sm font-semibold">免責聲明</span>
+              <span className="text-accent text-sm font-medium">完整版 →</span>
+            </Link>
+          </StaggerItem>
+          <StaggerItem>
             <CardDesc className="text-center text-[11px] px-2 pb-2">
               設定用 localStorage，唔會上雲。清瀏覽器資料會重置。
             </CardDesc>

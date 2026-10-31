@@ -25,6 +25,7 @@ import {
 import { applyTheme, resolveTheme, readThemePreference, setThemePreference, type ThemeMode } from '@/lib/theme'
 import { AppShell } from '@/components/shell/app-shell'
 import { NewbieGuide } from '@/components/shell/newbie-guide'
+import { DisclaimerShort } from '@/components/legal/site-disclaimer'
 import { computeStreak, trainedToday } from '@/lib/fitness/streaks'
 import { getDailyTopic, topicStarterLine } from '@/lib/fitness/daily-topic'
 
@@ -1113,30 +1114,7 @@ export default function Chat() {
       </form>
 
       <footer className="px-3 py-1.5 border-t border-border bg-surface-muted/95 shrink-0">
-        <button
-          type="button"
-          onClick={() => setShowTerms((v) => !v)}
-          className="w-full text-center text-[11px] text-muted hover:text-foreground transition-colors"
-          aria-expanded={showTerms}
-        >
-          免責聲明{showTerms ? ' · 收起' : ' · 詳情'}
-        </button>
-        {showTerms && (
-          <ul className="mt-2 list-disc pl-4 space-y-1 text-[11px] leading-relaxed text-muted marker:text-muted">
-            <li>
-              呢個係<strong className="font-medium">公開、可匿名</strong>嘅聊天室。你喺此發佈嘅所有言論、回覆同表情內容，均由你本人全權負責。
-            </li>
-            <li>
-              <strong className="font-medium">嚴禁</strong>發佈違法、誹謗、色情、仇恨、侵權、欺詐、騷擾或其他不當內容。違規內容唔代表本平台立場。
-            </li>
-            <li>
-              本平台可隨時<strong className="font-medium">刪除內容、限制或封鎖使用者</strong>，無需事先通知，亦唔保證服務不中斷或內容永久保存。
-            </li>
-            <li>
-              所有訊息均為用戶自行產生；本平台<strong className="font-medium">唔對用戶內容負責</strong>，亦唔承擔因此引起嘅任何損失或法律責任。繼續使用即表示你同意以上條款。
-            </li>
-          </ul>
-        )}
+        <DisclaimerShort expanded={showTerms} onToggle={() => setShowTerms((v) => !v)} />
       </footer>
 
       <NewbieGuide open={showWelcome} onClose={closeWelcome} />
