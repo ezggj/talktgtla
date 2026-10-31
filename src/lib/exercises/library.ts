@@ -60,6 +60,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=DbFgADa2PL8',
     demoLabel: 'YouTube 上斜卧推',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/3/3c/SmithMachineBenchPress.gif',
   },
   {
     id: 'dumbbell-press',
@@ -76,6 +77,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=VmB1G1K7v94',
     demoLabel: 'YouTube 啞鈴卧推',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/3/3c/SmithMachineBenchPress.gif',
   },
   {
     id: 'squat',
@@ -93,6 +95,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=bEv6CCg2BC8',
     demoLabel: 'YouTube 深蹲教學',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Squats.gif',
   },
   {
     id: 'front-squat',
@@ -107,6 +110,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=uYumuL_G_V0',
     demoLabel: 'YouTube 前蹲教學',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Squats.gif',
   },
   {
     id: 'deadlift',
@@ -139,6 +143,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=pqzVr_2s4lE',
     demoLabel: 'YouTube 相撲硬拉',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/cb/Man_Lifting_Barbell_Deadlift_GIF_Animation_Loop.gif',
   },
   {
     id: 'ohp',
@@ -156,6 +161,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=2yjwXTZQDDI',
     demoLabel: 'YouTube 肩推教學',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/07/Military-press-2.gif',
   },
   {
     id: 'db-shoulder-press',
@@ -172,6 +178,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=qEwKCR5JCog',
     demoLabel: 'YouTube 啞鈴肩推',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/07/Military-press-2.gif',
   },
   {
     id: 'row',
@@ -189,6 +196,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=FWJR5Ve8bnQ',
     demoLabel: 'YouTube 划船教學',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/67/Barbell_Bent-over_Row.gif',
   },
   {
     id: 'seated-row',
@@ -205,6 +213,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=GZbfZ033f74',
     demoLabel: 'YouTube 坐姿划船',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/67/Barbell_Bent-over_Row.gif',
   },
   {
     id: 'dumbbell-row',
@@ -221,6 +230,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=pYcpY20QaE8',
     demoLabel: 'YouTube 單臂划船',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/67/Barbell_Bent-over_Row.gif',
   },
   {
     id: 'pullup',
@@ -253,6 +263,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=brhRXlOhsAM',
     demoLabel: 'YouTube 反手引體',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/85/Weighted%2C_wide-grip_pullup_video.gif',
   },
   {
     id: 'latpulldown',
@@ -270,6 +281,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=CAwf7n6Luuc',
     demoLabel: 'YouTube 高拉教學',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/85/Weighted%2C_wide-grip_pullup_video.gif',
   },
   {
     id: 'legpress',
@@ -286,6 +298,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=IZxyjW7MPJQ',
     demoLabel: 'YouTube 腿舉教學',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/7/7c/Leg-press-2.gif',
   },
   {
     id: 'leg-extension',
@@ -300,6 +313,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=YyvSfVjQeL0',
     demoLabel: 'YouTube 腿伸展',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/7/7c/Leg-press-2.gif',
   },
   {
     id: 'leg-curl',
@@ -316,6 +330,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=1Tq3QdYUuHs',
     demoLabel: 'YouTube 腿彎舉',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/7/7c/Leg-press-2.gif',
   },
   {
     id: 'rdl',
@@ -333,6 +348,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=jEy_czbCRng',
     demoLabel: 'YouTube RDL 教學',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/cb/Man_Lifting_Barbell_Deadlift_GIF_Animation_Loop.gif',
   },
   {
     id: 'lunges',
@@ -349,6 +365,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=QOVaHwm-Q6U',
     demoLabel: 'YouTube 弓步教學',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/4/4b/Lunge_%28exercise%29.gif',
   },
   {
     id: 'bulgarian-split',
@@ -365,6 +382,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=2C-uNgKwPLE',
     demoLabel: 'YouTube 保加利亞蹲',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/4/4b/Lunge_%28exercise%29.gif',
   },
   {
     id: 'curl',
@@ -397,6 +415,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=zC3nLlEvin4',
     demoLabel: 'YouTube 錘式彎舉',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/08/PreacherBenchBicepsCurl.gif',
   },
   {
     id: 'tricep',
@@ -448,6 +467,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=YbX7Wd8jQ-I',
     demoLabel: 'YouTube 過頭三頭',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/b/b2/Reverse-triceps-bench-press-2.gif',
   },
   {
     id: 'lateral',
@@ -465,6 +485,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=3VcKaXpzqRo',
     demoLabel: 'YouTube 側平舉教學',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/9/99/Dumbbell-lateral-raise-2-2.gif',
   },
   {
     id: 'front-raise',
@@ -479,6 +500,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=gzWoodFvk_8',
     demoLabel: 'YouTube 前平舉',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/9/99/Dumbbell-lateral-raise-2-2.gif',
   },
   {
     id: 'rear-delt',
@@ -495,6 +517,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=EA_Yuox8sdg',
     demoLabel: 'YouTube 反向飛鳥',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/9/99/Dumbbell-lateral-raise-2-2.gif',
   },
   {
     id: 'face-pull',
@@ -509,6 +532,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=rep-aKoiwRk',
     demoLabel: 'YouTube 面拉教學',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/85/Weighted%2C_wide-grip_pullup_video.gif',
   },
   {
     id: 'fly',
@@ -526,6 +550,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=Iwe6AmxVf7o',
     demoLabel: 'YouTube 飛鳥教學',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/b/b2/Dumbbell-flyes-1-2.gif',
   },
   {
     id: 'pushup',
@@ -536,12 +561,13 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     muscle: '胸',
     cues: [
-      '掌約肩寬，身體成一直線，核心收。',
-      '下放胸口接近地，再推起；肘約 45°。',
-      '做唔到膝着地或者斜掌（手撑高位）先打底。',
+      '掌約肩寬、指尖微朝外；身體頭到腳踝成一直線，核心同臀輕夾。',
+      '下放胸口接近地再推起；肘約 45°，唔好聳肩甩勢。',
+      '做唔到就膝着地或者斜掌（手撑檯／牆）打底——質量好過硬撐。',
     ],
     demoUrl: 'https://www.youtube.com/watch?v=IODxDxX7oi4',
     demoLabel: 'YouTube 掌上壓',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/b/b0/Army_Pushups.gif',
   },
   {
     id: 'dip',
@@ -556,6 +582,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=2z8JmcrW-As',
     demoLabel: 'YouTube 雙槓教學',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/4/4d/Parallel_bar_dips.gif',
   },
   {
     id: 'hipthrust',
@@ -573,6 +600,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=LM8XHLYZBZI',
     demoLabel: 'YouTube 臀推教學',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Hip_thrust.gif',
   },
   {
     id: 'glute-bridge',
@@ -587,6 +615,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=OUgsJOTQVdI',
     demoLabel: 'YouTube 臀橋',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Hip_thrust.gif',
   },
   {
     id: 'calf',
@@ -603,6 +632,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=-MHgs5tL1IM',
     demoLabel: 'YouTube 提踵教學',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/6a/Calf-raises-2.gif',
   },
   {
     id: 'plank',
@@ -613,9 +643,9 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     muscle: '核心',
     cues: [
-      '肘或掌撐地，身體成一直線：頭、肩、髖、腳踝對齊。',
-      '核心同臀輕夾，正常呼吸；唔好塌腰或者抬臀太高。',
-      '抖震、塌腰就停——短時間高質量好過硬撐變形。',
+      '肘或掌撐地，頭、肩、髖、腳踝成一直線——想像身下夾住支棍。',
+      '核心同臀輕夾，正常呼吸；唔好塌腰、唔好抬臀太高。',
+      '抖震或者塌腰就停——短時間高質量好過硬撐變形；新手可以由膝撑開始。',
     ],
     demoUrl: 'https://www.youtube.com/watch?v=ASdvN_XEl_c',
     demoLabel: 'YouTube 平板教學',
@@ -635,6 +665,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=Xyd_fa5zoUA',
     demoLabel: 'YouTube 捲腹教學',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/d/d0/Crunch_%28exercise%29.gif',
   },
   {
     id: 'hanging-leg-raise',
@@ -651,6 +682,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=hdng3Nm1pK0',
     demoLabel: 'YouTube 懸垂抬腿',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/d/d0/Crunch_%28exercise%29.gif',
   },
   {
     id: 'cable-crunch',
@@ -665,6 +697,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=ToDeeUNW33I',
     demoLabel: 'YouTube 繩索捲腹',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/d/d0/Crunch_%28exercise%29.gif',
   },
   {
     id: 'shrug',
@@ -679,6 +712,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=cJRVVxuyo6U',
     demoLabel: 'YouTube 聳肩',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/67/Barbell_Bent-over_Row.gif',
   },
   {
     id: 'farmer-carry',
@@ -693,6 +727,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=Fkzk_R1GEyQ',
     demoLabel: 'YouTube 農夫行走',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/cb/Man_Lifting_Barbell_Deadlift_GIF_Animation_Loop.gif',
   },
   {
     id: 'goblet-squat',
@@ -707,6 +742,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=MeIiIdhvXT4',
     demoLabel: 'YouTube 高腳杯深蹲',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Squats.gif',
   },
   {
     id: 'kettlebell-swing',
@@ -721,6 +757,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=sSESeQAvgIk',
     demoLabel: 'YouTube 壺鈴擺盪',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/cb/Man_Lifting_Barbell_Deadlift_GIF_Animation_Loop.gif',
   },
   {
     id: 'chest-press-machine',
@@ -735,6 +772,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=xUmU_mEp_bI',
     demoLabel: 'YouTube 胸推機',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/3/3c/SmithMachineBenchPress.gif',
   },
   {
     id: 'lat-raise-machine',
@@ -749,6 +787,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=3VcKaXpzqRo',
     demoLabel: 'YouTube 側平舉（同理）',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/9/99/Dumbbell-lateral-raise-2-2.gif',
   },
   {
     id: 'ab-wheel',
@@ -763,6 +802,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=DARt0OXn4dE',
     demoLabel: 'YouTube 健腹輪',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/d/d0/Crunch_%28exercise%29.gif',
   },
   {
     id: 'good-morning',
@@ -777,6 +817,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=YA-nLgUB6-w',
     demoLabel: 'YouTube 早安式',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/cb/Man_Lifting_Barbell_Deadlift_GIF_Animation_Loop.gif',
   },
   {
     id: 'hack-squat',
@@ -791,6 +832,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=0tn5K9NlCig',
     demoLabel: 'YouTube 哈克深蹲',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Squats.gif',
   },
   {
     id: 'cable-lateral',
@@ -805,6 +847,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=PPrzRdsUoXg',
     demoLabel: 'YouTube 繩索側平舉',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/9/99/Dumbbell-lateral-raise-2-2.gif',
   },
   {
     id: 'preacher-curl',
@@ -834,6 +877,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=nv5StKlAqOk',
     demoLabel: 'YouTube 腕彎舉',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/0/08/PreacherBenchBicepsCurl.gif',
   },
   {
     id: 'pec-deck',
@@ -848,6 +892,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=eGjt6KJ7JOY',
     demoLabel: 'YouTube 蝴蝶機夾胸',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/b/b2/Dumbbell-flyes-1-2.gif',
   },
   {
     id: 'hip-abduction',
@@ -862,6 +907,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=68xc1QeJ8LE',
     demoLabel: 'YouTube 髖外展',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Hip_thrust.gif',
   },
   {
     id: 'hip-adduction',
@@ -876,6 +922,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=jQjZqu4QkZQ',
     demoLabel: 'YouTube 髖內收',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Hip_thrust.gif',
   },
   {
     id: 'seated-calf',
@@ -890,6 +937,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=JbyjNymZOt0',
     demoLabel: 'YouTube 坐姿提踵',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/6a/Calf-raises-2.gif',
   },
   {
     id: 't-bar-row',
@@ -904,6 +952,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=j3Igk5nyZE4',
     demoLabel: 'YouTube T槓划船',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/67/Barbell_Bent-over_Row.gif',
   },
   {
     id: 'cable-fly',
@@ -918,6 +967,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=Iwe6VTZqjKM',
     demoLabel: 'YouTube 繩索夾胸',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/b/b2/Dumbbell-flyes-1-2.gif',
   },
   {
     id: 'box-squat',
@@ -932,6 +982,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=0bWRPCYs-0o',
     demoLabel: 'YouTube 箱蹲',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/82/Squats.gif',
   },
   {
     id: 'reverse-lunge',
@@ -946,6 +997,7 @@ export const EXERCISES: ExerciseGuide[] = [
     ],
     demoUrl: 'https://www.youtube.com/watch?v=gr5bFVDqi_I',
     demoLabel: 'YouTube 後箭步蹲',
+    demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/4/4b/Lunge_%28exercise%29.gif',
   },
 ]
 

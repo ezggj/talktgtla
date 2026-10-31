@@ -35,10 +35,14 @@ import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
 import {
   HK_DISH_ESTIMATES,
+  DISH_CATEGORY_LABEL,
+  dishesByCategory,
   estimateFromFoodName,
   mockEstimateFromFile,
   scaleMacros,
+  type DishCategory,
 } from '@/lib/fitness/meals-demo'
+import { ProteinWeekCard } from '@/components/fitness/protein-week-card'
 import { compressMealImage } from '@/lib/fitness/compress-image'
 import { getOrCreateEatGuestId } from '@/lib/fitness/eat-guest-id'
 import {
@@ -126,6 +130,7 @@ export function EatClient() {
   const [ready, setReady] = useState(false)
   const [meals, setMeals] = useState<MealEntry[]>([])
   const [goals, setGoals] = useState({ proteinG: 150, kcal: 2200 })
+  const [dishCat, setDishCat] = useState<DishCategory | '全部'>('全部')
   const [draft, setDraft] = useState<Draft | null>(null)
   const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null)
   const [quotaLimit, setQuotaLimit] = useState(3)
@@ -708,6 +713,7 @@ export function EatClient() {
 
   const addDemoDish = (idx: number) => {
     const dish = HK_DISH_ESTIMATES[idx]
+    if (!dish) return
     const entry: MealEntry = {
       id: newId(),
       createdAt: new Date().toISOString(),
@@ -1100,14 +1106,37 @@ export function EatClient() {
           </div>
         </Card>
 
-        {/* HK dishes */}
+        <div className="mb-6">
+          <ProteinWeekCard meals={meals} proteinGoal={goals.proteinG} />
+        </div>
+
+        {/* HK dishes + club protein templates */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-serif text-xl">港餐快加</h2>
+            <h2 className="font-serif text-xl">港餐／會所快加</h2>
             <Badge tone="muted">一掣入帳</Badge>
           </div>
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1 mb-2">
+            {(['全部', '會所蛋白', '茶記', '小食', '早餐'] as const).map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setDishCat(c)}
+                className={cn(
+                  'shrink-0 rounded-full px-3 py-1.5 text-[11px] border touch-manipulation',
+                  dishCat === c
+                    ? 'border-accent bg-accent-soft text-accent font-semibold'
+                    : 'border-border text-muted hover:text-foreground'
+                )}
+              >
+                {c === '全部' ? '全部' : DISH_CATEGORY_LABEL[c]}
+              </button>
+            ))}
+          </div>
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
-            {HK_DISH_ESTIMATES.map((d, i) => (
+            {dishesByCategory(dishCat).map((d) => {
+              const i = HK_DISH_ESTIMATES.findIndex((x) => x.name === d.name)
+              return (
               <motion.button
                 key={d.name}
                 type="button"
@@ -1117,13 +1146,14 @@ export function EatClient() {
                 onClick={() => addDemoDish(i)}
                 className="shrink-0 w-[148px] rounded-[20px] border border-border bg-surface p-3.5 text-left shadow-soft hover:shadow-hover transition"
               >
+                <div className="text-[10px] text-accent mb-0.5">{DISH_CATEGORY_LABEL[d.category]}</div>
                 <div className="text-sm font-medium mb-0.5">{d.name}</div>
                 <div className="text-[10px] text-muted mb-2 line-clamp-1">{d.hint}</div>
                 <div className="text-xs text-accent font-semibold tabular-nums">
                   {d.macros.protein}g 蛋白 · {d.macros.kcal} kcal
                 </div>
               </motion.button>
-            ))}
+            )})}
           </div>
         </div>
 
