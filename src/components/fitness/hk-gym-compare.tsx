@@ -23,6 +23,7 @@ import {
   EQUIPMENT_FOCUS,
   filterGyms,
   formatMonthlyRange,
+  gymById,
   PRICE_BAND_HINT,
   PRICE_BAND_LABEL,
   REGION_OPTIONS,
@@ -49,7 +50,7 @@ function Chip({
       type="button"
       onClick={onClick}
       className={cn(
-        'shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium border transition-colors',
+        'shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium border transition-colors touch-manipulation',
         active
           ? 'bg-accent text-white border-accent shadow-soft'
           : 'bg-surface text-muted border-border hover:text-foreground hover:bg-[#f5f5f4]'
@@ -76,7 +77,7 @@ function GymCard({
       <Card
         className={cn(
           'py-4 transition-shadow',
-          selected && 'ring-2 ring-accent/40 border-accent/30'
+          selected && 'ring-2 ring-accent/40 border-accent/30 shadow-soft'
         )}
       >
         <div className="flex items-start justify-between gap-3">
@@ -94,15 +95,19 @@ function GymCard({
             disabled={!selected && disabled}
             onClick={onToggle}
             className="shrink-0"
+            title={!selected && disabled ? `最多對比 ${MAX_COMPARE} 間` : undefined}
           >
-            {selected ? '已揀' : '對比'}
+            {selected ? '已揀' : disabled ? '滿咗' : '對比'}
           </Button>
         </div>
 
         <div className="mt-3 space-y-2 text-[12px] leading-relaxed">
           <div className="flex gap-2 text-muted">
             <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5 text-accent" />
-            <span>{gym.areas.slice(0, 5).join(' · ')}{gym.areas.length > 5 ? '…' : ''}</span>
+            <span>
+              {gym.areas.slice(0, 5).join(' · ')}
+              {gym.areas.length > 5 ? '…' : ''}
+            </span>
           </div>
           <div className="flex gap-2">
             <Scale className="h-3.5 w-3.5 shrink-0 mt-0.5 text-accent" />
@@ -127,7 +132,7 @@ function GymCard({
             rel="noopener noreferrer"
             className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-accent hover:underline"
           >
-            官方資料
+            官網睇下
             <ExternalLink className="h-3 w-3" />
           </a>
         )}
@@ -173,14 +178,12 @@ function CompareTable({ gyms, onRemove }: { gyms: HkGym[]; onRemove: (id: string
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           <Scale className="h-4 w-4 text-accent" />
-          <CardTitle className="text-lg">並排對比</CardTitle>
-          <Badge tone="muted">{gyms.length}/3</Badge>
+          <CardTitle className="text-lg">並排睇下</CardTitle>
+          <Badge tone="muted">
+            {gyms.length}/{MAX_COMPARE}
+          </Badge>
         </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => gyms.forEach((g) => onRemove(g.id))}
-        >
+        <Button size="sm" variant="ghost" onClick={() => gyms.forEach((g) => onRemove(g.id))}>
           清空
         </Button>
       </div>
@@ -221,7 +224,10 @@ function CompareTable({ gyms, onRemove }: { gyms: HkGym[]; onRemove: (id: string
                   {row.label}
                 </th>
                 {gyms.map((g) => (
-                  <td key={g.id} className="p-2 text-[11px] text-foreground/90 leading-relaxed align-top">
+                  <td
+                    key={g.id}
+                    className="p-2 text-[11px] text-foreground/90 leading-relaxed align-top"
+                  >
                     {row.cell(g)}
                   </td>
                 ))}
@@ -230,6 +236,9 @@ function CompareTable({ gyms, onRemove }: { gyms: HkGym[]; onRemove: (id: string
           </tbody>
         </table>
       </div>
+      {gyms.length === 1 && (
+        <p className="mt-3 text-[11px] text-muted">再揀多 1–2 間，並排會清楚啲。</p>
+      )}
     </Card>
   )
 }
@@ -239,20 +248,10 @@ export function HkGymCompare() {
   const [selected, setSelected] = useState<string[]>([])
 
   const filtered = useMemo(() => filterGyms(filters), [filters])
-  const compareGyms = useMemo(
-    () => selected.map((id) => filtered.find((g) => g.id === id) ?? null).filter(Boolean) as HkGym[],
-    // keep selected even if filtered out — look up from full filter pass
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selected, filters]
+  const compareResolved = useMemo(
+    () => selected.map((id) => gymById(id)).filter((g): g is HkGym => !!g),
+    [selected]
   )
-
-  const compareResolved = useMemo(() => {
-    const { filterGyms: _, ...rest } = { filterGyms }
-    void rest
-    return selected
-      .map((id) => filterGyms(DEFAULT_GYM_FILTERS).find((g) => g.id === id))
-      .filter((g): g is HkGym => !!g)
-  }, [selected])
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -262,22 +261,23 @@ export function HkGymCompare() {
     })
   }
 
-  const setRegion = (r: GymRegion | '全部') =>
-    setFilters((f) => ({ ...f, region: r }))
-  const setPrice = (p: GymPriceBand | '全部') =>
-    setFilters((f) => ({ ...f, priceBand: p }))
-  const setEquip = (e: EquipmentFocusId | '全部') =>
-    setFilters((f) => ({ ...f, equipment: e }))
+  const setRegion = (r: GymRegion | '全部') => setFilters((f) => ({ ...f, region: r }))
+  const setPrice = (p: GymPriceBand | '全部') => setFilters((f) => ({ ...f, priceBand: p }))
+  const setEquip = (e: EquipmentFocusId | '全部') => setFilters((f) => ({ ...f, equipment: e }))
+
+  const scrollToCompare = () => {
+    document.getElementById('gym-compare-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   return (
     <div className="space-y-5">
       <Card className="py-4">
         <div className="flex items-center gap-2 mb-1">
           <Search className="h-4 w-4 text-accent" />
-          <CardTitle className="text-lg">篩選</CardTitle>
+          <CardTitle className="text-lg">先篩一篩</CardTitle>
         </div>
         <CardDesc className="text-[12px] mb-3">
-          價錢係大約區間，簽約前請向會所確認。資料僅供參考。
+          月費係大約區間——簽約前同會所確認，呢度淨係幫你收窄選擇。
         </CardDesc>
 
         <div className="relative mb-3">
@@ -292,7 +292,7 @@ export function HkGymCompare() {
 
         <div className="space-y-2.5">
           <div>
-            <div className="text-[10px] text-muted mb-1.5 uppercase tracking-wider">地區</div>
+            <div className="text-[10px] text-muted mb-1.5 tracking-wider">地區</div>
             <div className="flex flex-wrap gap-1.5">
               <Chip active={filters.region === '全部'} onClick={() => setRegion('全部')}>
                 全部
@@ -306,7 +306,7 @@ export function HkGymCompare() {
           </div>
 
           <div>
-            <div className="text-[10px] text-muted mb-1.5 uppercase tracking-wider">價錢區間</div>
+            <div className="text-[10px] text-muted mb-1.5 tracking-wider">價錢區間</div>
             <div className="flex flex-wrap gap-1.5">
               <Chip active={filters.priceBand === '全部'} onClick={() => setPrice('全部')}>
                 全部
@@ -321,7 +321,7 @@ export function HkGymCompare() {
           </div>
 
           <div>
-            <div className="text-[10px] text-muted mb-1.5 uppercase tracking-wider">器材重點</div>
+            <div className="text-[10px] text-muted mb-1.5 tracking-wider">器材重點</div>
             <div className="flex flex-wrap gap-1.5">
               <Chip active={filters.equipment === '全部'} onClick={() => setEquip('全部')}>
                 全部
@@ -353,11 +353,7 @@ export function HkGymCompare() {
               filters.equipment !== '全部' ||
               filters.only24h ||
               filters.query) && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setFilters(DEFAULT_GYM_FILTERS)}
-              >
+              <Button size="sm" variant="ghost" onClick={() => setFilters(DEFAULT_GYM_FILTERS)}>
                 重設
               </Button>
             )}
@@ -365,22 +361,24 @@ export function HkGymCompare() {
         </div>
       </Card>
 
-      <AnimatePresence mode="popLayout">
-        {compareResolved.length > 0 && (
-          <motion.div
-            key="compare"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            transition={springSnappy}
-          >
-            <CompareTable
-              gyms={compareResolved}
-              onRemove={(id) => setSelected((s) => s.filter((x) => x !== id))}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div id="gym-compare-panel">
+        <AnimatePresence mode="popLayout">
+          {compareResolved.length > 0 && (
+            <motion.div
+              key="compare"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={springSnappy}
+            >
+              <CompareTable
+                gyms={compareResolved}
+                onRemove={(id) => setSelected((s) => s.filter((x) => x !== id))}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       <div className="flex items-center justify-between gap-2">
         <p className="text-[11px] text-muted">
@@ -414,10 +412,34 @@ export function HkGymCompare() {
         </div>
       )}
 
-      <p className="text-[10px] text-muted text-center leading-relaxed px-2">
-        月費、分店同開放時間會變——呢度係靜態整理，僅供參考，唔構成報價或建議。
-        簽約前請向會所確認最新條款同隱藏收費。
+      {selected.length > 0 ? <div className="h-16 md:hidden" aria-hidden /> : null}
+
+      <p className="text-[10px] text-muted text-center leading-relaxed px-2 pb-2">
+        月費、分店同開放時間會變——呢度係靜態整理，僅供參考，唔構成報價或建議。簽約前請向會所確認最新條款同隱藏收費。
       </p>
+
+      <AnimatePresence>
+        {selected.length > 0 && (
+          <motion.div
+            className="fixed above-nav-gap inset-x-0 z-30 px-4 pointer-events-none md:hidden"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={springSnappy}
+          >
+            <button
+              type="button"
+              onClick={scrollToCompare}
+              className="pointer-events-auto mx-auto flex max-w-lg w-full items-center justify-between gap-3 rounded-2xl border border-border bg-foreground text-background px-4 py-3 text-sm shadow-hover touch-manipulation"
+            >
+              <span className="font-medium">
+                已揀 {selected.length} 間 · 睇並排
+              </span>
+              <Scale className="h-4 w-4 shrink-0 opacity-80" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

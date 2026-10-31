@@ -20,7 +20,7 @@ export function HkGymEntryCard() {
               <Badge tone="accent">新</Badge>
             </div>
             <CardDesc className="text-[12px] mt-0.5">
-              地區 · 價錢 · 24 小時 · 器材——最多並排三間
+              想 join 邊間？地區、價錢、24 小時、器材一齊睇
             </CardDesc>
           </div>
           <ChevronRight className="h-4 w-4 text-muted group-hover:text-accent transition-colors shrink-0" />

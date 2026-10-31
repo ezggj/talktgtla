@@ -25,7 +25,7 @@ export function WeeklySummaryCard({
     <Card className={cn('py-4', className)}>
       <div className="flex items-start justify-between gap-3 mb-2">
         <CardTitle className="text-lg leading-snug">{s.title}</CardTitle>
-        <Badge tone={tone === 'accent' ? 'accent' : 'muted'}>一週口語</Badge>
+        <Badge tone={tone === 'accent' ? 'accent' : 'muted'}>呢個星期</Badge>
       </div>
       <ul className="space-y-2">
         {s.lines.map((line, i) => (

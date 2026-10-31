@@ -23,6 +23,31 @@ type StatCard = {
   label: string
   value: number | string
   hint?: string
+  pulse?: boolean
+}
+
+function formatAsOfHk(iso: string): string {
+  try {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return iso
+    return new Intl.DateTimeFormat('zh-HK', {
+      timeZone: 'Asia/Hong_Kong',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(d)
+  } catch {
+    return iso
+  }
+}
+
+function fmt(n: number | string) {
+  if (typeof n === 'number') return n.toLocaleString('zh-HK')
+  return n
 }
 
 /** Discreet admin — login + stats. Not linked from public UI. */
@@ -67,6 +92,12 @@ export default function AdminPage() {
       })
       .catch(() => setChecking(false))
   }, [loadStats])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    const id = window.setInterval(() => void loadStats(), 60_000)
+    return () => window.clearInterval(id)
+  }, [isAdmin, loadStats])
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -113,7 +144,8 @@ export default function AdminPage() {
           onSubmit={onSubmit}
           className="w-full max-w-sm rounded-[20px] bg-surface p-6 shadow-hover border border-border"
         >
-          <h1 className="font-serif text-2xl tracking-tight mb-4">管理員</h1>
+          <h1 className="font-serif text-2xl tracking-tight mb-1">管理員</h1>
+          <p className="text-xs text-muted mb-4">站務數據 · 低調入口</p>
           <input
             type="password"
             autoFocus
@@ -145,11 +177,12 @@ export default function AdminPage() {
 
   const cards: StatCard[] = stats
     ? [
-        { label: '註冊用戶', value: stats.total_users, hint: 'profiles' },
+        { label: '註冊用戶', value: stats.total_users, hint: '有帳戶嘅人' },
         {
           label: '而家喺線',
           value: stats.online_now,
-          hint: '最近 90 秒 heartbeat',
+          hint: '近 90 秒有心跳',
+          pulse: stats.online_now > 0,
         },
         {
           label: '今日活躍',
@@ -157,22 +190,22 @@ export default function AdminPage() {
           hint: `香港日 ${stats.day_hk}`,
         },
         {
-          label: '訊息總數',
+          label: '訊息',
           value: stats.messages_total,
-          hint: `今日 ${stats.messages_today}`,
+          hint: `今日 +${stats.messages_today}`,
         },
         {
-          label: '訓練次數',
+          label: '訓練',
           value: stats.workouts_total,
-          hint: `今日 ${stats.workouts_today}`,
+          hint: `今日 +${stats.workouts_today}`,
         },
         {
           label: '飲食紀錄',
           value: stats.meals_total,
-          hint: `今日 ${stats.meals_today}`,
+          hint: `今日 +${stats.meals_today}`,
         },
-        { label: '訓練方案', value: stats.plans_total },
-        { label: '封鎖 IP', value: stats.banned_ips },
+        { label: '訓練方案', value: stats.plans_total, hint: '雲端方案總數' },
+        { label: '封鎖 IP', value: stats.banned_ips, hint: '被 ban 嘅位址' },
       ]
     : []
 
@@ -181,13 +214,12 @@ export default function AdminPage() {
       <div className="mx-auto w-full max-w-3xl">
         <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted">
-              Admin
-            </p>
+            <p className="text-[11px] font-medium tracking-wide text-muted">Admin</p>
             <h1 className="font-serif text-2xl tracking-tight">站務數據</h1>
             {stats?.as_of ? (
               <p className="mt-1 text-xs text-muted">
-                更新於 {stats.as_of}（香港時間）
+                更新於 {formatAsOfHk(stats.as_of)}
+                <span className="text-muted/80"> · 香港時間</span>
               </p>
             ) : null}
           </div>
@@ -238,9 +270,17 @@ export default function AdminPage() {
                 key={c.label}
                 className="rounded-[20px] border border-border bg-surface p-4 shadow-soft"
               >
-                <p className="text-[11px] font-medium text-muted">{c.label}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[11px] font-medium text-muted">{c.label}</p>
+                  {c.pulse ? (
+                    <span
+                      className="inline-block h-1.5 w-1.5 rounded-full bg-accent animate-pulse"
+                      aria-hidden
+                    />
+                  ) : null}
+                </div>
                 <p className="mt-1 font-serif text-3xl tabular-nums tracking-tight">
-                  {c.value}
+                  {fmt(c.value)}
                 </p>
                 {c.hint ? (
                   <p className="mt-1 text-[11px] text-muted leading-snug">{c.hint}</p>
@@ -251,7 +291,7 @@ export default function AdminPage() {
         )}
 
         <p className="mt-6 text-[11px] text-muted leading-relaxed">
-          入口保持低調：直接開 /admin、長按傾偈標題、或 Ctrl+Shift+A。一般用戶睇唔到。
+          入口保持低調：直接開 /admin、長按傾偈標題、或 Ctrl+Shift+A。一般用戶睇唔到。每分鐘自動刷新一次。
         </p>
       </div>
     </div>

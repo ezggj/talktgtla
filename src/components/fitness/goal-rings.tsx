@@ -29,7 +29,7 @@ export function GoalRings({
 
   return (
     <Card className="py-4">
-      <CardTitle className="text-lg mb-4">目標進度</CardTitle>
+      <CardTitle className="text-lg mb-4">今日進度環</CardTitle>
       <div className="flex items-center justify-around gap-2">
         <div className="flex flex-col items-center gap-1.5">
           <ProgressRing

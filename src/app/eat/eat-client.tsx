@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
@@ -123,6 +124,7 @@ export function EatClient() {
   const [goals, setGoals] = useState({ proteinG: 150, kcal: 2200 })
   const [draft, setDraft] = useState<Draft | null>(null)
   const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null)
+  const [quotaLimit, setQuotaLimit] = useState(3)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [period, setPeriod] = useState<PeriodKind>('day')
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()))
@@ -143,6 +145,29 @@ export function EatClient() {
     loadLocal()
     setReady(true)
   }, [loadLocal])
+
+  // Peek free AI quota for the day (guest / user)
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const guest = getOrCreateEatGuestId()
+        const res = await fetch('/api/eat/estimate', {
+          headers: guest ? { 'x-ttl-guest-id': guest } : undefined,
+        })
+        const data = await res.json().catch(() => ({}))
+        if (cancelled || !res.ok) return
+        if (typeof data.remaining === 'number') setQuotaRemaining(data.remaining)
+        if (typeof data.limit === 'number') setQuotaLimit(data.limit)
+      } catch {
+        /* ignore */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id])
+
 
   // Cloud hydrate + idempotent local → cloud migrate when logged in
   useEffect(() => {
@@ -371,7 +396,9 @@ export function EatClient() {
         }
 
         if (data.quota?.remaining != null) setQuotaRemaining(data.quota.remaining)
+        if (data.quota?.limit != null) setQuotaLimit(data.quota.limit)
         if (typeof data.remaining === 'number') setQuotaRemaining(data.remaining)
+        if (typeof data.limit === 'number') setQuotaLimit(data.limit)
 
         if (res.status === 429 && data.code === 'free_limit') {
           setDraft((prev) =>
@@ -385,14 +412,14 @@ export function EatClient() {
                   source: 'manual',
                   note:
                     data.error ||
-                    '今日免費 AI 額用晒，登入／聽日再試，或者而家自己改數字',
+                    '今日免費 AI 用晒啦——登入／聽日再試，或者而家自己改數字',
                 }
               : null
           )
           setQuotaRemaining(0)
           showToast(
             data.error ||
-              '今日免費 AI 額用晒，登入／聽日再試，或者而家自己改數字'
+              '今日免費 AI 用晒啦——登入／聽日再試，或者而家自己改數字'
           )
           return
         }
@@ -854,9 +881,30 @@ export function EatClient() {
         <Card className="mb-6 relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--accent-soft),_transparent_50%)] pointer-events-none" />
           <div className="relative">
-            <CardTitle className="text-xl mb-1">影相估營養</CardTitle>
+            <div className="flex items-start justify-between gap-3 mb-1">
+              <CardTitle className="text-xl">影相估營養</CardTitle>
+              {quotaRemaining != null && (
+                <div
+                  className="flex items-center gap-1 pt-1"
+                  aria-label={`今日仲剩 ${quotaRemaining} 次`}
+                  title={`每日 ${quotaLimit} 次免費 AI`}
+                >
+                  {Array.from({ length: quotaLimit }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={
+                        i < quotaRemaining
+                          ? 'h-2 w-2 rounded-full bg-accent'
+                          : 'h-2 w-2 rounded-full bg-border'
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
             <CardDesc className="mb-5">
-              每日免費 AI 估算 3 次 · 估完一定可以改數字。額用晒就自己改／聽日再試；登入可分開計額。
+              每日 {quotaLimit} 次免費 AI · 估完一定可以改數字。用晒就自己改／聽日再嚟
+              {!user ? '；登入可分開計額' : ''}。
             </CardDesc>
             <div className="flex flex-col sm:flex-row gap-2">
               <Button size="lg" className="flex-1" onClick={() => cameraRef.current?.click()}>
@@ -874,11 +922,18 @@ export function EatClient() {
               </Button>
             </div>
             {quotaRemaining != null && (
-              <p className="mt-3 text-[11px] text-muted">
-                {quotaRemaining > 0
-                  ? `今日仲剩 ${quotaRemaining} 次免費 AI`
-                  : '今日免費 AI 額用晒 · 可以自己改數字或者聽日再試'}
-              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
+                <span>
+                  {quotaRemaining > 0
+                    ? `今日仲剩 ${quotaRemaining} 次`
+                    : '今日免費 AI 用晒啦 · 可以自己改數字或者聽日再試'}
+                </span>
+                {quotaRemaining === 0 && !user && (
+                  <Link href="/me" className="font-medium text-accent hover:underline">
+                    去登入分開計額
+                  </Link>
+                )}
+              </div>
             )}
             <input
               ref={cameraRef}
@@ -1190,7 +1245,7 @@ export function EatClient() {
                     )}
                     <p className="text-[11px] text-muted text-center mt-3 leading-relaxed">
                       {draft.source === 'manual'
-                        ? '今日免費 AI 額用晒或者 AI 暫時唔得都冇問題——自己改完數字再入日記就得。'
+                        ? 'AI 額用晒或者暫時唔得都冇問題——自己改完數字再入日記就得。'
                         : '估算啫，唔係實驗室數字。登入後會入雲端歷史，之後可以睇月計。'}
                     </p>
                   </>
@@ -1204,7 +1259,7 @@ export function EatClient() {
       <AnimatePresence>
         {toast && (
           <motion.div
-            className="fixed bottom-24 left-1/2 z-[60] -translate-x-1/2 max-w-[min(92vw,420px)] rounded-2xl border border-border bg-foreground text-background px-4 py-3 text-xs shadow-hover"
+            className="fixed above-nav-gap left-1/2 z-[60] -translate-x-1/2 max-w-[min(92vw,420px)] rounded-2xl border border-border bg-foreground text-background px-4 py-3 text-xs shadow-hover"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}

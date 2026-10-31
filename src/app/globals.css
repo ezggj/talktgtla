@@ -207,7 +207,19 @@ body {
 }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
+/* Clearance above mobile bottom nav (+ home indicator) */
+.above-nav {
+  bottom: calc(var(--nav-h) + var(--safe-bottom));
+}
+.above-nav-gap {
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + 0.5rem);
+}
+/* Stack a second sticky/fixed row above the primary thumb CTA */
+.above-nav-stack {
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + 4.5rem);
+}
+
 /* Thumb-zone sticky primary actions above bottom nav */
 .thumb-cta {
-  padding-bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
+  padding-bottom: 0.25rem;
 }

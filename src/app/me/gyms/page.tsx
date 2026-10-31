@@ -8,7 +8,7 @@ import { HkGymCompare } from '@/components/fitness/hk-gym-compare'
 
 export const metadata = {
   title: '香港健身房對比 · Talk tgt la',
-  description: '按地區、價錢、24小時同器材，對比香港常見健身房——價錢僅供參考。',
+  description: '想 join 邊間？按地區、價錢、24 小時同器材對比——價錢僅供參考。',
 }
 
 export default function MeGymsPage() {
@@ -25,7 +25,7 @@ export default function MeGymsPage() {
         <PageHeader
           eyebrow="香港"
           title="健身房對比"
-          description="地區、價錢帶、係咪 24 小時、器材重點——最多並排三間再決定。"
+          description="想 join 邊間？按地區、價錢、24 小時同器材篩一篩，最多並排三間再決定。"
         />
         <Suspense
           fallback={

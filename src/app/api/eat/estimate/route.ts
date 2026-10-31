@@ -63,6 +63,32 @@ function clampMacro(n: number, max: number) {
   return Math.min(max, Math.round(n))
 }
 
+
+export async function GET(req: Request) {
+  const { subjectKey, kind } = await resolveEatAiSubject(req)
+  const freeLimit = EAT_AI_FREE_DAILY_LIMIT
+  const peeked = await peekEatAiQuota(subjectKey)
+  if (!peeked) {
+    return NextResponse.json({
+      limit: freeLimit,
+      remaining: freeLimit,
+      used: 0,
+      ok: true,
+      kind,
+      durable: false,
+    })
+  }
+  return NextResponse.json({
+    limit: peeked.limit,
+    remaining: peeked.remaining,
+    used: peeked.used,
+    ok: peeked.ok,
+    day: peeked.day,
+    kind,
+    durable: true,
+  })
+}
+
 export async function POST(req: Request) {
   const ip = clientIpFromRequest(req)
 
@@ -82,8 +108,8 @@ export async function POST(req: Request) {
   if (peeked && !peeked.ok) {
     const tip =
       kind === 'user'
-        ? `今日免費 AI 額用晒（${peeked.limit} 次），聽日再試或者而家自己改數字入日記`
-        : `今日免費 AI 額用晒（${peeked.limit} 次）。登入可分開計額，或者聽日再試／而家自己改數字`
+        ? `今日 ${peeked.limit} 次免費 AI 用晒啦——聽日再嚟，或者而家自己改數字入日記`
+        : `今日 ${peeked.limit} 次免費 AI 用晒啦。登入可分開計額；又或者聽日再試／而家自己改數字`
     return NextResponse.json(
       {
         error: tip,
@@ -106,7 +132,7 @@ export async function POST(req: Request) {
     if (!daily.ok) {
       return NextResponse.json(
         {
-          error: '今日免費 AI 額用晒，登入／聽日再試，或者而家自己改數字',
+          error: '今日免費 AI 用晒啦——登入／聽日再試，或者而家自己改數字',
           retryAfterSec: daily.retryAfterSec,
           code: 'free_limit',
           limit: freeLimit,

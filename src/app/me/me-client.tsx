@@ -234,6 +234,7 @@ export function MeClient() {
           <StaggerItem>
             <Card className="py-4">
               <CardTitle className="text-lg mb-3">訓練熱圖</CardTitle>
+              <p className="text-[12px] text-muted mb-3 -mt-1">過去幾星期邊日有落場——顏色愈深愈密。</p>
               <TrainHeatmap sessions={sessionsLocal} weeks={12} />
             </Card>
           </StaggerItem>
@@ -250,11 +251,11 @@ export function MeClient() {
             <Card className="py-4">
               <div className="flex items-center gap-2 mb-3">
                 <Trophy className="h-4 w-4 text-accent" />
-                <CardTitle className="text-lg">PR 牆</CardTitle>
+                <CardTitle className="text-lg">個人最佳牆</CardTitle>
               </div>
               {Object.keys(prs).length === 0 ? (
                 <p className="text-sm text-muted leading-relaxed">
-                  未有個人最佳——訓練頁記組破紀錄就會喺度出現。
+                  未破過紀錄——去訓練頁記組，破咗就會彈出嚟。
                 </p>
               ) : (
                 <ul className="space-y-2">
@@ -280,11 +281,12 @@ export function MeClient() {
           <StaggerItem>
             <Card className="py-4">
               <div className="flex items-center justify-between mb-3">
-                <CardTitle className="text-lg">成就</CardTitle>
+                <CardTitle className="text-lg">徽章</CardTitle>
                 <Badge tone="muted">
                   {unlocked.size}/{FITNESS_ACHIEVEMENTS.length}
                 </Badge>
               </div>
+              <p className="text-[12px] text-muted mb-3 -mt-1">練得多、食得準、連練——慢慢解鎖。</p>
               <div className="grid grid-cols-2 gap-2">
                 {FITNESS_ACHIEVEMENTS.map((a) => {
                   const on = unlocked.has(a.id)

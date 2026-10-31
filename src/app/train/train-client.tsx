@@ -1087,7 +1087,7 @@ export function TrainClient() {
                     </Card>
                   )}
 
-                  <div className="thumb-cta sticky bottom-[calc(var(--nav-h)+0.5rem)] z-20 -mx-1 px-1 pt-2 pb-1 bg-gradient-to-t from-background via-background to-transparent">
+                  <div className={`thumb-cta sticky z-20 -mx-1 px-1 pt-2 pb-1 bg-gradient-to-t from-background via-background to-transparent ${selectedEx ? 'above-nav-stack' : 'above-nav-gap'}`}>
                     <div className="flex gap-2">
                       <Button variant="secondary" size="xl" className="flex-1 h-14" onClick={discardSession}>
                         放棄
@@ -1103,6 +1103,7 @@ export function TrainClient() {
                       </Button>
                     </div>
                   </div>
+                  {selectedEx ? <div className="h-16 sm:hidden" aria-hidden /> : null}
                 </div>
               )}
             </motion.div>
@@ -1260,7 +1261,7 @@ export function TrainClient() {
 
       {/* Exercise picker */}
       {active && selectedEx && tab === 'today' && (
-        <div className="one-hand-sticky fixed bottom-[4.75rem] left-0 right-0 z-40 px-4 pointer-events-none sm:hidden">
+        <div className="one-hand-sticky fixed above-nav-gap left-0 right-0 z-40 px-4 pointer-events-none sm:hidden md:hidden">
           <div className="mx-auto max-w-lg pointer-events-auto">
             <Button
               size="xl"
