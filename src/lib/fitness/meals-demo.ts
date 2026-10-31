@@ -710,6 +710,46 @@ export const HK_DISH_ESTIMATES: {
 ]
 
 
+
+export type DishBrand = '全部' | '譚仔' | '茶記街坊' | '大家樂' | '大快活' | '便利店補劑'
+
+export const DISH_BRAND_LABEL: Record<DishBrand, string> = {
+  '全部': '全部品牌',
+  '譚仔': '譚仔／三哥',
+  '茶記街坊': '茶記／街坊',
+  '大家樂': '大家樂',
+  '大快活': '大快活',
+  '便利店補劑': '便利店／補劑',
+}
+
+/** Infer brand chip from dish name + category (港式快加篩選用). */
+export function dishBrandOf(name: string, category: DishCategory): DishBrand {
+  if (/譚仔|三哥/.test(name)) return '譚仔'
+  if (/大家樂/.test(name)) return '大家樂'
+  if (/大快活/.test(name)) return '大快活'
+  if (category === '補劑' || /便利店|即食雞胸|乳清|蛋白棒|肌酸/.test(name)) return '便利店補劑'
+  return '茶記街坊'
+}
+
+export function filterHkDishes(opts: {
+  cat?: DishCategory | '全部'
+  brand?: DishBrand
+  q?: string
+}): typeof HK_DISH_ESTIMATES {
+  const cat = opts.cat ?? '全部'
+  const brand = opts.brand ?? '全部'
+  const q = (opts.q || '').trim().toLowerCase()
+  return HK_DISH_ESTIMATES.filter((d) => {
+    if (cat !== '全部' && d.category !== cat) return false
+    // 港式區唔顯示 gym 食堂（另有區塊）
+    if (cat === '全部' && d.category === 'gym撚常食') return false
+    if (brand !== '全部' && dishBrandOf(d.name, d.category) !== brand) return false
+    if (!q) return true
+    const hay = `${d.name} ${d.hint} ${DISH_CATEGORY_LABEL[d.category]}`.toLowerCase()
+    return hay.includes(q) || [...q].every((ch) => hay.includes(ch))
+  })
+}
+
 export function dishesByCategory(cat?: DishCategory | '全部') {
   if (!cat || cat === '全部') return HK_DISH_ESTIMATES
   return HK_DISH_ESTIMATES.filter((d) => d.category === cat)

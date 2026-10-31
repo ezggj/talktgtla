@@ -9,13 +9,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Cloud,
+  CopyPlus,
   ImagePlus,
   Loader2,
   Pencil,
   PenLine,
   RefreshCw,
   Salad,
+  Search,
   Trash2,
+  Undo2,
   Utensils,
   X,
   Sparkles,
@@ -38,12 +41,14 @@ import { createClient } from '@/lib/supabase/client'
 import {
   HK_DISH_ESTIMATES,
   DISH_CATEGORY_LABEL,
-  dishesByCategory,
+  DISH_BRAND_LABEL,
   clubProteinDishes,
   supplementDishes,
+  filterHkDishes,
   estimateFromFoodName,
   mockEstimateFromFile,
   scaleMacros,
+  type DishBrand,
   type DishCategory,
 } from '@/lib/fitness/meals-demo'
 import { ProteinWeekCard } from '@/components/fitness/protein-week-card'
@@ -139,6 +144,10 @@ export function EatClient() {
   const [meals, setMeals] = useState<MealEntry[]>([])
   const [goals, setGoals] = useState({ proteinG: 150, kcal: 2200 })
   const [dishCat, setDishCat] = useState<DishCategory | '全部'>('全部')
+  const [dishBrand, setDishBrand] = useState<DishBrand>('全部')
+  const [dishQuery, setDishQuery] = useState('')
+  const [quickPortion, setQuickPortion] = useState(1)
+  const [undoMeal, setUndoMeal] = useState<MealEntry | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null)
   const [quotaLimit, setQuotaLimit] = useState(3)
@@ -380,6 +389,20 @@ export function EatClient() {
 
   const todaySum = useMemo(() => sumMacros(todayMeals), [todayMeals])
 
+  /** MFP 風格：最近常食（去重，最多 8 個）一掣再加 */
+  const recentMeals = useMemo(() => {
+    const seen = new Set<string>()
+    const out: MealEntry[] = []
+    for (const m of [...meals].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
+      const key = m.name.replace(/（半份|一份半|兩份）/g, '').trim()
+      if (!key || seen.has(key)) continue
+      seen.add(key)
+      out.push(m)
+      if (out.length >= 8) break
+    }
+    return out
+  }, [meals])
+
   // Calendar heat for current month (protein per day)
   const monthHeat = useMemo(() => {
     const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1)
@@ -396,6 +419,7 @@ export function EatClient() {
   }, [meals, anchor])
 
   const showToast = (msg: string) => {
+    if (!msg.includes('可還原')) setUndoMeal(null)
     setToast(msg)
     window.setTimeout(() => setToast(null), 4200)
   }
@@ -746,8 +770,36 @@ export function EatClient() {
 
   const removeMeal = (id: string) => {
     const victim = meals.find((m) => m.id === id)
+    if (!victim) return
     const next = meals.filter((m) => m.id !== id)
     void persistList(next, undefined, null, victim)
+    setUndoMeal(victim)
+    showToast(`已刪「${victim.name}」· 可還原`)
+  }
+
+  const undoRemoveMeal = () => {
+    if (!undoMeal) return
+    const restored = { ...undoMeal }
+    const next = [restored, ...meals.filter((m) => m.id !== restored.id)]
+    setUndoMeal(null)
+    void persistList(next, restored)
+    showToast(`已還原「${restored.name}」`)
+  }
+
+  const reAddMeal = (m: MealEntry) => {
+    const entry: MealEntry = {
+      id: newId(),
+      createdAt: new Date().toISOString(),
+      name: m.name,
+      macros: { ...m.macros },
+      portion: m.portion ?? 1,
+      estimated: m.estimated,
+      note: m.note,
+      source: m.source === 'ai' ? 'mock' : m.source,
+    }
+    const next = [entry, ...meals]
+    void persistList(next, entry)
+    showToast(`再食一次「${entry.name}」`)
   }
 
   const updateMealMacros = (id: string, patch: Partial<MealEntry>) => {
@@ -759,19 +811,23 @@ export function EatClient() {
   const addDemoDish = (idx: number) => {
     const dish = HK_DISH_ESTIMATES[idx]
     if (!dish) return
+    const portion = quickPortion
+    const macros = portion === 1 ? { ...dish.macros } : scaleMacros(dish.macros, portion)
+    const portionLabel =
+      portion === 0.5 ? '半份' : portion === 1.5 ? '一份半' : portion === 2 ? '兩份' : '一份'
     const entry: MealEntry = {
       id: newId(),
       createdAt: new Date().toISOString(),
-      name: dish.name,
-      macros: { ...dish.macros },
-      portion: 1,
+      name: portion === 1 ? dish.name : `${dish.name}（${portionLabel}）`,
+      macros,
+      portion,
       estimated: true,
       note: dish.hint,
       source: 'mock',
     }
     const next = [entry, ...meals]
     void persistList(next, entry)
-    showToast(`已快加「${dish.name}」`)
+    showToast(`已快加「${entry.name}」`)
     try {
       const newly = evaluateFitnessAchievements({
         sessions: loadSessions(),
@@ -1244,13 +1300,81 @@ export function EatClient() {
           </div>
         </Card>
 
+        {recentMeals.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-serif text-xl">最近常食</h2>
+              <Badge tone="accent">再食一次</Badge>
+            </div>
+            <p className="text-[11px] text-muted mb-2 px-0.5 leading-relaxed">
+              你最近記過嘅餐——一掣再入，似 MyFitnessPal 最近食物。
+            </p>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+              {recentMeals.map((m) => (
+                <motion.button
+                  key={m.id}
+                  type="button"
+                  whileHover={reduce ? undefined : { scale: 1.02 }}
+                  whileTap={reduce ? undefined : { scale: 0.98 }}
+                  transition={springSnappy}
+                  onClick={() => reAddMeal(m)}
+                  className="shrink-0 w-[148px] rounded-[20px] border border-accent/20 bg-accent-soft/15 p-3.5 text-left shadow-soft hover:shadow-hover transition"
+                >
+                  <div className="text-[10px] text-accent mb-0.5">再食一次</div>
+                  <div className="text-sm font-medium mb-0.5 line-clamp-1">{m.name}</div>
+                  <div className="text-xs text-accent font-semibold tabular-nums">
+                    {m.macros.protein}g 蛋白 · {m.macros.kcal} kcal
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 港式快加 */}
         <div id="eat-hk" ref={hkRef} className="mb-6 scroll-mt-24">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-serif text-xl">港式快加</h2>
-            <Badge tone="muted">茶記／小食／補劑</Badge>
+            <Badge tone="muted">搜尋 · 品牌 · 份量</Badge>
           </div>
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1 mb-2">
+          <div className="relative mb-2">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
+            <Input
+              value={dishQuery}
+              onChange={(e) => setDishQuery(e.target.value)}
+              placeholder="搵譚仔、叉燒飯、蛋白棒…"
+              aria-label="搜尋港式餐"
+              className="pl-9"
+            />
+            {dishQuery ? (
+              <button
+                type="button"
+                aria-label="清空搜尋"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted hover:text-foreground"
+                onClick={() => setDishQuery('')}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1 mb-1.5">
+            {(['全部', '譚仔', '茶記街坊', '大家樂', '大快活', '便利店補劑'] as DishBrand[]).map((b) => (
+              <button
+                key={b}
+                type="button"
+                onClick={() => setDishBrand(b)}
+                className={cn(
+                  'shrink-0 rounded-full px-3 py-1.5 text-[11px] border touch-manipulation',
+                  dishBrand === b
+                    ? 'border-accent bg-accent-soft text-accent font-semibold'
+                    : 'border-border text-muted hover:text-foreground'
+                )}
+              >
+                {DISH_BRAND_LABEL[b]}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1 mb-1.5">
             {(['全部', '茶記', '小食', '早餐', '補劑'] as const).map((c) => {
               const active =
                 c === '全部'
@@ -1268,16 +1392,57 @@ export function EatClient() {
                     : 'border-border text-muted hover:text-foreground'
                 )}
               >
-                {c === '全部' ? '全部港式' : DISH_CATEGORY_LABEL[c]}
+                {c === '全部' ? '全部類別' : DISH_CATEGORY_LABEL[c]}
               </button>
             )})}
           </div>
+          <div className="flex items-center gap-1.5 mb-2 px-0.5">
+            <span className="text-[10px] text-muted shrink-0">份量</span>
+            {([0.5, 1, 1.5, 2] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setQuickPortion(p)}
+                className={cn(
+                  'rounded-full px-2.5 py-1 text-[11px] border touch-manipulation tabular-nums',
+                  quickPortion === p
+                    ? 'border-accent bg-accent text-white font-semibold'
+                    : 'border-border text-muted hover:text-foreground'
+                )}
+              >
+                {p === 0.5 ? '半份' : p === 1 ? '1 份' : p === 1.5 ? '1½' : '2 份'}
+              </button>
+            ))}
+          </div>
+          {(() => {
+            const list = filterHkDishes({
+              cat: dishCat === 'gym撚常食' ? '全部' : dishCat,
+              brand: dishBrand,
+              q: dishQuery,
+            })
+            if (list.length === 0) {
+              return (
+                <EmptyState
+                  compact
+                  emoji="🔎"
+                  title="搵唔到呢餐"
+                  description="試改關鍵字，或者撳「全部品牌」。唔見嘅可以手動入數。"
+                  actionLabel="手動入數"
+                  onAction={openManualEntry}
+                  secondaryLabel="清空篩選"
+                  onSecondary={() => {
+                    setDishQuery('')
+                    setDishBrand('全部')
+                    setDishCat('全部')
+                  }}
+                />
+              )
+            }
+            return (
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
-            {(dishCat === '茶記' || dishCat === '小食' || dishCat === '早餐' || dishCat === '補劑'
-              ? dishesByCategory(dishCat)
-              : dishesByCategory('茶記').concat(dishesByCategory('小食'), dishesByCategory('早餐'))
-            ).map((d) => {
+            {list.map((d) => {
               const i = HK_DISH_ESTIMATES.findIndex((x) => x.name === d.name)
+              const shown = quickPortion === 1 ? d.macros : scaleMacros(d.macros, quickPortion)
               return (
               <motion.button
                 key={d.name}
@@ -1292,11 +1457,13 @@ export function EatClient() {
                 <div className="text-sm font-medium mb-0.5">{d.name}</div>
                 <div className="text-[10px] text-muted mb-2 line-clamp-1">{d.hint}</div>
                 <div className="text-xs text-accent font-semibold tabular-nums">
-                  {d.macros.protein}g 蛋白 · {d.macros.kcal} kcal
+                  {shown.protein}g 蛋白 · {shown.kcal} kcal
                 </div>
               </motion.button>
             )})}
           </div>
+            )
+          })()}
         </div>
 
         {/* gym撚常食 */}
@@ -1449,6 +1616,15 @@ export function EatClient() {
                           </div>
                         </div>
                         <div className="flex gap-1">
+                          <button
+                            type="button"
+                            className="p-1.5 rounded-lg text-muted hover:text-accent hover:bg-accent-soft"
+                            onClick={() => reAddMeal(m)}
+                            aria-label="再食一次"
+                            title="再食一次"
+                          >
+                            <CopyPlus className="h-3.5 w-3.5" />
+                          </button>
                           <button
                             type="button"
                             className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-black/[0.04]"
@@ -1801,14 +1977,25 @@ export function EatClient() {
       <AnimatePresence>
         {toast && (
           <motion.div
-            className="fixed above-nav-gap left-1/2 z-[60] -translate-x-1/2 max-w-[min(92vw,420px)] rounded-2xl border border-border bg-foreground text-background px-4 py-3 text-xs shadow-hover"
+            className="fixed above-nav-gap left-1/2 z-[60] -translate-x-1/2 max-w-[min(92vw,420px)] rounded-2xl border border-border bg-foreground text-background px-4 py-3 text-xs shadow-hover flex items-center gap-3"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
             transition={springSoft}
             role="status"
+            aria-live="polite"
           >
-            {toast}
+            <span className="flex-1 leading-relaxed">{toast}</span>
+            {undoMeal && toast.includes('可還原') ? (
+              <button
+                type="button"
+                onClick={undoRemoveMeal}
+                className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-background/15 px-2.5 py-1.5 text-[11px] font-semibold hover:bg-background/25 touch-manipulation"
+              >
+                <Undo2 className="h-3.5 w-3.5" aria-hidden />
+                還原
+              </button>
+            ) : null}
           </motion.div>
         )}
       </AnimatePresence>

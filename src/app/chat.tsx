@@ -836,6 +836,14 @@ export default function Chat() {
                     去飲食
                   </Link>
                 </div>
+                <div className="mt-4 text-left">
+                  <StarterChipsBar
+                    onPick={(line) => {
+                      setNewMessage(line)
+                      requestAnimationFrame(() => inputRef.current?.focus())
+                    }}
+                  />
+                </div>
                 {(() => {
                   const topic = getDailyTopic()
                   return (
@@ -862,6 +870,26 @@ export default function Chat() {
                     </div>
                   )
                 })()}
+              </div>
+            </div>
+          )}
+          {messagesLoaded &&
+            messages.length > 0 &&
+            messages.every((msg) => blockedNames.has(msg.username.trim().toLowerCase())) && (
+            <div className="flex h-full min-h-[180px] items-center justify-center px-2">
+              <div className="w-full max-w-sm rounded-[20px] border border-dashed border-border bg-surface px-5 py-7 text-center shadow-soft">
+                <div className="mx-auto mb-2 text-2xl" aria-hidden>🙈</div>
+                <h3 className="font-serif text-lg tracking-tight">訊息被你封鎖晒</h3>
+                <p className="mt-2 text-sm text-muted leading-relaxed">
+                  呢度有人講過嘢，但花名喺你本機封鎖清單。解除之後就見返。
+                </p>
+                <button
+                  type="button"
+                  className="mt-4 inline-flex items-center rounded-full bg-accent px-3.5 py-2 text-[11px] font-semibold text-white touch-manipulation"
+                  onClick={() => setShowBlockedUsers(true)}
+                >
+                  睇封鎖清單
+                </button>
               </div>
             </div>
           )}

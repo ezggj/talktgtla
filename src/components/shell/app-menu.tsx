@@ -5,14 +5,17 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
+  Dumbbell,
   FileText,
   LogIn,
   LogOut,
+  MapPin,
   Menu,
   MessageSquarePlus,
   Moon,
   Settings,
   Sun,
+  Utensils,
   X,
 } from 'lucide-react'
 import { springSoft, springSnappy } from '@/components/motion/presets'
@@ -141,6 +144,24 @@ export function AppMenu({ className }: { className?: string }) {
                   label="設定"
                   hint="主題 · 通知 · 字體"
                   onClick={() => go('/me/settings')}
+                />
+                <MenuItem
+                  icon={Dumbbell}
+                  label="訓練"
+                  hint="開波 · 課表 · 歷史"
+                  onClick={() => go('/train')}
+                />
+                <MenuItem
+                  icon={Utensils}
+                  label="飲食"
+                  hint="影餐 · 港式快加"
+                  onClick={() => go('/eat')}
+                />
+                <MenuItem
+                  icon={MapPin}
+                  label="會所分店"
+                  hint="247 現場感 · 報到"
+                  onClick={() => go('/me/gyms')}
                 />
                 <MenuItem
                   icon={themeMode === 'dark' ? Sun : Moon}

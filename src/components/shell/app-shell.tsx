@@ -18,6 +18,9 @@ export function AppShell({
 }) {
   return (
     <div className="min-h-dvh bg-background text-foreground overflow-x-clip">
+      <a href="#main-content" className="skip-link">
+        跳去主要內容
+      </a>
       <ThemeBootstrap />
       {/* Persistent top-right hamburger — sticky reserves space on tab pages */}
       <div
@@ -33,8 +36,10 @@ export function AppShell({
         </div>
       </div>
       <div
+        id="main-content"
+        tabIndex={-1}
         className={cn(
-          'md:pl-[88px]',
+          'md:pl-[88px] outline-none',
           flush
             ? 'pb-[calc(var(--nav-h)+var(--safe-bottom))] md:pb-0'
             : 'px-4 pt-3 pb-[calc(var(--nav-h)+1.5rem+var(--safe-bottom))] sm:px-5 md:px-10 md:pt-6 md:pb-12',

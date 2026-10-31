@@ -12,6 +12,7 @@ import {
   Pause,
   Play,
   Plus,
+  RotateCcw,
   Search,
   Smartphone,
   Sparkles,
@@ -486,6 +487,25 @@ export function TrainClient() {
     }
   }
 
+  /** Hevy／Strong 風格：照上一場動作順序再開，重量／次數自動帶入。 */
+  const startFromSession = (s: WorkoutSession) => {
+    if (active && active.sets.length > 0) {
+      const ok = window.confirm('而家有進行中嘅訓練。放棄佢，改做呢場？')
+      if (!ok) return
+    }
+    const ids: string[] = []
+    for (const set of s.sets) {
+      if (!ids.includes(set.exerciseId) && exerciseById(set.exerciseId)) ids.push(set.exerciseId)
+    }
+    if (!ids.length) {
+      startSession(s.templateId)
+      return
+    }
+    startSession(s.templateId, ids)
+    setSavedToast('已套用上一場動作 · 重量會自動帶入')
+    window.setTimeout(() => setSavedToast(null), 2600)
+  }
+
   const pickExercise = (exerciseId: string, sess = active) => {
     const ex = exerciseById(exerciseId)
     if (!ex) return
@@ -889,23 +909,36 @@ export function TrainClient() {
                           </Button>
                         )}
                         {todayHint.doneToday && (
-                          <div className="flex gap-2">
-                            <Button
-                              size="lg"
-                              className="flex-1 touch-manipulation h-12"
-                              onClick={() => startSession()}
-                            >
-                              <Play className="h-4 w-4" />
-                              再練一場
-                            </Button>
-                            <Button
-                              size="lg"
-                              variant="secondary"
-                              className="flex-1 h-12"
-                              onClick={() => setTab('templates')}
-                            >
-                              睇課表
-                            </Button>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex gap-2">
+                              <Button
+                                size="lg"
+                                className="flex-1 touch-manipulation h-12"
+                                onClick={() => startSession()}
+                              >
+                                <Play className="h-4 w-4" />
+                                再練一場
+                              </Button>
+                              <Button
+                                size="lg"
+                                variant="secondary"
+                                className="flex-1 h-12"
+                                onClick={() => setTab('templates')}
+                              >
+                                睇課表
+                              </Button>
+                            </div>
+                            {sessions[0] && sessions[0].sets.length > 0 && (
+                              <Button
+                                size="lg"
+                                variant="secondary"
+                                className="w-full touch-manipulation h-11"
+                                onClick={() => startFromSession(sessions[0])}
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                                再做上一場 · {TEMPLATES.find((t) => t.id === sessions[0].templateId)?.name || '自由練'}
+                              </Button>
+                            )}
                           </div>
                         )}
                         {!todayHint.template && !todayHint.doneToday && (
@@ -2172,6 +2205,17 @@ export function TrainClient() {
                               {TEMPLATES.find((t) => t.id === s.templateId)?.name || '自由練'}
                             </Badge>
                           </div>
+                          {s.sets.length > 0 && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="mt-3 w-full touch-manipulation"
+                              onClick={() => startFromSession(s)}
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" />
+                              再做呢場
+                            </Button>
+                          )}
                           {s.analysis && (
                             <div className="mt-3">
                               <ShareCardButton

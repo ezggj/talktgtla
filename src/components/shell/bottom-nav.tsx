@@ -8,10 +8,10 @@ import { cn } from '@/lib/utils'
 import { springSoft, springSnappy } from '@/components/motion/presets'
 
 const items = [
-  { href: '/', label: '傾偈', icon: MessageCircle },
-  { href: '/train', label: '訓練', icon: Dumbbell },
-  { href: '/eat', label: '飲食', icon: Utensils },
-  { href: '/me', label: '我', icon: User },
+  { href: '/', label: '傾偈', hint: '傾偈室', icon: MessageCircle },
+  { href: '/train', label: '訓練', hint: '訓練記錄', icon: Dumbbell },
+  { href: '/eat', label: '飲食', hint: '飲食日記', icon: Utensils },
+  { href: '/me', label: '我', hint: '我嘅頁', icon: User },
 ] as const
 
 export function BottomNav() {
@@ -27,7 +27,7 @@ export function BottomNav() {
         aria-label="主導航"
       >
         <ul className="grid grid-cols-4 h-[var(--nav-h)] min-h-[3.75rem] max-w-lg mx-auto px-1.5 pt-0.5">
-          {items.map(({ href, label, icon: Icon }) => {
+          {items.map(({ href, label, hint, icon: Icon }) => {
             const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
             return (
               <li key={href} className="flex">
@@ -38,6 +38,7 @@ export function BottomNav() {
                 >
                   <Link
                     href={href}
+                    aria-label={hint}
                     className={cn(
                       'relative flex flex-1 flex-col items-center justify-center gap-1 text-[11px] leading-none min-h-[44px]',
                       active ? 'text-accent' : 'text-muted'
@@ -72,7 +73,7 @@ export function BottomNav() {
         aria-label="主導航"
       >
         <div className="mb-6 font-serif text-lg text-accent tracking-tight">tgt</div>
-        {items.map(({ href, label, icon: Icon }) => {
+        {items.map(({ href, label, hint, icon: Icon }) => {
           const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
           return (
             <motion.div
@@ -82,6 +83,7 @@ export function BottomNav() {
             >
               <Link
                 href={href}
+                aria-label={hint}
                 className={cn(
                   'relative flex w-[64px] flex-col items-center gap-1 rounded-2xl px-2 py-3 text-[11px] leading-none transition-colors',
                   active ? 'text-accent' : 'text-muted hover:text-foreground hover:bg-black/[0.03]'
