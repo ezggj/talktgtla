@@ -8,7 +8,7 @@ export type HkGym = {
   id: string
   name: string
   nameZh: string
-  /** 大致覆蓋地區（簡寫） */
+  /** 大致覆蓋地區（簡寫）——要夠齊，地區搜尋先揀得到 */
   areas: string[]
   regions: GymRegion[]
   priceBand: GymPriceBand
@@ -22,6 +22,12 @@ export type HkGym = {
   /** 公開官網或介紹頁（可選） */
   link?: string
   tags: string[]
+  /** 旗艦／值得置頂 */
+  featured?: boolean
+  /** 分店規模提示，例如「全港最多分店」 */
+  branchNote?: string
+  /** 搜尋別名（24/7、247fitness 等） */
+  aliases?: string[]
 }
 
 export const PRICE_BAND_LABEL: Record<GymPriceBand, string> = {
@@ -48,27 +54,114 @@ export const EQUIPMENT_FOCUS = [
 
 export type EquipmentFocusId = (typeof EQUIPMENT_FOCUS)[number]['id']
 
-/** Static curated list — update manually; mark prices as 參考. */
+/** Static curated list — update manually; mark prices as 參考. Featured first. */
 export const HK_GYMS: HkGym[] = [
   {
     id: '247-fitness',
-    name: '247 Fitness',
+    name: '24/7 Fitness',
     nameZh: '247 Fitness',
-    areas: ['小西灣', '柴灣', '觀塘', '荃灣', '屯門'],
-    regions: ['港島', '九龍', '新界'],
+    areas: [
+      // 港島（含小西灣旗艦一帶）
+      '小西灣',
+      '柴灣',
+      '筲箕灣',
+      '西灣河',
+      '鰂魚涌',
+      '北角',
+      '炮台山',
+      '天后',
+      '銅鑼灣',
+      '灣仔',
+      '中環',
+      '上環',
+      '西營盤',
+      '西環',
+      '堅尼地城',
+      '薄扶林',
+      '香港仔',
+      '鴨脷洲',
+      '黃竹坑',
+      // 九龍
+      '觀塘',
+      '九龍灣',
+      '旺角',
+      '太子',
+      '尖沙咀',
+      '紅磡',
+      '長沙灣',
+      '深水埗',
+      '黃大仙',
+      '鑽石山',
+      '油麻地',
+      // 新界
+      '荃灣',
+      '葵涌',
+      '屯門',
+      '元朗',
+      '天水圍',
+      '沙田',
+      '大圍',
+      '大埔',
+      '粉嶺',
+      '上水',
+      '將軍澳',
+      '馬鞍山',
+      '東涌',
+    ],
+    regions: ['港島', '九龍', '新界', '多區'],
     priceBand: 'budget',
-    monthlyHkd: { min: 200, max: 380 },
+    monthlyHkd: { min: 200, max: 450 },
     is24h: true,
-    equipment: '基本重訓＋有氧；分店有大有細，自由重量視分店而定',
-    vibe: '平、廿四小時、街坊型；適合預算緊、想半夜練',
+    equipment: '基本重訓＋有氧；分店有大有細，自由重量視舖而定——街坊型為主',
+    vibe: '全港分店最多（百幾間級）、平、廿四小時；適合預算緊、住邊都想有舖、想半夜練',
     link: 'https://www.247fitness.hk/',
     tags: ['strength', 'machines', 'cardio'],
+    featured: true,
+    branchNote: '全港最多分店 · 港九新界遍佈（含小西灣藍灣廣場）',
+    aliases: ['247', '24/7', '247fitness', '二十四七', '廿四七', 'siu sai wan'],
+  },
+  {
+    id: 'efx24',
+    name: 'EFX24',
+    nameZh: 'EFX24',
+    areas: [
+      '小西灣',
+      '灣仔',
+      '香港仔',
+      '九龍灣',
+      '觀塘',
+      '長沙灣',
+      '大角咀',
+      '新蒲崗',
+      '沙田',
+      '大圍',
+      '石門',
+      '荃灣',
+      '元朗',
+      '屯門',
+      '馬鞍山',
+      '粉嶺',
+      '將軍澳',
+      '西沙',
+      '烏溪沙',
+    ],
+    regions: ['港島', '九龍', '新界', '多區'],
+    priceBand: 'mid',
+    monthlyHkd: { min: 500, max: 1000 },
+    is24h: true,
+    equipment: 'Gym80／Hammer Strength 等重訓齊、有氧多；多間 HYROX 官方訓練館',
+    vibe: '商場旗艦 24 小時、場靚器材新；適合想喺港鐵商場練、玩功能性／HYROX',
+    link: 'https://efx24.com/',
+    tags: ['strength', 'machines', 'cardio'],
+    featured: true,
+    branchNote: '廿幾間直營 · 多入駐大型商場（沙田新城市、德福等）',
+    aliases: ['efx', 'efx24', 'efx fitness', 'efx24 fitness'],
   },
   {
     id: 'anytime',
     name: 'Anytime Fitness',
     nameZh: 'Anytime Fitness',
-    areas: ['中環', '銅鑼灣', '旺角', '尖沙咀', '沙田', '將軍澳', '多區'],
+    areas: ['中環', '銅鑼灣', '旺角', '尖沙咀', '沙田', '將軍澳', '荃灣', '大埔', '多區'],
     regions: ['多區'],
     priceBand: 'mid',
     monthlyHkd: { min: 500, max: 780 },
@@ -77,6 +170,7 @@ export const HK_GYMS: HkGym[] = [
     vibe: '連鎖穩陣、廿四小時；偏工作室大小，唔係巨型健身房',
     link: 'https://www.anytimefitness.com.hk/',
     tags: ['strength', 'machines', 'cardio'],
+    aliases: ['anytime', 'atf'],
   },
   {
     id: 'pure',
@@ -212,27 +306,64 @@ export function formatMonthlyRange(g: HkGym): string {
   return `約 $${g.monthlyHkd.min}–${g.monthlyHkd.max}`
 }
 
+/** 地區顯示：多區連鎖先標規模，再列代表分店 */
+export function formatGymAreas(g: HkGym, maxShow = 6): string {
+  const show = g.areas.slice(0, maxShow)
+  const extra = g.areas.length - show.length
+  const base = show.join(' · ')
+  if (extra > 0) return `${base} · 等 ${g.areas.length} 區`
+  return base
+}
+
+function gymSearchHay(g: HkGym): string {
+  return [
+    g.name,
+    g.nameZh,
+    g.areas.join(' '),
+    g.equipment,
+    g.vibe,
+    g.branchNote ?? '',
+    ...(g.aliases ?? []),
+  ]
+    .join(' ')
+    .toLowerCase()
+}
+
+function sortGyms(list: HkGym[]): HkGym[] {
+  return [...list].sort((a, b) => {
+    const af = a.featured ? 0 : 1
+    const bf = b.featured ? 0 : 1
+    if (af !== bf) return af - bf
+    // stable-ish: keep curated order among same featured tier
+    return HK_GYMS.indexOf(a) - HK_GYMS.indexOf(b)
+  })
+}
+
 export function filterGyms(filters: GymFilters, list: HkGym[] = HK_GYMS): HkGym[] {
   const q = filters.query.trim().toLowerCase()
-  return list.filter((g) => {
+  const filtered = list.filter((g) => {
     if (filters.only24h && !g.is24h) return false
     if (filters.priceBand !== '全部' && g.priceBand !== filters.priceBand) return false
     if (filters.region !== '全部') {
       if (filters.region === '多區') {
-        if (!g.regions.includes('多區') && g.regions.length < 2) return false
+        // 多區：標咗「多區」、或覆蓋 ≥2 個大區（港島／九龍／新界）
+        const big = g.regions.filter((r) => r === '港島' || r === '九龍' || r === '新界')
+        if (!g.regions.includes('多區') && big.length < 2) return false
       } else if (!g.regions.includes(filters.region) && !g.regions.includes('多區')) {
         return false
       }
     }
     if (filters.equipment !== '全部' && !g.tags.includes(filters.equipment)) return false
-    if (q) {
-      const hay = `${g.name} ${g.nameZh} ${g.areas.join(' ')} ${g.equipment} ${g.vibe}`.toLowerCase()
-      if (!hay.includes(q)) return false
-    }
+    if (q && !gymSearchHay(g).includes(q)) return false
     return true
   })
+  return sortGyms(filtered)
 }
 
 export function gymById(id: string): HkGym | undefined {
   return HK_GYMS.find((g) => g.id === id)
+}
+
+export function featuredGyms(list: HkGym[] = HK_GYMS): HkGym[] {
+  return list.filter((g) => g.featured)
 }

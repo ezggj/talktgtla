@@ -22,6 +22,7 @@ import {
   DEFAULT_GYM_FILTERS,
   EQUIPMENT_FOCUS,
   filterGyms,
+  formatGymAreas,
   formatMonthlyRange,
   gymById,
   PRICE_BAND_HINT,
@@ -84,10 +85,14 @@ function GymCard({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5 mb-1">
               <CardTitle className="text-base">{gym.nameZh}</CardTitle>
+              {gym.featured && <Badge tone="accent">旗艦</Badge>}
               {gym.is24h && <Badge tone="accent">24 小時</Badge>}
               <Badge tone="muted">{PRICE_BAND_LABEL[gym.priceBand]}</Badge>
             </div>
             <p className="text-[11px] text-muted">{gym.name}</p>
+            {gym.branchNote && (
+              <p className="mt-1 text-[11px] font-medium text-accent/90">{gym.branchNote}</p>
+            )}
           </div>
           <Button
             size="sm"
@@ -104,10 +109,7 @@ function GymCard({
         <div className="mt-3 space-y-2 text-[12px] leading-relaxed">
           <div className="flex gap-2 text-muted">
             <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5 text-accent" />
-            <span>
-              {gym.areas.slice(0, 5).join(' · ')}
-              {gym.areas.length > 5 ? '…' : ''}
-            </span>
+            <span>{formatGymAreas(gym, 8)}</span>
           </div>
           <div className="flex gap-2">
             <Scale className="h-3.5 w-3.5 shrink-0 mt-0.5 text-accent" />
@@ -161,7 +163,11 @@ function CompareTable({ gyms, onRemove }: { gyms: HkGym[]; onRemove: (id: string
     },
     {
       label: '地區',
-      cell: (g) => g.areas.slice(0, 3).join('、') + (g.areas.length > 3 ? '…' : ''),
+      cell: (g) => formatGymAreas(g, 4),
+    },
+    {
+      label: '分店',
+      cell: (g) => g.branchNote ?? '—',
     },
     {
       label: '器材',
@@ -400,6 +406,19 @@ export function HkGymCompare() {
         />
       ) : (
         <div className="space-y-3">
+          {filtered.some((g) => g.featured) &&
+            filters.region === '全部' &&
+            filters.priceBand === '全部' &&
+            filters.equipment === '全部' &&
+            !filters.only24h &&
+            !filters.query.trim() && (
+              <p className="text-[11px] text-muted px-0.5">
+                置頂：<span className="text-foreground font-medium">247 Fitness</span>
+                （全港最多分店）同{' '}
+                <span className="text-foreground font-medium">EFX24</span>
+                （商場旗艦 24h）——再向下睇其他選擇。
+              </p>
+            )}
           {filtered.map((g) => (
             <GymCard
               key={g.id}
