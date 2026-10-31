@@ -7,21 +7,31 @@ export const metadata: Metadata = {
   description: '公開一週訓練／飲食摘要（可關）',
 }
 
-export default async function WallPage({
+function WallFallback() {
+  return (
+    <div className="min-h-dvh bg-background p-6">
+      <div className="max-w-lg mx-auto h-40 rounded-[20px] bg-border/50 skeleton-pulse" />
+    </div>
+  )
+}
+
+async function WallPageInner({
   params,
 }: {
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
+  return <WallClient slug={slug} />
+}
+
+export default function WallPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-dvh bg-background p-6">
-          <div className="max-w-lg mx-auto h-40 rounded-[20px] bg-border/50 skeleton-pulse" />
-        </div>
-      }
-    >
-      <WallClient slug={slug} />
+    <Suspense fallback={<WallFallback />}>
+      <WallPageInner params={params} />
     </Suspense>
   )
 }
