@@ -414,7 +414,7 @@ export function HkGymCompare() {
             !filters.query.trim() && (
               <p className="text-[11px] text-muted px-0.5">
                 置頂：<span className="text-foreground font-medium">247 Fitness</span>
-                （140+ 分店 · 12個月約 $550）同{' '}
+                （約 140 舖 · 12個月約 $550／月）同{' '}
                 <span className="text-foreground font-medium">EFX24</span>
                 （12個月約 $538）——再向下睇其他選擇。
               </p>
