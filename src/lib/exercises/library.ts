@@ -24,7 +24,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'bench',
     nameZh: '卧推',
     nameEn: 'Bench Press',
-    aliases: ['bench', '胸', '卧推', '平板卧推'],
+    aliases: ['bench', '胸', '卧推', '平板卧推', '練胸', '推胸', '平板推', '胸推', 'bench press', 'bp', '臥推'],
     muscle: '胸',
     cues: [
       '仰躺凳上，腳踩實、肩胛骨夾實貼凳，槓大概喺眼上方。',
@@ -38,7 +38,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'squat',
     nameZh: '深蹲',
     nameEn: 'Squat',
-    aliases: ['squat', '腿', '深蹲', '深蹲槓'],
+    aliases: ['squat', '腿', '深蹲', '深蹲槓', '練腿', '深蹲架', '背蹲', 'goblet', '高腳杯深蹲'],
     muscle: '腿',
     cues: [
       '腳大約與肩同寬、腳尖微向外；槓坐上斜方肌，胸挺、望前。',
@@ -52,7 +52,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'deadlift',
     nameZh: '硬拉',
     nameEn: 'Deadlift',
-    aliases: ['deadlift', '背', '硬拉', '傳統硬拉'],
+    aliases: ['deadlift', '背', '硬拉', '傳統硬拉', '拉背', '硬拉槓', '傳統拉', 'dl'],
     muscle: '背',
     cues: [
       '槓貼小腿，髖鉸鏈彎腰握槓，背打直、核心收，肩喺槓微前方。',
@@ -66,7 +66,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'ohp',
     nameZh: '肩推',
     nameEn: 'Overhead Press',
-    aliases: ['ohp', '肩', '推舉', '軍事推舉', '過頭推'],
+    aliases: ['ohp', '肩', '推舉', '軍事推舉', '過頭推', '練肩', '過頭推舉', '站姿推舉', '軍事推'],
     muscle: '肩',
     cues: [
       '站姿核心收實，槓由鎖骨前方推起，頭微後讓路再開前穿出。',
@@ -80,7 +80,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'row',
     nameZh: '划船',
     nameEn: 'Barbell Row',
-    aliases: ['row', '划船', '背', '槓铃划船', '槓鈴划船'],
+    aliases: ['row', '划船', '背', '槓铃划船', '槓鈴划船', '拉背', '槓鈴划', '練背', 'bent over row'],
     muscle: '背',
     cues: [
       '髖鉸鏈微屈膝，背打直接近水平，槓垂喺腳前。',
@@ -94,7 +94,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'pullup',
     nameZh: '引體上升',
     nameEn: 'Pull-up',
-    aliases: ['pullup', '引體', '背', 'pull-up', 'chin'],
+    aliases: ['pullup', '引體', '背', 'pull-up', 'chin', '引體向上', '拉單槓', 'chinup', 'chin-up', '單槓'],
     muscle: '背',
     cues: [
       '正手握槓略闊於肩，身體垂直、核心收，由完全懸垂開始。',
@@ -108,7 +108,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'latpulldown',
     nameZh: '高拉',
     nameEn: 'Lat Pulldown',
-    aliases: ['高拉', 'lat', 'pulldown', '背闊'],
+    aliases: ['高拉', 'lat', 'pulldown', '背闊', '闊背', '背闊下拉', '高位下拉', '拉背機', '下拉'],
     muscle: '背',
     cues: [
       '坐穩夾住大腿墊，握距略闊於肩，胸微挺。',
@@ -122,7 +122,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'legpress',
     nameZh: '腿舉',
     nameEn: 'Leg Press',
-    aliases: ['腿舉', 'leg press', '腿推'],
+    aliases: ['腿舉', 'leg press', '腿推', '蹬腿', '腿機', '推腿', '腿推機'],
     muscle: '腿',
     cues: [
       '背貼實椅背，腳放踏板中間約肩寬，腳尖微外。',
@@ -136,7 +136,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'rdl',
     nameZh: '羅馬尼亞硬拉',
     nameEn: 'RDL',
-    aliases: ['rdl', '羅馬', '羅馬尼亞', '直腿硬拉'],
+    aliases: ['rdl', '羅馬', '羅馬尼亞', '直腿硬拉', '羅馬硬拉', '直腿', '臀腿'],
     muscle: '腿',
     cues: [
       '微屈膝固定角度，髖向後推，槓貼大腿下滑，背一直打直。',
@@ -150,7 +150,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'lunges',
     nameZh: '弓步蹲',
     nameEn: 'Lunges',
-    aliases: ['弓步', 'lunge', '箭步蹲'],
+    aliases: ['弓步', 'lunge', '箭步蹲', '弓箭步', '分腿蹲', '前箭步', '弓步蹲'],
     muscle: '腿',
     cues: [
       '一步跨出，前後腳穩定；前膝大約喺腳踝上方，後膝輕落地。',
@@ -164,7 +164,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'curl',
     nameZh: '二頭彎舉',
     nameEn: 'Bicep Curl',
-    aliases: ['二頭', '手臂', 'curl', '彎舉'],
+    aliases: ['二頭', '手臂', 'curl', '彎舉', '肱二頭', '二頭彎舉', '練手臂', '臂彎舉'],
     muscle: '手臂',
     cues: [
       '手肘貼身側，掌心向上（或啞鈴中立），只郁前臂。',
@@ -178,7 +178,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'tricep',
     nameZh: '三頭下壓',
     nameEn: 'Tricep Pushdown',
-    aliases: ['三頭', '手臂', 'pushdown', '繩索下壓'],
+    aliases: ['三頭', '手臂', 'pushdown', '繩索下壓', '肱三頭', '三頭下壓', '繩索三頭', '練三頭'],
     muscle: '手臂',
     cues: [
       '繩索／直槓高位，手肘貼腰側固定，只郁前臂下壓。',
@@ -192,7 +192,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'lateral',
     nameZh: '側平舉',
     nameEn: 'Lateral Raise',
-    aliases: ['側平舉', '肩', '側舉', '飛鳥肩'],
+    aliases: ['側平舉', '肩', '側舉', '飛鳥肩', '側平', '飛鳥側', '肩飛鳥'],
     muscle: '肩',
     cues: [
       '微屈肘，啞鈴由身側舉起至大約與肩平行（唔好高過耳）。',
@@ -206,7 +206,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'fly',
     nameZh: '飛鳥',
     nameEn: 'Cable Fly',
-    aliases: ['飛鳥', '胸', '夾胸', 'cable fly'],
+    aliases: ['飛鳥', '胸', '夾胸', 'cable fly', '繩索飛鳥', '胸飛鳥', '飛鳥機'],
     muscle: '胸',
     cues: [
       '繩索／啞鈴飛鳥：微屈肘固定角度，胸肌主導夾向中間。',
@@ -220,7 +220,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'hipthrust',
     nameZh: '臀推',
     nameEn: 'Hip Thrust',
-    aliases: ['臀推', '臀', 'hip thrust', '橋式加重'],
+    aliases: ['臀推', '臀', 'hip thrust', '橋式加重', '臀橋', '練臀', '髖推', '臀推機'],
     muscle: '臀',
     cues: [
       '上背靠凳，槓／墊放髖前，腳踩地約與肩同寬。',
@@ -234,7 +234,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'calf',
     nameZh: '提踵',
     nameEn: 'Calf Raise',
-    aliases: ['小腿', '提踵', 'calf'],
+    aliases: ['小腿', '提踵', 'calf', '練小腿', '站姿提踵'],
     muscle: '腿',
     cues: [
       '腳掌前掌踩實，膝微直（站姿）或機上屈膝版都得。',
@@ -248,7 +248,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'plank',
     nameZh: '平板支撐',
     nameEn: 'Plank',
-    aliases: ['平板', 'core', 'plank', '撐體'],
+    aliases: ['平板', 'core', 'plank', '撐體', '平板撐', '棒式', 'core plank'],
     muscle: '核心',
     cues: [
       '肘或掌撐地，身體成一直線：頭、肩、髖、腳踝對齊。',
@@ -262,7 +262,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'crunch',
     nameZh: '捲腹',
     nameEn: 'Crunch',
-    aliases: ['捲腹', '腹', 'crunch', '仰臥起坐'],
+    aliases: ['捲腹', '腹', 'crunch', '仰臥起坐', '腹肌', '練腹'],
     muscle: '核心',
     cues: [
       '仰躺屈膝，下背貼地；用腹肌把肩胛骨捲離地，唔使坐直。',
@@ -278,16 +278,25 @@ export function exerciseById(id: string) {
   return EXERCISES.find((e) => e.id === id)
 }
 
+function normalizeQuery(q: string) {
+  return q
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/卧/g, '臥')
+    .replace(/杠/g, '槓')
+    .replace(/铃/g, '鈴')
+}
+
 export function searchExercises(q: string) {
-  const s = q.trim().toLowerCase()
+  const s = normalizeQuery(q)
   if (!s) return EXERCISES
-  return EXERCISES.filter(
-    (e) =>
-      e.nameZh.includes(s) ||
-      e.nameEn.toLowerCase().includes(s) ||
-      e.aliases.some((a) => a.toLowerCase().includes(s)) ||
-      e.muscle.includes(s)
-  )
+  return EXERCISES.filter((e) => {
+    const hay = normalizeQuery(
+      [e.nameZh, e.nameEn, e.muscle, ...e.aliases].join(' ')
+    )
+    return hay.includes(s) || e.aliases.some((a) => normalizeQuery(a).includes(s))
+  })
 }
 
 /** Resolve guide by id or fuzzy name; null → use generic cues in UI. */

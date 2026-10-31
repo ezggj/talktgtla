@@ -66,6 +66,46 @@ export const HK_DISH_ESTIMATES: {
     hint: '高蛋白小食',
     macros: { kcal: 280, protein: 22, carbs: 28, fat: 8, fiber: 3 },
   },
+  {
+    name: '豬扒飯',
+    hint: '茶記 · 一份',
+    macros: { kcal: 720, protein: 36, carbs: 82, fat: 26, fiber: 2 },
+  },
+  {
+    name: '咖喱牛腩飯',
+    hint: '茶記 · 濃味',
+    macros: { kcal: 780, protein: 34, carbs: 88, fat: 30, fiber: 4 },
+  },
+  {
+    name: '水煮魚片飯',
+    hint: '清淡啲 · 睇醬汁',
+    macros: { kcal: 560, protein: 38, carbs: 70, fat: 12, fiber: 2 },
+  },
+  {
+    name: '麥皮雞蛋',
+    hint: '早餐 · 加蛋白更好',
+    macros: { kcal: 320, protein: 18, carbs: 36, fat: 10, fiber: 4 },
+  },
+  {
+    name: '壽司拼盤',
+    hint: '約 8–10 件粗估',
+    macros: { kcal: 480, protein: 24, carbs: 68, fat: 10, fiber: 2 },
+  },
+  {
+    name: '雞翼便當',
+    hint: '外賣 · 皮油偏高',
+    macros: { kcal: 650, protein: 32, carbs: 55, fat: 32, fiber: 3 },
+  },
+  {
+    name: '沙律雞胸',
+    hint: '低脂 · 醬汁另計',
+    macros: { kcal: 340, protein: 42, carbs: 18, fat: 10, fiber: 5 },
+  },
+  {
+    name: '牛肉麵',
+    hint: '一碗 · 湯底睇油',
+    macros: { kcal: 580, protein: 30, carbs: 70, fat: 16, fiber: 3 },
+  },
 ]
 
 export function mockEstimateFromFile(fileName: string): { name: string; macros: MealMacros } {

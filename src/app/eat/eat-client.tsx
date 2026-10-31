@@ -38,6 +38,10 @@ import {
 import { compressMealImage } from '@/lib/fitness/compress-image'
 import { getOrCreateEatGuestId } from '@/lib/fitness/eat-guest-id'
 import {
+  enqueueMeal,
+  flushOfflineQueue,
+} from '@/lib/fitness/offline-queue'
+import {
   type MealEntry,
   type MealMacros,
   isSameDay,
@@ -161,6 +165,28 @@ export function EatClient() {
       cancelled = true
     }
   }, [authReady, user])
+
+  useEffect(() => {
+    if (!user) return
+    const onOnline = () => {
+      void (async () => {
+        try {
+          const supabase = createClient()
+          const flushed = await flushOfflineQueue(supabase, user.id)
+          if (flushed.note) setCloudNote(flushed.note)
+        } catch {
+          /* ignore */
+        }
+      })()
+    }
+    void onOnline()
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [user])
+
+
+
+
 
   // Period RPC totals when logged in; else derive from local meals
   useEffect(() => {
@@ -432,6 +458,11 @@ export function EatClient() {
     saveMeals(next)
     if (!user) return
     try {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false && changed) {
+        enqueueMeal(changed)
+        setCloudNote('離線中——已暫存，有網會上雲')
+        return
+      }
       const supabase = createClient()
       if (remove) await deleteMealCloud(supabase, remove)
       if (changed) {
@@ -443,7 +474,8 @@ export function EatClient() {
         })
       }
     } catch (e) {
-      setCloudNote(e instanceof Error ? e.message : '存雲端唔到')
+      if (changed) enqueueMeal(changed)
+      setCloudNote(e instanceof Error ? `${e.message} · 已暫存離線` : '存雲端唔到 · 已暫存離線')
     }
   }
 

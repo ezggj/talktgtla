@@ -61,9 +61,16 @@ import {
 } from '@/lib/fitness/achievements'
 import { markTrainedToday, syncDaysFromSessions, weekConsistency, type WeekDay } from '@/lib/fitness/streaks'
 import { WeekDots } from '@/components/fitness/week-dots'
+import { TrainHeatmap } from '@/components/fitness/train-heatmap'
 import { analyzeWorkout, formatDelta, type WorkoutAnalysis } from '@/lib/fitness/analysis'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
+import { buzzLight, notifyRestDone, flashDocumentTitle } from '@/lib/fitness/haptic'
+import {
+  enqueueWorkout,
+  flushOfflineQueue,
+  offlineQueueCount,
+} from '@/lib/fitness/offline-queue'
 import { LoginPromptBanner } from '@/components/auth/login-card'
 import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -149,7 +156,14 @@ export function TrainClient() {
         if (cancelled) return
         setSessions(result.workouts)
         syncDaysFromSessions(result.workouts)
-        setCloudNote(result.note)
+        let note = result.note
+        try {
+          const flushed = await flushOfflineQueue(supabase, user.id)
+          if (flushed.note) note = flushed.note
+        } catch {
+          /* ignore */
+        }
+        setCloudNote(note)
       } catch (e) {
         if (!cancelled) setCloudNote(e instanceof Error ? e.message : '訓練 sync 唔到')
       }
@@ -158,6 +172,26 @@ export function TrainClient() {
       cancelled = true
     }
   }, [authReady, user])
+
+  // Flush offline queue when back online / on login
+  useEffect(() => {
+    if (!user) return
+    const flush = async () => {
+      try {
+        const supabase = createClient()
+        const flushed = await flushOfflineQueue(supabase, user.id)
+        if (flushed.note) setCloudNote(flushed.note)
+      } catch {
+        /* ignore */
+      }
+    }
+    void flush()
+    window.addEventListener('online', flush)
+    return () => window.removeEventListener('online', flush)
+  }, [user])
+
+
+
 
   // One-tap start from workout plan (?exercises=id1,id2)
   useEffect(() => {
@@ -218,11 +252,8 @@ export function TrainClient() {
     if (restLeft <= 0) {
       setRestRunning(false)
       setRestLeft(0)
-      try {
-        if (navigator.vibrate) navigator.vibrate([40, 30, 40])
-      } catch {
-        /* ignore */
-      }
+      void notifyRestDone()
+      flashDocumentTitle('休息完 · 下一組')
       // Auto-focus weight for next set (fewer taps)
       if (!restEndedFocus.current) {
         restEndedFocus.current = true
@@ -320,11 +351,7 @@ export function TrainClient() {
     setRestLeft(restSec)
     setRestRunning(true)
     restEndedFocus.current = false
-    try {
-      if (navigator.vibrate) navigator.vibrate(18)
-    } catch {
-      /* ignore */
-    }
+    buzzLight()
   }
 
   const bumpWeight = (delta: number) => {
@@ -371,11 +398,7 @@ export function TrainClient() {
     window.setTimeout(() => setJustAdded(null), 500)
     setRestLeft(restSec)
     setRestRunning(true)
-    try {
-      if (navigator.vibrate) navigator.vibrate(18)
-    } catch {
-      /* ignore */
-    }
+    buzzLight()
   }
 
   const finishSession = () => {
@@ -400,13 +423,23 @@ export function TrainClient() {
     if (user) {
       void (async () => {
         try {
+          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            enqueueWorkout(ended)
+            setCloudNote(`離線暫存 · 排隊 ${offlineQueueCount()} 項，上網再 sync`)
+            return
+          }
           const supabase = createClient()
           await persistFinishedWorkout(supabase, user.id, ended)
           setCloudNote('呢次訓練已上雲')
         } catch (e) {
-          setCloudNote(e instanceof Error ? e.message : '上雲唔到，不過本機已存低')
+          enqueueWorkout(ended)
+          setCloudNote(
+            (e instanceof Error ? e.message : '上雲唔到') + ' · 已離線暫存，返到線會自動 sync'
+          )
         }
       })()
+    } else {
+      /* guest: local only */
     }
     // Fitness achievements
     try {
@@ -659,6 +692,12 @@ export function TrainClient() {
                         <Badge tone="muted">容量</Badge>
                       </div>
                       <Sparkline values={sparkline} labels={sparkLabels} />
+                    </Card>
+                  </StaggerItem>
+                  <StaggerItem>
+                    <Card className="py-4">
+                      <CardTitle className="text-lg mb-3">訓練熱圖</CardTitle>
+                      <TrainHeatmap sessions={sessions} weeks={12} />
                     </Card>
                   </StaggerItem>
                 </Stagger>
@@ -964,8 +1003,8 @@ export function TrainClient() {
 
                         <div className="flex gap-2 mb-2">
                           <motion.div className="flex-[1.6]" whileTap={reduce ? undefined : { scale: 0.98 }} transition={springSnappy}>
-                            <Button size="xl" className="w-full text-base gap-2 h-14" onClick={addSet}>
-                              <Plus className="h-5 w-5" />
+                            <Button size="xl" className="w-full text-base gap-2 h-16 rounded-[18px] shadow-hover touch-manipulation" onClick={addSet}>
+                              <Plus className="h-6 w-6" />
                               記低 · {weight}×{reps}
                             </Button>
                           </motion.div>
@@ -1048,18 +1087,21 @@ export function TrainClient() {
                     </Card>
                   )}
 
-                  <div className="flex gap-2 pt-1">
-                    <Button variant="secondary" className="flex-1" onClick={discardSession}>
-                      放棄
-                    </Button>
-                    <Button
-                      className="flex-[1.4]"
-                      disabled={active.sets.length === 0}
-                      onClick={finishSession}
-                    >
-                      <Flame className="h-4 w-4" />
-                      完場
-                    </Button>
+                  <div className="thumb-cta sticky bottom-[calc(var(--nav-h)+0.5rem)] z-20 -mx-1 px-1 pt-2 pb-1 bg-gradient-to-t from-background via-background to-transparent">
+                    <div className="flex gap-2">
+                      <Button variant="secondary" size="xl" className="flex-1 h-14" onClick={discardSession}>
+                        放棄
+                      </Button>
+                      <Button
+                        size="xl"
+                        className="flex-[1.6] h-14 text-base"
+                        disabled={active.sets.length === 0}
+                        onClick={finishSession}
+                      >
+                        <Flame className="h-5 w-5" />
+                        完場
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1128,6 +1170,11 @@ export function TrainClient() {
                 <p className="mt-2 text-[11px] text-muted">
                   同課表打通：喺「我」頁出計劃後一掣開波，完場會計入呢度。
                 </p>
+              </Card>
+
+              <Card className="py-4">
+                <CardTitle className="text-lg mb-3">訓練熱圖</CardTitle>
+                <TrainHeatmap sessions={sessions} weeks={16} />
               </Card>
 
               <Card>
@@ -1212,6 +1259,21 @@ export function TrainClient() {
       </PageTransition>
 
       {/* Exercise picker */}
+      {active && selectedEx && tab === 'today' && (
+        <div className="one-hand-sticky fixed bottom-[4.75rem] left-0 right-0 z-40 px-4 pointer-events-none sm:hidden">
+          <div className="mx-auto max-w-lg pointer-events-auto">
+            <Button
+              size="xl"
+              className="w-full h-14 rounded-[18px] shadow-hover text-base touch-manipulation"
+              onClick={addSet}
+            >
+              <Plus className="h-5 w-5" />
+              記低 · {weight}×{reps}
+            </Button>
+          </div>
+        </div>
+      )}
+
       <AnimatePresence>
         {pickerOpen && (
           <motion.div
@@ -1235,7 +1297,7 @@ export function TrainClient() {
                 <Search className="h-4 w-4 text-muted shrink-0" />
                 <Input
                   autoFocus
-                  placeholder="搜尋：卧推、深蹲、三頭…"
+                  placeholder="搜：卧推、練胸、闊背、rdl…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="border-0 shadow-none focus:ring-0 px-0 h-10"

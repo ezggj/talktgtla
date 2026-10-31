@@ -13,7 +13,7 @@ export type WorkoutAnalysis = {
   generatedAt: string
 }
 
-function volumeOf(sets: WorkoutSet[]) {
+export function volumeOf(sets: WorkoutSet[]) {
   return sets.reduce((a, s) => a + s.weightKg * s.reps, 0)
 }
 

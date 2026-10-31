@@ -32,6 +32,9 @@ import { PlanGenerator } from '@/components/fitness/plan-generator'
 import { GymNudgeCard } from '@/components/fitness/gym-nudge-card'
 import { computeStreak, trainedToday, weekConsistency, type WeekDay } from '@/lib/fitness/streaks'
 import { WeekDots } from '@/components/fitness/week-dots'
+import { WeeklySummaryCard } from '@/components/fitness/weekly-summary-card'
+import { GoalRings } from '@/components/fitness/goal-rings'
+import { TrainHeatmap } from '@/components/fitness/train-heatmap'
 import {
   FITNESS_ACHIEVEMENTS,
   loadFitnessUnlocked,
@@ -52,6 +55,8 @@ export function MeClient() {
   const [weekCount, setWeekCount] = useState(0)
   const [sessionCount, setSessionCount] = useState(0)
   const [mealCount, setMealCount] = useState(0)
+  const [meals, setMeals] = useState(loadMeals())
+  const [sessionsLocal, setSessionsLocal] = useState(loadSessions())
   const [unlocked, setUnlocked] = useState<Set<FitnessAchievementId>>(new Set())
   const [prs, setPrs] = useState(loadPRs())
   const authError = search.get('auth') === 'error'
@@ -59,14 +64,16 @@ export function MeClient() {
   useEffect(() => {
     setGoals(loadGoals())
     const sessions = loadSessions()
-    const meals = loadMeals()
+    const localMeals = loadMeals()
     setStreak(computeStreak(sessions))
     setDidTrain(trainedToday())
     const w = weekConsistency(sessions)
     setWeekDays(w.days)
     setWeekCount(w.trainedCount)
     setSessionCount(sessions.filter((s) => s.endedAt).length)
-    setMealCount(meals.length)
+    setMeals(localMeals)
+    setSessionsLocal(sessions)
+    setMealCount(localMeals.length)
     setUnlocked(loadFitnessUnlocked())
     setPrs(loadPRs())
     setReady(true)
@@ -92,6 +99,8 @@ export function MeClient() {
         if (cancelled) return
         setSessionCount(result.workouts.filter((s) => s.endedAt).length)
         setMealCount(result.meals.length)
+        setMeals(result.meals)
+        setSessionsLocal(result.workouts)
         const w = weekConsistency(result.workouts)
         setWeekDays(w.days)
         setWeekCount(w.trainedCount)
@@ -214,6 +223,21 @@ export function MeClient() {
           )}
 
           <StaggerItem>
+            <GoalRings meals={meals} sessions={sessionsLocal} goals={goals} />
+          </StaggerItem>
+
+          <StaggerItem>
+            <WeeklySummaryCard sessions={sessionsLocal} meals={meals} proteinGoal={goals.proteinG} />
+          </StaggerItem>
+
+          <StaggerItem>
+            <Card className="py-4">
+              <CardTitle className="text-lg mb-3">訓練熱圖</CardTitle>
+              <TrainHeatmap sessions={sessionsLocal} weeks={12} />
+            </Card>
+          </StaggerItem>
+
+          <StaggerItem>
             <GymNudgeCard streak={streak} />
           </StaggerItem>
 
@@ -312,7 +336,7 @@ export function MeClient() {
                     }
                   />
                 </label>
-                <Button onClick={() => void persist()} className="w-full">
+                <Button size="xl" onClick={() => void persist()} className="w-full h-14">
                   {saved ? <span className="success-pop">存好喇 ✓</span> : '儲低目標'}
                 </Button>
               </div>

@@ -26,7 +26,7 @@ export function BottomNav() {
         style={{ paddingBottom: 'var(--safe-bottom)' }}
         aria-label="主導航"
       >
-        <ul className="grid grid-cols-4 h-[var(--nav-h)] max-w-lg mx-auto px-1.5">
+        <ul className="grid grid-cols-4 h-[var(--nav-h)] min-h-[3.75rem] max-w-lg mx-auto px-1.5">
           {items.map(({ href, label, icon: Icon }) => {
             const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
             return (
@@ -39,7 +39,7 @@ export function BottomNav() {
                   <Link
                     href={href}
                     className={cn(
-                      'relative flex flex-1 flex-col items-center justify-center gap-1 text-[11px]',
+                      'relative flex flex-1 flex-col items-center justify-center gap-1 text-[11px] leading-none',
                       active ? 'text-accent' : 'text-muted'
                     )}
                     aria-current={active ? 'page' : undefined}
@@ -52,7 +52,7 @@ export function BottomNav() {
                       />
                     )}
                     <Icon
-                      className="relative z-10 h-[18px] w-[18px] transition-[stroke-width]"
+                      className="relative z-10 h-5 w-5 transition-[stroke-width]"
                       strokeWidth={active ? 2.35 : 1.7}
                     />
                     <span className={cn('relative z-10', active ? 'font-semibold' : 'font-medium')}>
@@ -83,7 +83,7 @@ export function BottomNav() {
               <Link
                 href={href}
                 className={cn(
-                  'relative flex w-[64px] flex-col items-center gap-1 rounded-2xl px-2 py-3 text-[11px] transition-colors',
+                  'relative flex w-[64px] flex-col items-center gap-1 rounded-2xl px-2 py-3 text-[11px] leading-none transition-colors',
                   active ? 'text-accent' : 'text-muted hover:text-foreground hover:bg-black/[0.03]'
                 )}
                 aria-current={active ? 'page' : undefined}
