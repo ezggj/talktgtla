@@ -169,7 +169,7 @@ export function MeClient() {
 
         {authError && (
           <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-            登入連結失效或者跳轉未設好。返嚟「我」再寄一次，或者填 6 位碼；又或者試 Google。
+            六位數字唔啱或者過期。返嚟「我」再寄一次，或者改用 Google。
           </div>
         )}
 
