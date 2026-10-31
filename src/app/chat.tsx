@@ -869,32 +869,12 @@ export default function Chat() {
                     }}
                   />
                 </div>
-                {(() => {
-                  const topic = getDailyTopic()
-                  return (
-                    <div className="mt-4 rounded-2xl border border-accent/20 bg-accent-soft/40 px-3.5 py-3 text-left">
-                      <div className="text-[10px] font-semibold text-accent tracking-wide mb-1">今日話題 · 一掣開波</div>
-                      <div className="flex items-start gap-2">
-                        <span className="text-lg leading-none" aria-hidden>{topic.emoji}</span>
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium text-foreground">{topic.title}</div>
-                          <div className="text-[11px] text-muted mt-0.5 leading-relaxed">{topic.hint}</div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className="mt-3 w-full inline-flex items-center justify-center rounded-xl bg-accent px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-[#0d6a63] transition touch-manipulation"
-                        onClick={() => {
-                          const line = topicStarterLine(topic)
-                          setNewMessage(line)
-                          requestAnimationFrame(() => inputRef.current?.focus())
-                        }}
-                      >
-                        用呢個話題開波
-                      </button>
-                    </div>
-                  )
-                })()}
+                <WelcomeTopicCard
+                  onUse={(line) => {
+                    setNewMessage(line)
+                    requestAnimationFrame(() => inputRef.current?.focus())
+                  }}
+                />
               </div>
             </div>
           )}
@@ -1399,6 +1379,35 @@ export default function Chat() {
   )
 }
 
+
+function WelcomeTopicCard({ onUse }: { onUse: (line: string) => void }) {
+  const [topic, setTopic] = useState<ReturnType<typeof getDailyTopic> | null>(null)
+  useEffect(() => {
+    setTopic(getDailyTopic())
+  }, [])
+  if (!topic) return null
+  return (
+    <div className="mt-4 rounded-2xl border border-accent/20 bg-accent-soft/40 px-3.5 py-3 text-left">
+      <div className="text-[10px] font-semibold text-accent tracking-wide mb-1">今日話題 · 一掣開波</div>
+      <div className="flex items-start gap-2">
+        <span className="text-lg leading-none" aria-hidden>
+          {topic.emoji}
+        </span>
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-foreground">{topic.title}</div>
+          <div className="text-[11px] text-muted mt-0.5 leading-relaxed">{topic.hint}</div>
+        </div>
+      </div>
+      <button
+        type="button"
+        className="mt-3 w-full inline-flex items-center justify-center rounded-xl bg-accent px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-[#0d6a63] transition touch-manipulation"
+        onClick={() => onUse(topicStarterLine(topic))}
+      >
+        用呢個話題開波
+      </button>
+    </div>
+  )
+}
 
 function DailyTopicBanner({ onUseTopic }: { onUseTopic: (line: string) => void }) {
   const [topic, setTopic] = useState<ReturnType<typeof getDailyTopic> | null>(null)
