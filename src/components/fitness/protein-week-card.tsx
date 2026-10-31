@@ -75,7 +75,7 @@ export function ProteinWeekCard({
           onClick={onLogMeal}
           className="relative mt-3 w-full inline-flex items-center justify-center rounded-xl bg-accent px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-[#0d6a63] transition touch-manipulation"
         >
-          影一餐／快加 Gym 常食 →
+          影一餐／快加 gym撚常食 →
         </button>
       )}
     </Card>

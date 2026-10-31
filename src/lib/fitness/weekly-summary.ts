@@ -141,7 +141,7 @@ export function buildProteinWeekSummary(
   const lines: string[] = []
 
   if (daysLogged === 0) {
-    lines.push('未有飲食紀錄——影一餐或者撳「Gym 常食營養策略」模板，星期就有口語總結。')
+    lines.push('未有飲食紀錄——影一餐或者撳「gym撚常食」模板，星期就有口語總結。')
     lines.push(`目標大概每日 ${proteinGoal}g 蛋白；茶記加碟菜／會所雞胸都得。`)
   } else if (daysHit >= 5 || pct >= 95) {
     title = '呢個星期蛋白好穩'
@@ -157,7 +157,7 @@ export function buildProteinWeekSummary(
     title = '呢個星期蛋白偏少'
     vibe = 'light'
     lines.push(`有記 ${daysLogged} 日，平均約 ${avgProtein}g——未夠 ${proteinGoal}g 目標。`)
-    lines.push('唔使完美：加一餐 gym 常食碗或者蛋白粉，聽日數字就會靚啲。')
+    lines.push('唔使完美：加一餐 gym撚常食碗或者蛋白粉，聽日數字就會靚啲。')
   }
 
   if (daysLogged > 0 && daysHit === 0 && pct >= 55) {

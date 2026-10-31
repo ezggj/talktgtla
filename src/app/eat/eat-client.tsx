@@ -819,7 +819,7 @@ export function EatClient() {
           compact
           eyebrow="飲食"
           title="影低呢餐"
-          description="影相 · 港式快加 · Gym 常食營養策略 · 手動"
+          description="影相 · 港式快加 · gym撚常食 · 手動"
         />
 
         {/* Four entry paths — 第一屏主入口 */}
@@ -845,11 +845,11 @@ export function EatClient() {
               },
               {
                 id: 'club' as const,
-                title: 'Gym 常食營養策略',
+                title: 'gym撚常食',
                 desc: 'gym 食堂模板',
                 icon: Salad,
                 onClick: () => {
-                  setDishCat('Gym 常食營養策略')
+                  setDishCat('gym撚常食')
                   scrollEat('club')
                 },
               },
@@ -1226,7 +1226,7 @@ export function EatClient() {
             {(['全部', '茶記', '小食', '早餐'] as const).map((c) => {
               const active =
                 c === '全部'
-                  ? dishCat === '全部' || dishCat === 'Gym 常食營養策略'
+                  ? dishCat === '全部' || dishCat === 'gym撚常食'
                   : dishCat === c
               return (
               <button
@@ -1271,10 +1271,10 @@ export function EatClient() {
           </div>
         </div>
 
-        {/* Gym 常食營養策略 */}
+        {/* gym撚常食 */}
         <div id="eat-club" ref={clubRef} className="mb-6 scroll-mt-24">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-serif text-xl">Gym 常食營養策略</h2>
+            <h2 className="font-serif text-xl">gym撚常食</h2>
             <Badge tone="accent">gym 食堂</Badge>
           </div>
           <p className="text-[11px] text-muted mb-2 px-0.5 leading-relaxed">
@@ -1344,7 +1344,7 @@ export function EatClient() {
             }
             description={
               period === 'day'
-                ? '上面四條路：影相 AI、港式快加、Gym 常食營養策略、手動。登入之後會入雲端。'
+                ? '上面四條路：影相 AI、港式快加、gym撚常食、手動。登入之後會入雲端。'
                 : '換去「日」影一餐，或者撳箭嘴睇其他日子。登入之後週／月總計會齊啲。'
             }
             actionLabel="影一餐"
