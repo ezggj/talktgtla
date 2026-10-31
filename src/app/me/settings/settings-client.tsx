@@ -12,6 +12,7 @@ import { InstallPrompt } from '@/components/pwa/install-prompt'
 import { NotificationsCard } from '@/components/settings/notifications-card'
 import { SoundToggleCard } from '@/components/settings/sound-toggle-card'
 import { DisplayNameCard } from '@/components/settings/display-name-card'
+import { PublicWallCard } from '@/components/settings/public-wall-card'
 import { ProteinReminderCard } from '@/components/fitness/protein-reminder-card'
 import { CardDesc } from '@/components/ui/card'
 
@@ -68,6 +69,9 @@ export function SettingsClient() {
           </StaggerItem>
           <StaggerItem>
             <DisplayNameCard />
+          </StaggerItem>
+          <StaggerItem>
+            <PublicWallCard />
           </StaggerItem>
 
           <StaggerItem>
