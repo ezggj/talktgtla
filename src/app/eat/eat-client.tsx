@@ -10,7 +10,9 @@ import {
   ChevronRight,
   Cloud,
   ImagePlus,
+  Loader2,
   Pencil,
+  RefreshCw,
   Trash2,
   Utensils,
   X,
@@ -33,6 +35,7 @@ import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
 import {
   HK_DISH_ESTIMATES,
+  estimateFromFoodName,
   mockEstimateFromFile,
   scaleMacros,
 } from '@/lib/fitness/meals-demo'
@@ -125,6 +128,7 @@ export function EatClient() {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null)
   const [quotaLimit, setQuotaLimit] = useState(3)
+  const [reEstimating, setReEstimating] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [period, setPeriod] = useState<PeriodKind>('day')
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()))
@@ -507,7 +511,151 @@ export function EatClient() {
     }
   }
 
+  const applyNameEstimate = (
+    macros: MealMacros,
+    note: string,
+    source: 'ai' | 'mock' | 'manual',
+    displayName?: string
+  ) => {
+    setDraft((prev) =>
+      prev
+        ? {
+            ...prev,
+            name: displayName?.trim() || prev.name,
+            baseMacros: {
+              kcal: macros.kcal,
+              protein: macros.protein,
+              carbs: macros.carbs,
+              fat: macros.fat,
+              fiber: macros.fiber,
+            },
+            estimated: true,
+            source,
+            note,
+          }
+        : null
+    )
+  }
+
+  const reEstimateFromName = async () => {
+    if (!draft || draft.status !== 'ready') return
+    const name = draft.name.trim()
+    if (!name) {
+      showToast('請先寫食物名稱')
+      return
+    }
+    setReEstimating(true)
+    try {
+      const local = estimateFromFoodName(name)
+      if (local && local.confidence >= 0.55) {
+        applyNameEstimate(local.macros, local.note, 'mock')
+        showToast(`已按「${name}」重估 · ${local.macros.kcal} kcal`)
+        return
+      }
+
+      const guestId = getOrCreateEatGuestId()
+      const res = await fetch('/api/eat/estimate-by-name', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-ttl-guest-id': guestId,
+        },
+        body: JSON.stringify({ name, tableOnly: false }),
+      })
+      const data = (await res.json().catch(() => ({}))) as {
+        name?: string
+        macros?: MealMacros
+        note?: string
+        source?: 'table' | 'ai'
+        error?: string
+        code?: string
+      }
+
+      if (res.ok && data.macros) {
+        applyNameEstimate(
+          data.macros,
+          data.note || '按名重估',
+          data.source === 'ai' ? 'ai' : 'mock',
+          data.name
+        )
+        showToast(`已按「${data.name || name}」重估 · ${data.macros.kcal} kcal`)
+        return
+      }
+
+      if (local) {
+        applyNameEstimate(local.macros, local.note + ' · 後備表', 'mock')
+        showToast(`已用本地表粗估 · ${local.macros.kcal} kcal`)
+        return
+      }
+
+      showToast(data.error || '估唔到呢個名——試改名或者自己改數字')
+    } catch {
+      const local = estimateFromFoodName(name)
+      if (local) {
+        applyNameEstimate(local.macros, local.note, 'mock')
+        showToast(`離線／失敗 · 已用本地表粗估`)
+      } else {
+        showToast('重估失敗——試改名或者自己改數字')
+      }
+    } finally {
+      setReEstimating(false)
+    }
+  }
+
+  const reEstimateSavedMeal = async (id: string, name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) {
+      showToast('請先寫食物名稱')
+      return
+    }
+    setReEstimating(true)
+    try {
+      let macros: MealMacros | null = null
+      let note = '按名重估'
+      const local = estimateFromFoodName(trimmed)
+      if (local && local.confidence >= 0.55) {
+        macros = local.macros
+        note = local.note
+      } else {
+        const guestId = getOrCreateEatGuestId()
+        const res = await fetch('/api/eat/estimate-by-name', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-ttl-guest-id': guestId,
+          },
+          body: JSON.stringify({ name: trimmed }),
+        })
+        const data = (await res.json().catch(() => ({}))) as {
+          macros?: MealMacros
+          note?: string
+          error?: string
+        }
+        if (res.ok && data.macros) {
+          macros = data.macros
+          note = data.note || note
+        } else if (local) {
+          macros = local.macros
+          note = local.note
+        } else {
+          showToast(data.error || '估唔到呢個名')
+          return
+        }
+      }
+      updateMealMacros(id, {
+        name: trimmed,
+        macros,
+        estimated: true,
+        note,
+      })
+      showToast(`已按「${trimmed}」重估 · ${macros.kcal} kcal`)
+    } finally {
+      setReEstimating(false)
+    }
+  }
+
   const confirmDraft = () => {
+
     if (!draft || draft.status !== 'ready' || !liveMacros) return
     const entry: MealEntry = {
       id: newId(),
@@ -1084,32 +1232,62 @@ export function EatClient() {
                     </div>
                   </div>
                   {editingId === m.id && (
-                    <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 gap-2">
-                      {(['protein', 'kcal', 'carbs', 'fat'] as const).map((key) => (
-                        <label key={key} className="text-[11px] text-muted">
-                          {key === 'protein'
-                            ? '蛋白 g'
-                            : key === 'kcal'
-                              ? '卡路里'
-                              : key === 'carbs'
-                                ? '碳水 g'
-                                : '脂肪 g'}
-                          <Input
-                            type="number"
-                            className="mt-1 h-9"
-                            value={m.macros[key]}
-                            onChange={(e) =>
-                              updateMealMacros(m.id, {
-                                macros: {
-                                  ...m.macros,
-                                  [key]: Number(e.target.value) || 0,
-                                },
-                                estimated: false,
-                              })
-                            }
-                          />
-                        </label>
-                      ))}
+                    <div className="mt-3 pt-3 border-t border-border space-y-3">
+                      <label className="block text-[11px] text-muted">
+                        食物名稱
+                        <Input
+                          className="mt-1 h-9"
+                          value={m.name}
+                          onChange={(e) =>
+                            updateMealMacros(m.id, {
+                              name: e.target.value,
+                              estimated: false,
+                            })
+                          }
+                        />
+                      </label>
+                      <Button
+                        type="button"
+                        variant="soft"
+                        size="sm"
+                        className="w-full"
+                        disabled={reEstimating || !m.name.trim()}
+                        onClick={() => void reEstimateSavedMeal(m.id, m.name)}
+                      >
+                        {reEstimating ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        )}
+                        {reEstimating ? '重估緊…' : '按名重新估卡路里'}
+                      </Button>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(['protein', 'kcal', 'carbs', 'fat'] as const).map((key) => (
+                          <label key={key} className="text-[11px] text-muted">
+                            {key === 'protein'
+                              ? '蛋白 g'
+                              : key === 'kcal'
+                                ? '卡路里'
+                                : key === 'carbs'
+                                  ? '碳水 g'
+                                  : '脂肪 g'}
+                            <Input
+                              type="number"
+                              className="mt-1 h-9"
+                              value={m.macros[key]}
+                              onChange={(e) =>
+                                updateMealMacros(m.id, {
+                                  macros: {
+                                    ...m.macros,
+                                    [key]: Number(e.target.value) || 0,
+                                  },
+                                  estimated: false,
+                                })
+                              }
+                            />
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </Card>
@@ -1171,8 +1349,29 @@ export function EatClient() {
                     <Input
                       value={draft.name}
                       onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                      className="font-serif text-xl h-12 mb-4 border-0 shadow-none px-0 focus:ring-0"
+                      className="font-serif text-xl h-12 mb-2 border-0 shadow-none px-0 focus:ring-0"
+                      placeholder="食物名稱（可改）"
+                      aria-label="食物名稱"
                     />
+                    <div className="mb-4 flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="soft"
+                        size="sm"
+                        disabled={reEstimating || !draft.name.trim()}
+                        onClick={() => void reEstimateFromName()}
+                      >
+                        {reEstimating ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        )}
+                        {reEstimating ? '重估緊…' : '按名重新估'}
+                      </Button>
+                      <span className="text-[11px] text-muted">
+                        改錯名（例如刪走蛋治）之後撳呢掣 · 唔扣影相 AI 額
+                      </span>
+                    </div>
                     <p className="text-[11px] text-muted mb-2">卡路里／蛋白／碳水／脂肪 · 撳格直接改，入日記前隨時調</p>
                     <div className="grid grid-cols-2 gap-2 mb-4">
                       {(

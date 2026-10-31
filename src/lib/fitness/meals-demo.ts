@@ -149,3 +149,226 @@ export function scaleMacros(m: MealMacros, portion: number): MealMacros {
     fiber: m.fiber != null ? s(m.fiber) : undefined,
   }
 }
+
+/** Extra single items (drinks / snacks) for name-based re-estimate */
+const HK_NAME_EXTRA: {
+  name: string
+  aliases: string[]
+  macros: MealMacros
+  hint?: string
+}[] = [
+  {
+    name: '黑咖啡',
+    aliases: ['咖啡', '美式', '美式咖啡', 'espresso', '意式咖啡', 'americano', 'coffee', 'black coffee'],
+    macros: { kcal: 5, protein: 0, carbs: 1, fat: 0, fiber: 0 },
+    hint: '無糖無奶 · 一杯',
+  },
+  {
+    name: '港式咖啡',
+    aliases: ['茶記咖啡', '咖啡奶', '絲襪咖啡'],
+    macros: { kcal: 90, protein: 2, carbs: 12, fat: 3, fiber: 0 },
+    hint: '茶記常見 · 有奶糖粗估',
+  },
+  {
+    name: '拿鐵',
+    aliases: ['latte', '鮮奶咖啡', 'latte coffee'],
+    macros: { kcal: 150, protein: 8, carbs: 12, fat: 7, fiber: 0 },
+  },
+  {
+    name: '卡布奇諾',
+    aliases: ['cappuccino', 'capp'],
+    macros: { kcal: 120, protein: 6, carbs: 10, fat: 5, fiber: 0 },
+  },
+  {
+    name: '鴛鴦',
+    aliases: ['鴛鴦咖啡', '咖啡奶茶'],
+    macros: { kcal: 120, protein: 2, carbs: 18, fat: 3, fiber: 0 },
+  },
+  {
+    name: '奶茶',
+    aliases: ['港式奶茶', '絲襪奶茶', '茶走'],
+    macros: { kcal: 140, protein: 3, carbs: 20, fat: 5, fiber: 0 },
+  },
+  {
+    name: '檸檬茶',
+    aliases: ['凍柠茶', '凍檸檬茶', '熱檸檬茶', '柠茶'],
+    macros: { kcal: 90, protein: 0, carbs: 22, fat: 0, fiber: 0 },
+  },
+  {
+    name: '水',
+    aliases: ['凍水', '開水', '礦泉水', 'water'],
+    macros: { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
+  },
+  {
+    name: '蛋治',
+    aliases: ['蛋三文治', '雞蛋三文治', 'egg sandwich', '蛋三明治'],
+    macros: { kcal: 320, protein: 14, carbs: 28, fat: 16, fiber: 2 },
+  },
+  {
+    name: '火腿蛋治',
+    aliases: ['火腿蛋三文治'],
+    macros: { kcal: 380, protein: 18, carbs: 30, fat: 20, fiber: 2 },
+  },
+  {
+    name: '香蕉',
+    aliases: ['banana'],
+    macros: { kcal: 105, protein: 1, carbs: 27, fat: 0, fiber: 3 },
+  },
+  {
+    name: '蘋果',
+    aliases: ['apple'],
+    macros: { kcal: 95, protein: 0, carbs: 25, fat: 0, fiber: 4 },
+  },
+  {
+    name: '雞蛋',
+    aliases: ['烚蛋', '煎蛋', '炒蛋', 'egg'],
+    macros: { kcal: 78, protein: 6, carbs: 1, fat: 5, fiber: 0 },
+  },
+  {
+    name: '雞胸',
+    aliases: ['雞胸肉', 'chicken breast'],
+    macros: { kcal: 165, protein: 31, carbs: 0, fat: 4, fiber: 0 },
+  },
+  {
+    name: '白飯',
+    aliases: ['飯', '米饭', 'rice', '一碗飯'],
+    macros: { kcal: 200, protein: 4, carbs: 45, fat: 0, fiber: 1 },
+  },
+  {
+    name: '蔬菜沙律',
+    aliases: ['沙律', 'salad', '綠沙律'],
+    macros: { kcal: 80, protein: 3, carbs: 10, fat: 3, fiber: 4 },
+  },
+]
+
+export type NameEstimateResult = {
+  name: string
+  macros: MealMacros
+  confidence: number
+  note: string
+  matched: string[]
+  source: 'table'
+}
+
+function normalizeFoodToken(s: string) {
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/（.*?）|\(.*?\)/g, '')
+}
+
+function splitFoodNameParts(raw: string): string[] {
+  const cleaned = raw
+    .replace(/[，,]/g, '、')
+    .replace(/\s+and\s+/gi, '、')
+  return cleaned
+    .split(/同|\+|及|和|、|＆|&|／|\/|跟|連|with/i)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
+}
+
+type CatalogItem = { name: string; aliases: string[]; macros: MealMacros }
+
+function buildCatalog(): CatalogItem[] {
+  const fromDishes: CatalogItem[] = HK_DISH_ESTIMATES.map((d) => ({
+    name: d.name,
+    aliases: [d.name, ...d.name.split(/[+＋]/).map((x) => x.trim()).filter(Boolean)],
+    macros: d.macros,
+  }))
+  return [...HK_NAME_EXTRA, ...fromDishes]
+}
+
+function matchCatalogItem(part: string, catalog: CatalogItem[]): CatalogItem | null {
+  const token = normalizeFoodToken(part)
+  if (!token) return null
+
+  // Exact name / alias
+  for (const item of catalog) {
+    const names = [item.name, ...item.aliases].map(normalizeFoodToken)
+    if (names.includes(token)) return item
+  }
+
+  // Contains: longer alias first
+  let best: { item: CatalogItem; score: number } | null = null
+  for (const item of catalog) {
+    for (const alias of [item.name, ...item.aliases]) {
+      const a = normalizeFoodToken(alias)
+      if (!a || a.length < 2) continue
+      if (token.includes(a) || a.includes(token)) {
+        const score = Math.min(token.length, a.length) / Math.max(token.length, a.length)
+        if (!best || score > best.score || (score === best.score && a.length > normalizeFoodToken(best.item.name).length)) {
+          best = { item, score }
+        }
+      }
+    }
+  }
+  if (best && best.score >= 0.45) return best.item
+  return null
+}
+
+function sumMealMacros(list: MealMacros[]): MealMacros {
+  return list.reduce(
+    (a, m) => ({
+      kcal: a.kcal + m.kcal,
+      protein: a.protein + m.protein,
+      carbs: a.carbs + m.carbs,
+      fat: a.fat + m.fat,
+      fiber: (a.fiber || 0) + (m.fiber || 0),
+    }),
+    { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
+  )
+}
+
+/**
+ * Estimate macros from an edited Cantonese / food name (no photo).
+ * Splits on 同 / + / 及 etc. and sums matched HK table rows.
+ */
+export function estimateFromFoodName(rawName: string): NameEstimateResult | null {
+  const name = rawName.trim().slice(0, 64)
+  if (!name || name === '認緊碟餸…' || name === '自己改碟餸') return null
+
+  const catalog = buildCatalog()
+  const parts = splitFoodNameParts(name)
+  const matched: CatalogItem[] = []
+  const unmatched: string[] = []
+
+  for (const part of parts.length ? parts : [name]) {
+    const hit = matchCatalogItem(part, catalog)
+    if (hit) matched.push(hit)
+    else unmatched.push(part)
+  }
+
+  if (matched.length === 0) {
+    // whole-string fuzzy against dish names
+    const whole = matchCatalogItem(name, catalog)
+    if (!whole) return null
+    matched.push(whole)
+  }
+
+  const macros = sumMealMacros(matched.map((m) => m.macros))
+  const labels = matched.map((m) => m.name)
+  const coverage = matched.length / Math.max(1, parts.length || 1)
+  const confidence = Math.max(0.35, Math.min(0.95, 0.55 + coverage * 0.35 - unmatched.length * 0.12))
+
+  const noteParts = [
+    `按「${name}」對照港式表重估`,
+    labels.length ? `對到：${labels.join('、')}` : null,
+    unmatched.length ? `未對到：${unmatched.join('、')}（未計入）` : null,
+  ].filter(Boolean)
+
+  return {
+    name,
+    macros: {
+      kcal: Math.round(macros.kcal),
+      protein: Math.round(macros.protein),
+      carbs: Math.round(macros.carbs),
+      fat: Math.round(macros.fat),
+      fiber: macros.fiber != null ? Math.round(macros.fiber) : undefined,
+    },
+    confidence,
+    note: noteParts.join(' · ').slice(0, 80),
+    matched: labels,
+    source: 'table',
+  }
+}
