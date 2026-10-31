@@ -89,7 +89,21 @@ import {
 import { clampRestSeconds, loadRestPrefs, saveRestPrefs } from '@/lib/fitness/rest-prefs'
 import { RestTimerControls } from '@/components/fitness/rest-timer-controls'
 import { prefillSetForExercise } from '@/lib/fitness/last-set'
-import { buildOverloadTip } from '@/lib/fitness/overload-tip'
+import { TrainTipBanner } from '@/components/fitness/train-tip-banner'
+import {
+  buildBetweenSetTip,
+  buildFinishLines,
+  buildOpenTip,
+  recentAnchors,
+  shortExerciseName,
+  type TrainTip,
+} from '@/lib/fitness/train-tips'
+import { loadTrainTipsEnabled, useTrainTipsEnabled } from '@/lib/fitness/train-tips-prefs'
+import {
+  peekTrainAiQuota,
+  rememberTrainAiQuota,
+  trainAiLimitCopy,
+} from '@/lib/fitness/train-ai-quota'
 import { InstallPrompt } from '@/components/pwa/install-prompt'
 import {
   TrainFirstGuide,
@@ -219,7 +233,13 @@ export function TrainClient() {
   const loggerRef = useRef<HTMLDivElement>(null)
   const restEndedFocus = useRef(false)
   const [restReadyNext, setRestReadyNext] = useState(false)
-  const [overloadDismissedId, setOverloadDismissedId] = useState<string | null>(null)
+  const tipsOn = useTrainTipsEnabled()
+  const [betweenTip, setBetweenTip] = useState<TrainTip | null>(null)
+  const [openDismissedEx, setOpenDismissedEx] = useState<string | null>(null)
+  const [askBusy, setAskBusy] = useState(false)
+  const [askLine, setAskLine] = useState<string | null>(null)
+  const [askNote, setAskNote] = useState<string | null>(null)
+  const [finishLines, setFinishLines] = useState<string[]>([])
   const [sfxOn, setSfxOn] = useState(true)
   const [restFullscreen, setRestFullscreen] = useState(true)
   const [pendingOutcome, setPendingOutcome] = useState<SetOutcome>('ok')
@@ -292,10 +312,18 @@ export function TrainClient() {
     [sessions]
   )
 
-  const overloadTip = useMemo(() => {
-    if (!selectedEx) return null
-    return buildOverloadTip(selectedEx, sessions, active)
-  }, [selectedEx, sessions, active])
+  const openTip = useMemo(() => {
+    if (!tipsOn || !selectedEx || !active || active.endedAt) return null
+    if (active.sets.some((s) => s.exerciseId === selectedEx)) return null
+    const ex = exerciseById(selectedEx)
+    const name = ex ? shortExerciseName(ex.nameZh, ex.nameEn) : '呢個動作'
+    return buildOpenTip({
+      exerciseId: selectedEx,
+      name,
+      sessions,
+      activeId: active.id,
+    })
+  }, [tipsOn, selectedEx, active, sessions])
 
   const subTips = useMemo(() => {
     if (!selectedEx) return []
@@ -305,10 +333,6 @@ export function TrainClient() {
       limit: 3,
     })
   }, [selectedEx, avoidEquip, equipmentFilter])
-
-  useEffect(() => {
-    setOverloadDismissedId(null)
-  }, [selectedEx])
 
   useEffect(() => {
     const s = loadSessions()
@@ -325,6 +349,26 @@ export function TrainClient() {
     }
     setSfxOn(loadTrainSfxEnabled())
     setHowtoFavs(loadHowtoFavs())
+    const tips = loadTrainTipsEnabled()
+    if (a && !a.endedAt) {
+      const last = a.sets[a.sets.length - 1]
+      if (last) {
+        setSelectedEx(last.exerciseId)
+        if (tips) {
+          const ex = exerciseById(last.exerciseId)
+          setBetweenTip(
+            buildBetweenSetTip({
+              exerciseId: last.exerciseId,
+              name: ex ? shortExerciseName(ex.nameZh, ex.nameEn) : last.exerciseName,
+              logged: last,
+              activeSets: a.sets,
+              sessions: s,
+              activeId: a.id,
+            })
+          )
+        }
+      }
+    }
     setReady(true)
   }, [])
 
@@ -601,6 +645,9 @@ export function TrainClient() {
     setPickerHowtoId(null)
     setSearch('')
     applyPrefill(exerciseId, sess ?? null, sessions, { resetOutcome: true })
+    setBetweenTip(null)
+    setAskLine(null)
+    setAskNote(null)
   }
 
   /** One-tap：未開波就開波再揀；已開波就直接加入今日動作。 */
@@ -696,6 +743,108 @@ export function TrainClient() {
     })
   }
 
+  const clearAsk = () => {
+    setAskLine(null)
+    setAskNote(null)
+  }
+
+  const noteLoggedSet = (row: WorkoutSet, nextActive: WorkoutSession) => {
+    clearAsk()
+    if (!loadTrainTipsEnabled()) {
+      setBetweenTip(null)
+      return
+    }
+    const ex = exerciseById(row.exerciseId)
+    setBetweenTip(
+      buildBetweenSetTip({
+        exerciseId: row.exerciseId,
+        name: ex ? shortExerciseName(ex.nameZh, ex.nameEn) : row.exerciseName,
+        logged: row,
+        activeSets: nextActive.sets,
+        sessions,
+        activeId: nextActive.id,
+      })
+    )
+  }
+
+  const dismissTip = (tip: TrainTip) => {
+    clearAsk()
+    if (tip.id.startsWith('between:')) setBetweenTip(null)
+    else if (selectedEx) setOpenDismissedEx(selectedEx)
+  }
+
+  const acceptTip = (tip: TrainTip) => {
+    if (typeof tip.suggestedWeightKg === 'number') {
+      markDraftEdited()
+      setWeight(String(tip.suggestedWeightKg))
+      window.setTimeout(() => {
+        weightRef.current?.focus()
+        weightRef.current?.select()
+      }, 30)
+    }
+    dismissTip(tip)
+  }
+
+  const askTip = async (kind: 'open' | 'between') => {
+    if (!selectedEx || !active) return
+    const quota = peekTrainAiQuota()
+    if (quota.remaining <= 0) {
+      setAskLine(null)
+      setAskNote(trainAiLimitCopy(quota.limit))
+      return
+    }
+    setAskBusy(true)
+    setAskNote(null)
+    const ex = exerciseById(selectedEx)
+    const name = ex ? shortExerciseName(ex.nameZh, ex.nameEn) : '呢個動作'
+    const recent = recentAnchors(sessions, selectedEx, active.id).map((set) => ({
+      weightKg: set.weightKg,
+      reps: set.reps,
+      outcome: set.outcome,
+    }))
+    const today = active.sets
+      .filter((set) => set.exerciseId === selectedEx)
+      .map((set) => ({
+        weightKg: set.weightKg,
+        reps: set.reps,
+        outcome: set.outcome,
+      }))
+    try {
+      const res = await fetch('/api/train/ask', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ kind, exerciseId: selectedEx, name, recent, today }),
+      })
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean
+        line?: string
+        message?: string
+        day?: string
+        used?: number
+        limit?: number
+        remaining?: number
+      }
+      if (typeof data.used === 'number' && data.day && typeof data.limit === 'number') {
+        rememberTrainAiQuota({ day: data.day, used: data.used, limit: data.limit })
+      }
+      if (!res.ok || !data.ok || typeof data.line !== 'string') {
+        setAskLine(null)
+        setAskNote(data.message || trainAiLimitCopy(data.limit || quota.limit))
+        return
+      }
+      setAskLine(data.line)
+      setAskNote(
+        typeof data.remaining === 'number' && data.remaining > 0
+          ? `按紀錄講 · 今日仲可問 ${data.remaining} 次`
+          : trainAiLimitCopy(data.limit || quota.limit)
+      )
+    } catch {
+      setAskNote('而家上網唔到。小提示仍然用你部機嘅紀錄。')
+    } finally {
+      setAskBusy(false)
+    }
+  }
+
   const addSet = (outcome: SetOutcome = pendingOutcome) => {
     if (!active || !selectedEx) return
     const weightKg = draftKg(weight)
@@ -738,6 +887,7 @@ export function TrainClient() {
     setPendingOutcome('ok')
     buzzLight()
     sfxLogSet()
+    noteLoggedSet(row, next)
     armOrHoldRest(restSec)
   }
 
@@ -804,6 +954,7 @@ export function TrainClient() {
     window.setTimeout(() => setJustAdded(null), 500)
     buzzLight()
     sfxLogSet()
+    noteLoggedSet(row, next)
     armOrHoldRest(restSec)
   }
 
@@ -816,6 +967,10 @@ export function TrainClient() {
     }
     const analysis = analyzeWorkout(draft, sessions)
     const ended: WorkoutSession = { ...draft, analysis }
+    setFinishLines(loadTrainTipsEnabled() ? buildFinishLines(ended, sessions) : [])
+    setBetweenTip(null)
+    clearAsk()
+    setOpenDismissedEx(null)
     const next = [ended, ...sessions]
     setSessions(next)
     saveSessions(next)
@@ -877,6 +1032,10 @@ export function TrainClient() {
     setRestFullscreen(false)
     setRestReadyNext(false)
     setDraftNote(null)
+    setBetweenTip(null)
+    clearAsk()
+    setOpenDismissedEx(null)
+    setFinishLines([])
     cancelRestAlarm()
   }
 
@@ -901,6 +1060,22 @@ export function TrainClient() {
     weightN != null && repsN != null && weightN >= 0 && repsN >= 1 ? `${weightN}×${repsN}` : ''
 
   const nextPlanExercise = planQueue.find((id) => id !== selectedEx) || null
+  const openVisible =
+    tipsOn && !betweenTip && openTip && openDismissedEx !== selectedEx ? openTip : null
+  const betweenVisible = tipsOn && betweenTip ? betweenTip : null
+  const betweenOnPage = Boolean(betweenVisible && !(restLeft != null && restFullscreen))
+  const tipBanner = (tip: TrainTip) => (
+    <TrainTipBanner
+      lines={tip.lines}
+      suggestedWeightKg={tip.suggestedWeightKg}
+      askLine={askLine}
+      askNote={askNote}
+      askBusy={askBusy}
+      onAccept={typeof tip.suggestedWeightKg === 'number' ? () => acceptTip(tip) : undefined}
+      onIgnore={() => dismissTip(tip)}
+      onAsk={() => void askTip(tip.id.startsWith('between:') ? 'between' : 'open')}
+    />
+  )
 
   return (
     <AppShell>
@@ -1268,6 +1443,7 @@ export function TrainClient() {
                       </button>
                     </div>
                   )}
+                  {openVisible && tipBanner(openVisible)}
                   {(active.sets.length === 0 || sessions.filter((s) => s.endedAt).length === 0) && (
                     <div className="rounded-2xl border border-accent/25 bg-accent-soft/25 px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                       <Badge tone="accent">首次</Badge>
@@ -1355,6 +1531,9 @@ export function TrainClient() {
                         </div>
                       </div>
                     </Card>
+                  )}
+                  {betweenOnPage && betweenVisible && (
+                    <div className="mb-1">{tipBanner(betweenVisible)}</div>
                   )}
 
                   {/* Logger */}
@@ -1562,45 +1741,6 @@ export function TrainClient() {
                             {avoidEquip && (
                               <p className="mt-1.5 text-[10px] text-muted">按「冇{avoidEquip}」篩替代 · 撳動作即換</p>
                             )}
-                          </div>
-                        )}
-
-                        {overloadTip && overloadTip.id !== overloadDismissedId && (
-                          <div className="mb-3 flex items-start gap-2.5 rounded-2xl border border-accent/20 bg-accent-soft/40 px-3 py-2.5">
-                            <div className="min-w-0 flex-1">
-                              <div className="text-[10px] font-semibold uppercase tracking-wide text-accent/80">
-                                進步節奏
-                              </div>
-                              <p className="mt-0.5 text-[12px] leading-snug text-foreground/90">
-                                {overloadTip.text}
-                              </p>
-                              {typeof overloadTip.suggestedWeightKg === 'number' && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const nextKg = overloadTip.suggestedWeightKg
-                                    if (typeof nextKg !== 'number') return
-                                    markDraftEdited()
-                                    setWeight(String(nextKg))
-                                    if (repsN == null && lastLoggedForSelected) {
-                                      setReps(String(lastLoggedForSelected.reps))
-                                    }
-                                    setOverloadDismissedId(overloadTip.id)
-                                  }}
-                                  className="mt-1.5 text-[11px] font-semibold text-accent touch-manipulation"
-                                >
-                                  下次試 {overloadTip.suggestedWeightKg} kg
-                                </button>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setOverloadDismissedId(overloadTip.id)}
-                              className="shrink-0 rounded-full px-2 py-0.5 text-[11px] text-muted hover:text-foreground touch-manipulation"
-                              aria-label="收起提示"
-                            >
-                              收起
-                            </button>
                           </div>
                         )}
 
@@ -2536,7 +2676,12 @@ export function TrainClient() {
                 </button>
               </div>
             </div>
-            <div className="flex flex-1 flex-col items-center justify-center px-6 pb-24">
+            <div
+              className={cn(
+                'flex flex-1 flex-col items-center justify-center px-6',
+                betweenVisible ? 'pb-4' : 'pb-24'
+              )}
+            >
               <div
                 className={cn(
                   'font-serif tabular-nums tracking-tight leading-none',
@@ -2568,6 +2713,11 @@ export function TrainClient() {
                 onToggleAuto={toggleRestAuto}
               />
             </div>
+            {betweenVisible && (
+              <div className="px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                <div className="mx-auto max-w-md">{tipBanner(betweenVisible)}</div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -2955,6 +3105,20 @@ export function TrainClient() {
                 </div>
               )}
 
+              {finishLines.length > 0 && (
+                <div
+                  data-testid="finish-tip"
+                  className="mb-4 rounded-2xl border border-accent/25 bg-accent-soft/40 px-3.5 py-3 text-left"
+                >
+                  <div className="text-[10px] font-semibold text-accent mb-1">完場一句</div>
+                  {finishLines.map((line) => (
+                    <p key={line} className="text-sm leading-snug text-foreground">
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              )}
+
               <div className="rounded-[20px] border border-border bg-surface-muted p-4 mb-5 text-left">
                 <div className="text-xs font-semibold text-accent mb-2">一句講</div>
                 <p className="text-sm text-foreground/90 leading-relaxed">{lastAnalysis.tips[0]}</p>
@@ -3008,7 +3172,7 @@ export function TrainClient() {
                         'zh-HK',
                         { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
                       ),
-                      tip: lastAnalysis.tips[0],
+                      tip: finishLines[0] || lastAnalysis.tips[0],
                       prs: (lastAnalysis.prs || []).map((p) => `${p.name} ${p.weightKg}×${p.reps}`),
                     }}
                   />

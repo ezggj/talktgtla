@@ -11,6 +11,7 @@ import { FontScaleCard } from '@/components/shell/font-scale-card'
 import { InstallPrompt } from '@/components/pwa/install-prompt'
 import { NotificationsCard } from '@/components/settings/notifications-card'
 import { SoundToggleCard } from '@/components/settings/sound-toggle-card'
+import { TrainTipsCard } from '@/components/settings/train-tips-card'
 import { DisplayNameCard } from '@/components/settings/display-name-card'
 import { PublicWallCard } from '@/components/settings/public-wall-card'
 import { ProteinReminderCard } from '@/components/fitness/protein-reminder-card'
@@ -63,6 +64,9 @@ export function SettingsClient() {
 
           <StaggerItem>
             <div className="pt-1 text-[11px] font-medium text-muted px-0.5">訓練同凑局</div>
+          </StaggerItem>
+          <StaggerItem>
+            <TrainTipsCard />
           </StaggerItem>
           <StaggerItem>
             <SoundToggleCard />
