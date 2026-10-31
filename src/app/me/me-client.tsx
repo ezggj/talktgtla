@@ -30,6 +30,7 @@ import { fetchProfile, upsertGoals } from '@/lib/fitness/cloud'
 import { migrateLocalFitnessToCloud } from '@/lib/fitness/migrate'
 import { PlanGenerator } from '@/components/fitness/plan-generator'
 import { GymNudgeCard } from '@/components/fitness/gym-nudge-card'
+import { HkGymEntryCard } from '@/components/fitness/hk-gym-entry-card'
 import { computeStreak, trainedToday, weekConsistency, type WeekDay } from '@/lib/fitness/streaks'
 import { WeekDots } from '@/components/fitness/week-dots'
 import { WeeklySummaryCard } from '@/components/fitness/weekly-summary-card'
@@ -239,6 +240,10 @@ export function MeClient() {
 
           <StaggerItem>
             <GymNudgeCard streak={streak} />
+          </StaggerItem>
+
+          <StaggerItem>
+            <HkGymEntryCard />
           </StaggerItem>
 
           <StaggerItem>

@@ -41,6 +41,7 @@ import {
   enqueueMeal,
   flushOfflineQueue,
 } from '@/lib/fitness/offline-queue'
+
 import {
   type MealEntry,
   type MealMacros,

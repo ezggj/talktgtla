@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
+import Link from 'next/link'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import {
   ACHIEVEMENTS,
@@ -722,6 +723,12 @@ export default function Chat() {
           <div className="absolute right-0 flex items-center gap-2">
             {isAdmin ? (
               <>
+                <Link
+                  href="/admin"
+                  className="text-[11px] text-accent font-medium"
+                >
+                  數據
+                </Link>
                 <button
                   type="button"
                   onClick={() => void loadBans()}
