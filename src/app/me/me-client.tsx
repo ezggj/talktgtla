@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Dumbbell, LogIn, MessageCircle, Target, Utensils } from 'lucide-react'
+import { Cloud, Dumbbell, MessageCircle, Target, Utensils } from 'lucide-react'
 import { AppShell } from '@/components/shell/app-shell'
 import { PageTransition } from '@/components/motion/page-transition'
 import { Stagger, StaggerItem } from '@/components/motion/stagger'
@@ -12,25 +13,85 @@ import { Button } from '@/components/ui/button'
 import { Card, CardDesc, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { loadGoals, saveGoals, type FitnessGoals } from '@/lib/fitness/storage'
+import { LoginCard } from '@/components/auth/login-card'
+import { useUser } from '@/lib/auth/use-user'
+import { createClient } from '@/lib/supabase/client'
+import {
+  loadGoals,
+  saveGoals,
+  loadSessions,
+  loadMeals,
+  type FitnessGoals,
+} from '@/lib/fitness/storage'
+import {
+  fetchProfile,
+  upsertGoals,
+  migrateLocalWorkouts,
+  migrateLocalMeals,
+} from '@/lib/fitness/cloud'
+import { PlanGenerator } from '@/components/fitness/plan-generator'
 
 export function MeClient() {
+  const { ready: authReady, user, configured, signOut } = useUser()
+  const search = useSearchParams()
   const [goals, setGoals] = useState<FitnessGoals>({ proteinG: 150, kcal: 2200 })
   const [saved, setSaved] = useState(false)
   const [ready, setReady] = useState(false)
+  const [syncNote, setSyncNote] = useState<string | null>(null)
+  const authError = search.get('auth') === 'error'
 
   useEffect(() => {
     setGoals(loadGoals())
     setReady(true)
   }, [])
 
-  const persist = () => {
+  // Load profile + migrate local → cloud once logged in
+  useEffect(() => {
+    if (!authReady || !user) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const supabase = createClient()
+        const profile = await fetchProfile(supabase, user.id)
+        if (cancelled) return
+        if (profile) {
+          const g = { proteinG: profile.protein_goal, kcal: profile.calorie_goal }
+          setGoals(g)
+          saveGoals(g)
+        } else {
+          await upsertGoals(supabase, user.id, loadGoals())
+        }
+        const w = await migrateLocalWorkouts(supabase, user.id, loadSessions())
+        const m = await migrateLocalMeals(supabase, user.id, loadMeals())
+        if (!cancelled && (w > 0 || m > 0)) {
+          setSyncNote(`已上載本機資料：${w} 次訓練、${m} 餐`)
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setSyncNote(e instanceof Error ? e.message : '同步失敗')
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [authReady, user])
+
+  const persist = async () => {
     saveGoals(goals)
+    if (user) {
+      try {
+        const supabase = createClient()
+        await upsertGoals(supabase, user.id, goals)
+      } catch {
+        /* local already saved */
+      }
+    }
     setSaved(true)
     window.setTimeout(() => setSaved(false), 1800)
   }
 
-  if (!ready) {
+  if (!ready || !authReady) {
     return (
       <AppShell>
         <div className="max-w-lg mx-auto space-y-4 pt-8">
@@ -48,28 +109,32 @@ export function MeClient() {
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted mb-2">我</p>
           <h1 className="font-serif text-3xl sm:text-4xl tracking-tight">你嘅空間</h1>
           <p className="mt-2 text-sm text-muted">
-            目標可以而家改。會員登入稍後接上——資料暫時存在呢部機。
+            登入之後訓練同飲食上雲；飲食可以隨時翻睇日／週／月蛋白同卡路里。
           </p>
         </header>
 
+        {authError && (
+          <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+            登入連結失效或者 redirect 未設定。請喺「我」再寄一次，或者用 6 位碼。
+          </div>
+        )}
+
         <Stagger className="space-y-4">
           <StaggerItem>
-            <Card className="relative overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--accent-soft),_transparent_60%)] pointer-events-none" />
-              <div className="relative">
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge tone="accent">即將推出</Badge>
-                </div>
-                <CardTitle className="text-xl mb-2">登入同步</CardTitle>
-                <CardDesc className="mb-5">
-                  之後可以用電郵／Google 登入，訓練同飲食會跟住你跨裝置。而家先用本機資料，唔會唔見喺呢部電話。
-                </CardDesc>
-                <Button variant="secondary" disabled className="opacity-70">
-                  <LogIn className="h-4 w-4" />
-                  登入（準備中）
-                </Button>
+            <LoginCard user={user} configured={configured} onSignOut={signOut} />
+          </StaggerItem>
+
+          {syncNote && (
+            <StaggerItem>
+              <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-3 text-xs text-muted">
+                <Cloud className="h-3.5 w-3.5 text-accent shrink-0" />
+                {syncNote}
               </div>
-            </Card>
+            </StaggerItem>
+          )}
+
+          <StaggerItem>
+            <PlanGenerator userId={user?.id ?? null} />
           </StaggerItem>
 
           <StaggerItem>
@@ -77,6 +142,7 @@ export function MeClient() {
               <div className="flex items-center gap-2 mb-4">
                 <Target className="h-4 w-4 text-accent" />
                 <CardTitle className="text-xl">今日目標</CardTitle>
+                {user && <Badge tone="muted">雲端</Badge>}
               </div>
               <div className="space-y-3">
                 <label className="block text-xs text-muted">
@@ -101,7 +167,7 @@ export function MeClient() {
                     }
                   />
                 </label>
-                <Button onClick={persist} className="w-full">
+                <Button onClick={() => void persist()} className="w-full">
                   {saved ? '已儲存 ✓' : '儲存目標'}
                 </Button>
               </div>
@@ -117,7 +183,12 @@ export function MeClient() {
                   { href: '/eat', label: '飲食', icon: Utensils },
                 ] as const
               ).map(({ href, label, icon: Icon }) => (
-                <motion.div key={href} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={springSnappy}>
+                <motion.div
+                  key={href}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={springSnappy}
+                >
                   <Link
                     href={href}
                     className="flex flex-col items-center gap-2 rounded-[20px] border border-border bg-surface py-5 shadow-soft hover:shadow-hover transition"
@@ -131,9 +202,9 @@ export function MeClient() {
           </StaggerItem>
 
           <StaggerItem>
-            <p className="text-[11px] text-muted text-center leading-relaxed px-4 pt-2">
-              Talk tgt la · 香港 gym 人嘅傾偈同工具。訓練／飲食資料暫存本機；上線 Auth 後會遷移。
-            </p>
+            <CardDesc className="text-center text-[11px] px-2">
+              Talk tgt la · 會員 Auth 同管理員 /admin 分開。資料 RLS 鎖死只得你睇到。
+            </CardDesc>
           </StaggerItem>
         </Stagger>
       </PageTransition>

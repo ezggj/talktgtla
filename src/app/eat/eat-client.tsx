@@ -1,10 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   Camera,
   Check,
+  ChevronLeft,
+  ChevronRight,
+  Cloud,
   ImagePlus,
   Pencil,
   Trash2,
@@ -20,6 +23,9 @@ import { Card, CardDesc, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ProgressBar, ProgressRing } from '@/components/ui/progress'
+import { LoginPromptBanner } from '@/components/auth/login-card'
+import { useUser } from '@/lib/auth/use-user'
+import { createClient } from '@/lib/supabase/client'
 import {
   HK_DISH_ESTIMATES,
   mockEstimateFromFile,
@@ -35,10 +41,23 @@ import {
   saveMeals,
   todayKey,
 } from '@/lib/fitness/storage'
+import {
+  type PeriodKind,
+  type MealPeriodBucket,
+  addDays,
+  deleteMealCloud,
+  fetchMealPeriodTotals,
+  fetchMeals,
+  migrateLocalMeals,
+  rangeForPeriod,
+  startOfDay,
+  upsertMeal,
+} from '@/lib/fitness/cloud'
 import { cn } from '@/lib/utils'
 
 type Draft = {
   previewUrl: string
+  file: File | null
   fileName: string
   status: 'estimating' | 'ready'
   name: string
@@ -69,8 +88,13 @@ function mealTimeLabel(iso: string) {
   return '宵夜'
 }
 
+function periodLabel(k: PeriodKind) {
+  return k === 'day' ? '日' : k === 'week' ? '週' : '月'
+}
+
 export function EatClient() {
   const reduce = useReducedMotion()
+  const { ready: authReady, user } = useUser()
   const fileRef = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
   const [ready, setReady] = useState(false)
@@ -78,44 +102,180 @@ export function EatClient() {
   const [goals, setGoals] = useState({ proteinG: 150, kcal: 2200 })
   const [draft, setDraft] = useState<Draft | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [period, setPeriod] = useState<PeriodKind>('day')
+  const [anchor, setAnchor] = useState(() => startOfDay(new Date()))
+  const [buckets, setBuckets] = useState<MealPeriodBucket[]>([])
+  const [syncing, setSyncing] = useState(false)
+  const [cloudNote, setCloudNote] = useState<string | null>(null)
 
-  useEffect(() => {
+  const range = useMemo(() => rangeForPeriod(period, anchor), [period, anchor])
+
+  const loadLocal = useCallback(() => {
     setMeals(loadMeals())
     setGoals(loadGoals())
-    setReady(true)
   }, [])
 
-  const [todayMeals, setTodayMeals] = useState<MealEntry[]>([])
+  // Initial local load
+  useEffect(() => {
+    loadLocal()
+    setReady(true)
+  }, [loadLocal])
+
+  // Cloud hydrate + migrate when logged in
+  useEffect(() => {
+    if (!authReady || !user) return
+    let cancelled = false
+    ;(async () => {
+      setSyncing(true)
+      try {
+        const supabase = createClient()
+        await migrateLocalMeals(supabase, user.id, loadMeals())
+        // Pull generous history (enough for monthly rollups client-side + RPC)
+        const remote = await fetchMeals(supabase, { limit: 800 })
+        if (cancelled) return
+        setMeals(remote)
+        saveMeals(remote)
+        setCloudNote('已同步雲端飲食歷史')
+      } catch (e) {
+        if (!cancelled) setCloudNote(e instanceof Error ? e.message : '同步失敗')
+      } finally {
+        if (!cancelled) setSyncing(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [authReady, user])
+
+  // Period RPC totals when logged in; else derive from local meals
+  useEffect(() => {
+    if (!ready) return
+    let cancelled = false
+    ;(async () => {
+      if (user) {
+        try {
+          const supabase = createClient()
+          const rows = await fetchMealPeriodTotals(
+            supabase,
+            range.from.toISOString(),
+            range.to.toISOString(),
+            period
+          )
+          if (!cancelled) setBuckets(rows)
+          return
+        } catch {
+          /* fall through to local */
+        }
+      }
+      // Local aggregate by calendar day inside range
+      const byDay = new Map<string, MealPeriodBucket>()
+      for (const m of meals) {
+        const t = new Date(m.createdAt).getTime()
+        if (t < range.from.getTime() || t >= range.to.getTime()) continue
+        const day = todayKey(new Date(m.createdAt))
+        const cur = byDay.get(day) || {
+          bucket_start: day,
+          meals_count: 0,
+          kcal: 0,
+          protein_g: 0,
+          carbs_g: 0,
+          fat_g: 0,
+          fiber_g: 0,
+        }
+        cur.meals_count += 1
+        cur.kcal += m.macros.kcal
+        cur.protein_g += m.macros.protein
+        cur.carbs_g += m.macros.carbs
+        cur.fat_g += m.macros.fat
+        cur.fiber_g += m.macros.fiber || 0
+        byDay.set(day, cur)
+      }
+      // For week/month views without RPC, collapse
+      if (period === 'day') {
+        if (!cancelled) setBuckets([...byDay.values()].sort((a, b) => b.bucket_start.localeCompare(a.bucket_start)))
+      } else {
+        const total = [...byDay.values()].reduce(
+          (a, b) => ({
+            bucket_start: range.from.toISOString().slice(0, 10),
+            meals_count: a.meals_count + b.meals_count,
+            kcal: a.kcal + b.kcal,
+            protein_g: a.protein_g + b.protein_g,
+            carbs_g: a.carbs_g + b.carbs_g,
+            fat_g: a.fat_g + b.fat_g,
+            fiber_g: a.fiber_g + b.fiber_g,
+          }),
+          {
+            bucket_start: range.from.toISOString().slice(0, 10),
+            meals_count: 0,
+            kcal: 0,
+            protein_g: 0,
+            carbs_g: 0,
+            fat_g: 0,
+            fiber_g: 0,
+          }
+        )
+        if (!cancelled) setBuckets(total.meals_count ? [total] : [])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [ready, user, meals, range, period])
+
+  const periodMeals = useMemo(() => {
+    return meals
+      .filter((m) => {
+        const t = new Date(m.createdAt).getTime()
+        return t >= range.from.getTime() && t < range.to.getTime()
+      })
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  }, [meals, range])
+
+  const periodSum = useMemo(() => {
+    if (buckets.length > 0) {
+      return buckets.reduce(
+        (a, b) => ({
+          kcal: a.kcal + b.kcal,
+          protein: a.protein + b.protein_g,
+          carbs: a.carbs + b.carbs_g,
+          fat: a.fat + b.fat_g,
+          fiber: a.fiber + b.fiber_g,
+        }),
+        { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
+      )
+    }
+    return sumMacros(periodMeals)
+  }, [buckets, periodMeals])
+
+  const todayMeals = useMemo(() => {
+    const day = todayKey(new Date())
+    return meals
+      .filter((m) => isSameDay(m.createdAt, day))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  }, [meals])
+
   const todaySum = useMemo(() => sumMacros(todayMeals), [todayMeals])
 
-  useEffect(() => {
-    if (!ready) return
-    const day = todayKey(new Date())
-    setTodayMeals(
-      meals
-        .filter((m) => isSameDay(m.createdAt, day))
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    )
-  }, [meals, ready])
-
-  const [weekProtein, setWeekProtein] = useState<number[]>([0, 0, 0, 0, 0, 0, 0])
-  useEffect(() => {
-    if (!ready) return
-    const arr: number[] = []
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date()
-      d.setDate(d.getDate() - i)
-      const key = todayKey(d)
-      const dayMeals = meals.filter((m) => isSameDay(m.createdAt, key))
-      arr.push(sumMacros(dayMeals).protein)
+  // Calendar heat for current month (protein per day)
+  const monthHeat = useMemo(() => {
+    const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1)
+    const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1)
+    const map = new Map<string, number>()
+    for (const m of meals) {
+      const t = new Date(m.createdAt)
+      if (t >= start && t < end) {
+        const k = todayKey(t)
+        map.set(k, (map.get(k) || 0) + m.macros.protein)
+      }
     }
-    setWeekProtein(arr)
-  }, [meals, ready])
+    return map
+  }, [meals, anchor])
 
   const openFile = (file: File) => {
     const url = URL.createObjectURL(file)
     setDraft({
       previewUrl: url,
+      file,
       fileName: file.name,
       status: 'estimating',
       name: '識別緊…',
@@ -123,7 +283,6 @@ export function EatClient() {
       portion: 1,
       estimated: true,
     })
-    // Optimistic skeleton → mock estimate (AI hook later)
     window.setTimeout(() => {
       const est = mockEstimateFromFile(file.name || 'meal.jpg')
       setDraft((prev) =>
@@ -148,6 +307,26 @@ export function EatClient() {
 
   const liveMacros = draft ? scaleMacros(draft.baseMacros, draft.portion) : null
 
+  const persistList = async (next: MealEntry[], changed?: MealEntry, file?: File | null, remove?: MealEntry) => {
+    setMeals(next)
+    saveMeals(next)
+    if (!user) return
+    try {
+      const supabase = createClient()
+      if (remove) await deleteMealCloud(supabase, remove)
+      if (changed) {
+        const saved = await upsertMeal(supabase, user.id, changed, file)
+        setMeals((cur) => {
+          const mapped = cur.map((m) => (m.id === saved.id ? saved : m))
+          saveMeals(mapped)
+          return mapped
+        })
+      }
+    } catch (e) {
+      setCloudNote(e instanceof Error ? e.message : '雲端儲存失敗')
+    }
+  }
+
   const confirmDraft = () => {
     if (!draft || draft.status !== 'ready' || !liveMacros) return
     const entry: MealEntry = {
@@ -158,23 +337,23 @@ export function EatClient() {
       macros: liveMacros,
       portion: draft.portion,
       estimated: draft.estimated,
+      source: 'mock',
     }
     const next = [entry, ...meals]
-    setMeals(next)
-    saveMeals(next)
+    void persistList(next, entry, draft.file)
     setDraft(null)
   }
 
   const removeMeal = (id: string) => {
+    const victim = meals.find((m) => m.id === id)
     const next = meals.filter((m) => m.id !== id)
-    setMeals(next)
-    saveMeals(next)
+    void persistList(next, undefined, null, victim)
   }
 
   const updateMealMacros = (id: string, patch: Partial<MealEntry>) => {
-    const next = meals.map((m) => (m.id === id ? { ...m, ...patch } : m))
-    setMeals(next)
-    saveMeals(next)
+    const next = meals.map((m) => (m.id === id ? { ...m, ...patch, source: 'manual' as const } : m))
+    const changed = next.find((m) => m.id === id)
+    void persistList(next, changed)
   }
 
   const addDemoDish = (idx: number) => {
@@ -187,13 +366,29 @@ export function EatClient() {
       portion: 1,
       estimated: true,
       note: dish.hint,
+      source: 'mock',
     }
-    const next = [entry, ...meals]
-    setMeals(next)
-    saveMeals(next)
+    void persistList([entry, ...meals], entry)
   }
 
-  if (!ready) {
+  const shiftAnchor = (dir: -1 | 1) => {
+    if (period === 'day') setAnchor((a) => addDays(a, dir))
+    else if (period === 'week') setAnchor((a) => addDays(a, dir * 7))
+    else {
+      setAnchor((a) => {
+        const x = new Date(a)
+        x.setMonth(x.getMonth() + dir)
+        return startOfDay(x)
+      })
+    }
+  }
+
+  const jumpToDay = (isoDay: string) => {
+    setPeriod('day')
+    setAnchor(startOfDay(new Date(isoDay + 'T12:00:00')))
+  }
+
+  if (!ready || !authReady) {
     return (
       <AppShell>
         <div className="max-w-2xl mx-auto space-y-4 pt-8">
@@ -205,18 +400,104 @@ export function EatClient() {
     )
   }
 
+  const daysInMonth = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate()
+  const monthStartWeekday = new Date(anchor.getFullYear(), anchor.getMonth(), 1).getDay()
+  const heatMax = Math.max(1, ...monthHeat.values())
+
   return (
     <AppShell>
       <PageTransition className="max-w-2xl mx-auto">
-        <header className="mb-8">
+        <header className="mb-6">
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted mb-2">飲食</p>
           <h1 className="font-serif text-3xl sm:text-4xl tracking-tight">影低呢餐</h1>
           <p className="mt-2 text-sm text-muted max-w-md">
-            卡路里、蛋白、碳水、脂肪一齊估——跟住可以人手改。數字係估算，唔係實驗室。
+            卡路里、蛋白、碳水、脂肪一齊估。登入之後歷史永久保存，隨時翻睇日／週／月總計。
           </p>
         </header>
 
-        {/* Goals rings */}
+        {!user && (
+          <div className="mb-5">
+            <LoginPromptBanner />
+          </div>
+        )}
+
+        {user && (
+          <div className="mb-4 flex items-center gap-2 text-[11px] text-muted">
+            <Cloud className={cn('h-3.5 w-3.5 text-accent', syncing && 'animate-pulse')} />
+            {syncing ? '同步緊…' : cloudNote || '雲端飲食已開啟'}
+          </div>
+        )}
+
+        {/* Period switcher */}
+        <div className="mb-4 flex gap-1.5 p-1 rounded-2xl bg-[#f0efee] border border-border">
+          {(['day', 'week', 'month'] as PeriodKind[]).map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setPeriod(k)}
+              className={cn(
+                'relative flex-1 rounded-xl py-2.5 text-sm font-medium transition-colors',
+                period === k ? 'text-accent' : 'text-muted hover:text-foreground'
+              )}
+            >
+              {period === k && (
+                <motion.span
+                  layoutId="eat-period"
+                  className="absolute inset-0 rounded-xl bg-surface shadow-soft"
+                  transition={springSoft}
+                />
+              )}
+              <span className="relative z-10">{periodLabel(k)}計</span>
+            </button>
+          ))}
+        </div>
+
+        <Card className="mb-5 py-4">
+          <div className="flex items-center justify-between mb-3">
+            <button
+              type="button"
+              aria-label="上一段"
+              onClick={() => shiftAnchor(-1)}
+              className="h-9 w-9 rounded-xl border border-border flex items-center justify-center hover:bg-black/[0.03]"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="text-center">
+              <div className="text-sm font-medium">{range.label}</div>
+              <div className="text-[11px] text-muted">{periodMeals.length} 餐入帳</div>
+            </div>
+            <button
+              type="button"
+              aria-label="下一段"
+              onClick={() => shiftAnchor(1)}
+              className="h-9 w-9 rounded-xl border border-border flex items-center justify-center hover:bg-black/[0.03]"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            {(
+              [
+                { label: 'kcal', v: Math.round(periodSum.kcal) },
+                { label: '蛋白', v: `${Math.round(periodSum.protein)}g` },
+                { label: '碳水', v: `${Math.round(periodSum.carbs)}g` },
+                { label: '脂肪', v: `${Math.round(periodSum.fat)}g` },
+              ] as const
+            ).map((x) => (
+              <div key={x.label} className="rounded-2xl bg-[#fafaf9] border border-border px-2 py-3">
+                <div className="text-base font-semibold tabular-nums">{x.v}</div>
+                <div className="text-[10px] text-muted">{x.label}</div>
+              </div>
+            ))}
+          </div>
+          {period === 'month' && buckets.length > 1 && (
+            <p className="mt-3 text-[11px] text-muted text-center">
+              本月按日拆開共 {buckets.length} 日有記錄 · SQL date_trunc 匯總
+            </p>
+          )}
+        </Card>
+
+        {/* Today rings — always show today's progress vs goals */}
         <Stagger className="grid grid-cols-2 gap-3 mb-6">
           <StaggerItem>
             <Card className="flex items-center gap-4 py-4">
@@ -228,7 +509,7 @@ export function EatClient() {
                 size={76}
               />
               <div>
-                <div className="text-xs text-muted">蛋白目標</div>
+                <div className="text-xs text-muted">今日蛋白</div>
                 <div className="text-sm font-medium tabular-nums">{goals.proteinG} g</div>
                 <ProgressBar className="mt-2 w-24" value={todaySum.protein} max={goals.proteinG} />
               </div>
@@ -244,7 +525,7 @@ export function EatClient() {
                 size={76}
               />
               <div>
-                <div className="text-xs text-muted">卡路里</div>
+                <div className="text-xs text-muted">今日卡路里</div>
                 <div className="text-sm font-medium tabular-nums">{goals.kcal}</div>
                 <ProgressBar className="mt-2 w-24" value={todaySum.kcal} max={goals.kcal} />
               </div>
@@ -252,36 +533,56 @@ export function EatClient() {
           </StaggerItem>
         </Stagger>
 
-        {/* Macro strip */}
-        <Card className="mb-6 py-4">
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div>
-              <div className="text-[11px] text-muted">碳水</div>
-              <div className="text-lg font-semibold tabular-nums">{todaySum.carbs}g</div>
+        {/* Month calendar heat (protein) */}
+        {(period === 'month' || period === 'week') && (
+          <Card className="mb-6">
+            <CardTitle className="text-lg mb-1">飲食日曆</CardTitle>
+            <CardDesc className="mb-4">色越深＝當日蛋白越多。撳日子跳去日計。</CardDesc>
+            <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] text-muted mb-1">
+              {['日', '一', '二', '三', '四', '五', '六'].map((d) => (
+                <div key={d}>{d}</div>
+              ))}
             </div>
-            <div>
-              <div className="text-[11px] text-muted">脂肪</div>
-              <div className="text-lg font-semibold tabular-nums">{todaySum.fat}g</div>
+            <div className="grid grid-cols-7 gap-1.5">
+              {Array.from({ length: monthStartWeekday }).map((_, i) => (
+                <div key={`e-${i}`} />
+              ))}
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const day = i + 1
+                const iso = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+                const p = monthHeat.get(iso) || 0
+                const intensity = p === 0 ? 0 : 0.15 + (p / heatMax) * 0.85
+                return (
+                  <button
+                    key={iso}
+                    type="button"
+                    onClick={() => jumpToDay(iso)}
+                    className="aspect-square rounded-xl text-[11px] font-medium tabular-nums border border-border/60 hover:scale-105 transition"
+                    style={{
+                      background:
+                        p === 0
+                          ? 'var(--surface, #fff)'
+                          : `color-mix(in srgb, #0F766E ${Math.round(intensity * 100)}%, #FAFAF9)`,
+                      color: intensity > 0.55 ? '#fff' : '#1A1A1A',
+                    }}
+                    title={`${iso}: ${Math.round(p)}g 蛋白`}
+                  >
+                    {day}
+                  </button>
+                )
+              })}
             </div>
-            <div>
-              <div className="text-[11px] text-muted">纖維</div>
-              <div className="text-lg font-semibold tabular-nums">{todaySum.fiber || 0}g</div>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
-        {/* Camera-first CTA */}
+        {/* Camera CTA */}
         <Card className="mb-6 relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--accent-soft),_transparent_50%)] pointer-events-none" />
           <div className="relative">
             <CardTitle className="text-xl mb-1">影相估營養</CardTitle>
-            <CardDesc className="mb-5">相機優先，兩秒出結果卡。之後可以拖份量。</CardDesc>
+            <CardDesc className="mb-5">相機優先。之後可拖份量；登入會永久入歷史。</CardDesc>
             <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                size="lg"
-                className="flex-1"
-                onClick={() => cameraRef.current?.click()}
-              >
+              <Button size="lg" className="flex-1" onClick={() => cameraRef.current?.click()}>
                 <Camera className="h-4 w-4" />
                 影一餐
               </Button>
@@ -303,17 +604,11 @@ export function EatClient() {
               className="hidden"
               onChange={onPick}
             />
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={onPick}
-            />
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPick} />
           </div>
         </Card>
 
-        {/* Demo HK dishes */}
+        {/* HK dishes */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-serif text-xl">香港常見</h2>
@@ -340,23 +635,25 @@ export function EatClient() {
           </div>
         </div>
 
-        {/* Timeline */}
+        {/* History list for selected period */}
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-serif text-xl">今日時間線</h2>
-          <span className="text-xs text-muted">{todayMeals.length} 餐</span>
+          <h2 className="font-serif text-xl">
+            {period === 'day' ? '當日時間線' : period === 'week' ? '本週餐單' : '本月餐單'}
+          </h2>
+          <span className="text-xs text-muted">{periodMeals.length} 餐</span>
         </div>
 
-        {todayMeals.length === 0 ? (
-          <Card className="text-center py-14">
+        {periodMeals.length === 0 ? (
+          <Card className="text-center py-14 mb-8">
             <Utensils className="h-8 w-8 text-muted mx-auto mb-3 opacity-45" />
-            <CardTitle className="text-lg mb-1">未開餐？</CardTitle>
+            <CardTitle className="text-lg mb-1">呢段時間未有記錄</CardTitle>
             <CardDesc className="max-w-xs mx-auto">
-              影低叉燒飯或者雞胸便當，估完可以改數。亦可以撳上面「香港常見」試吓。
+              影低一餐或者撳「香港常見」。登入之後，成個星期嘅餐都可以留低，之後翻睇月計。
             </CardDesc>
           </Card>
         ) : (
-          <Stagger className="space-y-3">
-            {todayMeals.map((m) => (
+          <Stagger className="space-y-3 mb-8">
+            {periodMeals.map((m) => (
               <StaggerItem key={m.id}>
                 <Card className="py-4">
                   <div className="flex gap-3">
@@ -377,11 +674,14 @@ export function EatClient() {
                         <div>
                           <div className="text-sm font-medium truncate">{m.name}</div>
                           <div className="text-[11px] text-muted">
-                            {mealTimeLabel(m.createdAt)} ·{' '}
-                            {new Date(m.createdAt).toLocaleTimeString('zh-HK', {
+                            {new Date(m.createdAt).toLocaleString('zh-HK', {
+                              month: 'numeric',
+                              day: 'numeric',
                               hour: '2-digit',
                               minute: '2-digit',
                             })}
+                            {' · '}
+                            {mealTimeLabel(m.createdAt)}
                             {m.estimated && ' · 估算'}
                           </div>
                         </div>
@@ -416,7 +716,13 @@ export function EatClient() {
                     <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 gap-2">
                       {(['protein', 'kcal', 'carbs', 'fat'] as const).map((key) => (
                         <label key={key} className="text-[11px] text-muted">
-                          {key === 'protein' ? '蛋白 g' : key === 'kcal' ? '卡路里' : key === 'carbs' ? '碳水 g' : '脂肪 g'}
+                          {key === 'protein'
+                            ? '蛋白 g'
+                            : key === 'kcal'
+                              ? '卡路里'
+                              : key === 'carbs'
+                                ? '碳水 g'
+                                : '脂肪 g'}
                           <Input
                             type="number"
                             className="mt-1 h-9"
@@ -440,33 +746,8 @@ export function EatClient() {
             ))}
           </Stagger>
         )}
-
-        {/* Week story */}
-        <Card className="mt-6">
-          <CardTitle className="text-lg mb-1">呢個星期蛋白</CardTitle>
-          <CardDesc className="mb-4">
-            {weekProtein[6] >= weekProtein[0]
-              ? '今個星期蛋白穩過開頭——繼續咁樣。'
-              : '蛋白有啲鬆——試下加雞胸或者蛋白粉。'}
-          </CardDesc>
-          <div className="flex items-end gap-1.5 h-14">
-            {weekProtein.map((v, i) => {
-              const max = Math.max(...weekProtein, goals.proteinG * 0.3, 1)
-              const h = Math.max(6, (v / max) * 100)
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div
-                    className="w-full rounded-t-md bg-accent/75"
-                    style={{ height: `${h}%` }}
-                  />
-                </div>
-              )
-            })}
-          </div>
-        </Card>
       </PageTransition>
 
-      {/* Estimate sheet */}
       <AnimatePresence>
         {draft && (
           <motion.div
@@ -484,11 +765,7 @@ export function EatClient() {
             >
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={draft.previewUrl}
-                  alt=""
-                  className="w-full h-48 object-cover"
-                />
+                <img src={draft.previewUrl} alt="" className="w-full h-48 object-cover" />
                 <button
                   type="button"
                   onClick={() => setDraft(null)}
@@ -501,7 +778,6 @@ export function EatClient() {
                   {draft.status === 'estimating' ? '估算中…' : '估算完成 · 可改'}
                 </Badge>
               </div>
-
               <div className="p-5">
                 {draft.status === 'estimating' ? (
                   <div className="space-y-3 py-2">
@@ -511,7 +787,6 @@ export function EatClient() {
                         <div key={i} className="h-16 rounded-2xl bg-border/70 skeleton-pulse" />
                       ))}
                     </div>
-                    <div className="h-3 rounded-full bg-border skeleton-pulse" />
                     <p className="text-xs text-muted text-center pt-2">認緊碟餸…稍等</p>
                   </div>
                 ) : (
@@ -539,7 +814,6 @@ export function EatClient() {
                         </div>
                       ))}
                     </div>
-
                     <label className="block mb-5">
                       <div className="flex justify-between text-xs text-muted mb-2">
                         <span>份量</span>
@@ -553,24 +827,16 @@ export function EatClient() {
                         max={2}
                         step={0.05}
                         value={draft.portion}
-                        onChange={(e) =>
-                          setDraft({ ...draft, portion: Number(e.target.value) })
-                        }
+                        onChange={(e) => setDraft({ ...draft, portion: Number(e.target.value) })}
                         className="w-full accent-[var(--accent)] h-2"
                       />
-                      <div className="flex justify-between text-[10px] text-muted mt-1">
-                        <span>¼</span>
-                        <span>標準</span>
-                        <span>2×</span>
-                      </div>
                     </label>
-
                     <Button size="lg" className="w-full" onClick={confirmDraft}>
                       <Check className="h-4 w-4" />
-                      入今日日記
+                      入飲食日記
                     </Button>
                     <p className="text-[11px] text-muted text-center mt-3 leading-relaxed">
-                      AI 估算僅供參考；醬汁、遮擋會影響準確度。重要數字請人手核對。
+                      估算僅供參考。登入後會入雲端歷史，之後可以睇月計蛋白／卡路里。
                     </p>
                   </>
                 )}

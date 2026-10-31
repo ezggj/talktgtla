@@ -44,6 +44,15 @@ import {
   isSameDay,
   todayKey,
 } from '@/lib/fitness/storage'
+import {
+  fetchWorkouts,
+  migrateLocalWorkouts,
+  persistFinishedWorkout,
+} from '@/lib/fitness/cloud'
+import { useUser } from '@/lib/auth/use-user'
+import { createClient } from '@/lib/supabase/client'
+import { LoginPromptBanner } from '@/components/auth/login-card'
+import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
 function formatDuration(sec: number) {
@@ -71,7 +80,10 @@ type Tab = 'today' | 'templates' | 'history'
 
 export function TrainClient() {
   const reduce = useReducedMotion()
+  const { ready: authReady, user } = useUser()
+  const searchParams = useSearchParams()
   const [ready, setReady] = useState(false)
+  const [cloudNote, setCloudNote] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('today')
   const [sessions, setSessions] = useState<WorkoutSession[]>([])
   const [active, setActive] = useState<WorkoutSession | null>(null)
@@ -97,6 +109,57 @@ export function TrainClient() {
     setActive(a)
     setReady(true)
   }, [])
+
+  // Cloud hydrate when logged in
+  useEffect(() => {
+    if (!authReady || !user) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const supabase = createClient()
+        await migrateLocalWorkouts(supabase, user.id, loadSessions())
+        const remote = await fetchWorkouts(supabase, 80)
+        if (cancelled) return
+        setSessions(remote)
+        saveSessions(remote)
+        setCloudNote('訓練已同步雲端')
+      } catch (e) {
+        if (!cancelled) setCloudNote(e instanceof Error ? e.message : '訓練同步失敗')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [authReady, user])
+
+  // One-tap start from workout plan (?exercises=id1,id2)
+  useEffect(() => {
+    if (!ready) return
+    const raw = searchParams.get('exercises')
+    const fromPlan = searchParams.get('plan')
+    if (!raw) return
+    const ids = raw.split(',').map((x) => x.trim()).filter(Boolean)
+    if (ids.length === 0) return
+    if (loadActiveSession()) return
+    const sess: WorkoutSession = {
+      id: newId(),
+      startedAt: new Date().toISOString(),
+      sets: [],
+      templateId: fromPlan || 'plan',
+    }
+    saveActiveSession(sess)
+    setActive(sess)
+    setTab('today')
+    const first = ids[0]
+    if (first) {
+      const ex = exerciseById(first)
+      if (ex) {
+        setSelectedEx(first)
+        setWeight(40)
+        setReps(10)
+      }
+    }
+  }, [ready, searchParams])
 
   useEffect(() => {
     if (!active?.startedAt || active.endedAt) return
@@ -219,6 +282,17 @@ export function TrainClient() {
     persistActive(null)
     setFinishOpen(true)
     setSelectedEx(null)
+    if (user) {
+      void (async () => {
+        try {
+          const supabase = createClient()
+          await persistFinishedWorkout(supabase, user.id, ended)
+          setCloudNote('呢次訓練已上雲')
+        } catch (e) {
+          setCloudNote(e instanceof Error ? e.message : '上雲失敗，本機已保存')
+        }
+      })()
+    }
   }
 
   const discardSession = () => {
@@ -282,7 +356,7 @@ export function TrainClient() {
     }))
   }, [active])
 
-  if (!ready) {
+  if (!ready || !authReady) {
     return (
       <AppShell>
         <div className="max-w-2xl mx-auto space-y-4 pt-8">
@@ -319,6 +393,15 @@ export function TrainClient() {
             </div>
           )}
         </header>
+
+        {!user && (
+          <div className="mb-5">
+            <LoginPromptBanner />
+          </div>
+        )}
+        {user && cloudNote && (
+          <p className="mb-4 text-[11px] text-muted">{cloudNote}</p>
+        )}
 
         <div className="mb-6 flex gap-1.5 p-1 rounded-2xl bg-[#f0efee] border border-border">
           {(

@@ -1,0 +1,2 @@
+-- Applied via Supabase MCP: profiles, workouts, workout_sets, meals, meal-photos, meal_period_totals, workout_plans
+-- See project etbgulbuzezrdoqvvamy migration history.

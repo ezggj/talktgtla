@@ -1,4 +1,4 @@
-/** Local persistence until Supabase Auth + tables land. */
+/** Local cache + guest mode. Logged-in users sync via lib/fitness/cloud.ts */
 
 export type WorkoutSet = {
   id: string
@@ -33,10 +33,13 @@ export type MealEntry = {
   createdAt: string
   name: string
   imageDataUrl?: string
+  /** Supabase Storage path when synced */
+  imagePath?: string
   macros: MealMacros
   portion: number // 1 = 100%
   note?: string
   estimated: boolean
+  source?: 'mock' | 'ai' | 'manual'
 }
 
 export type FitnessGoals = {
