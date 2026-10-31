@@ -31,6 +31,7 @@ import {
   mockEstimateFromFile,
   scaleMacros,
 } from '@/lib/fitness/meals-demo'
+import { compressMealImage } from '@/lib/fitness/compress-image'
 import {
   type MealEntry,
   type MealMacros,
@@ -64,6 +65,8 @@ type Draft = {
   baseMacros: MealMacros
   portion: number
   estimated: boolean
+  source: 'ai' | 'mock'
+  note?: string
 }
 
 function sumMacros(meals: MealEntry[]): MealMacros {
@@ -107,6 +110,7 @@ export function EatClient() {
   const [buckets, setBuckets] = useState<MealPeriodBucket[]>([])
   const [syncing, setSyncing] = useState(false)
   const [cloudNote, setCloudNote] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
 
   const range = useMemo(() => rangeForPeriod(period, anchor), [period, anchor])
 
@@ -271,6 +275,11 @@ export function EatClient() {
     return map
   }, [meals, anchor])
 
+  const showToast = (msg: string) => {
+    setToast(msg)
+    window.setTimeout(() => setToast(null), 4200)
+  }
+
   const openFile = (file: File) => {
     const url = URL.createObjectURL(file)
     setDraft({
@@ -278,25 +287,83 @@ export function EatClient() {
       file,
       fileName: file.name,
       status: 'estimating',
-      name: '識別緊…',
+      name: 'AI 認緊碟餸…',
       baseMacros: { kcal: 0, protein: 0, carbs: 0, fat: 0 },
       portion: 1,
       estimated: true,
+      source: 'ai',
     })
-    window.setTimeout(() => {
-      const est = mockEstimateFromFile(file.name || 'meal.jpg')
-      setDraft((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: 'ready',
-              name: est.name,
-              baseMacros: est.macros,
-              estimated: true,
-            }
-          : null
-      )
-    }, 900 + Math.random() * 500)
+
+    void (async () => {
+      try {
+        const compressed = await compressMealImage(file)
+        // Prefer compressed preview for modal + upload
+        URL.revokeObjectURL(url)
+        const compressedFile = new File([compressed.blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', {
+          type: compressed.mediaType,
+        })
+        setDraft((prev) =>
+          prev
+            ? { ...prev, previewUrl: compressed.dataUrl, file: compressedFile }
+            : null
+        )
+
+        const res = await fetch('/api/eat/estimate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageDataUrl: compressed.dataUrl,
+            mediaType: compressed.mediaType,
+          }),
+        })
+        const data = (await res.json().catch(() => ({}))) as {
+          source?: 'ai'
+          name?: string
+          macros?: MealMacros
+          note?: string
+          error?: string
+          code?: string
+        }
+
+        if (!res.ok || !data.macros || !data.name) {
+          throw new Error(data.error || 'AI 估算失敗')
+        }
+
+        setDraft((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'ready',
+                name: data.name!,
+                baseMacros: data.macros!,
+                estimated: true,
+                source: 'ai',
+                note: data.note,
+              }
+            : null
+        )
+      } catch (e) {
+        const est = mockEstimateFromFile(file.name || 'meal.jpg')
+        setDraft((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'ready',
+                name: est.name,
+                baseMacros: est.macros,
+                estimated: true,
+                source: 'mock',
+                note: 'AI 暫時唔得，用示範估算；可人手改',
+              }
+            : null
+        )
+        showToast(
+          e instanceof Error
+            ? `AI 估唔到：${e.message} · 已改用示範估算`
+            : 'AI 估唔到 · 已改用示範估算'
+        )
+      }
+    })()
   }
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -337,7 +404,8 @@ export function EatClient() {
       macros: liveMacros,
       portion: draft.portion,
       estimated: draft.estimated,
-      source: 'mock',
+      source: draft.source,
+      note: draft.note,
     }
     const next = [entry, ...meals]
     void persistList(next, entry, draft.file)
@@ -580,7 +648,9 @@ export function EatClient() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--accent-soft),_transparent_50%)] pointer-events-none" />
           <div className="relative">
             <CardTitle className="text-xl mb-1">影相估營養</CardTitle>
-            <CardDesc className="mb-5">相機優先。之後可拖份量；登入會永久入歷史。</CardDesc>
+            <CardDesc className="mb-5">
+              相機優先 · AI 估 kcal／蛋白／碳水／脂肪。之後可拖份量；登入會永久入歷史。
+            </CardDesc>
             <div className="flex flex-col sm:flex-row gap-2">
               <Button size="lg" className="flex-1" onClick={() => cameraRef.current?.click()}>
                 <Camera className="h-4 w-4" />
@@ -775,7 +845,11 @@ export function EatClient() {
                   <X className="h-4 w-4" />
                 </button>
                 <Badge className="absolute bottom-3 left-3" tone="accent">
-                  {draft.status === 'estimating' ? '估算中…' : '估算完成 · 可改'}
+                  {draft.status === 'estimating'
+                    ? 'AI 估算中…'
+                    : draft.source === 'ai'
+                      ? 'AI 估算 · 可改'
+                      : '示範估算 · 可改'}
                 </Badge>
               </div>
               <div className="p-5">
@@ -835,13 +909,33 @@ export function EatClient() {
                       <Check className="h-4 w-4" />
                       入飲食日記
                     </Button>
+                    {draft.note && (
+                      <p className="text-[11px] text-muted text-center mt-2 leading-relaxed">
+                        {draft.note}
+                      </p>
+                    )}
                     <p className="text-[11px] text-muted text-center mt-3 leading-relaxed">
-                      估算僅供參考。登入後會入雲端歷史，之後可以睇月計蛋白／卡路里。
+                      估算僅供參考，唔係實驗室數字。登入後會入雲端歷史，之後可以睇月計。
                     </p>
                   </>
                 )}
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            className="fixed bottom-24 left-1/2 z-[60] -translate-x-1/2 max-w-[min(92vw,420px)] rounded-2xl border border-border bg-foreground text-background px-4 py-3 text-xs shadow-hover"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={springSoft}
+            role="status"
+          >
+            {toast}
           </motion.div>
         )}
       </AnimatePresence>

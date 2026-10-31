@@ -23,7 +23,7 @@ import {
 } from '@/lib/sanitize'
 import { applyTheme, resolveInitialTheme, type ThemeMode } from '@/lib/theme'
 import { AppShell } from '@/components/shell/app-shell'
-import { trainedToday } from '@/lib/fitness/streaks'
+import { computeStreak, trainedToday } from '@/lib/fitness/streaks'
 
 type Message = {
   id: number
@@ -108,8 +108,10 @@ export default function Chat() {
   const [newMessage, setNewMessage] = useState('')
   const [username, setUsername] = useState('')
   const [showTrainedBadge, setShowTrainedBadge] = useState(false)
+  const [trainStreak, setTrainStreak] = useState(0)
   useEffect(() => {
     setShowTrainedBadge(trainedToday())
+    setTrainStreak(computeStreak())
   }, [])
   const [isAnonymous, setIsAnonymous] = useState(true)
   const [replyToId, setReplyToId] = useState<number | null>(null)
@@ -887,10 +889,16 @@ export default function Chat() {
           </div>
         )}
         {showTrainedBadge && (
-          <div className="mb-2">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft text-accent text-[11px] font-semibold px-3 py-1 border border-border">
               💪 今日練咗
             </span>
+            {trainStreak > 1 && (
+              <span className="inline-flex items-center rounded-full bg-[#f0efee] text-muted text-[11px] font-medium px-2.5 py-1 border border-border">
+                連續 {trainStreak} 日
+              </span>
+            )}
+            <span className="text-[10px] text-muted">發言可加「今日爆機」感覺～</span>
           </div>
         )}
         <div className="flex items-center gap-2 mb-2">

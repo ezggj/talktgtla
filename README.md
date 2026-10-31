@@ -10,7 +10,7 @@
 | `/train` | 訓練日誌（組數／重量／時間、課表、PR、雲端同步） |
 | `/eat` | 飲食（影相估算＋日／週／月歷史匯總） |
 | `/me` | 登入、目標、課表生成器 |
-| `/admin` | 管理員（長按標題 / Ctrl+Shift+A；同會員 Auth 分開） |
+| `/admin` | 管理員（不公開連結；長按標題 / Ctrl+Shift+A） |
 | `/auth/confirm` · `/auth/callback` | Magic link / PKCE 回跳 |
 
 ## Auth 同雲端
@@ -31,6 +31,16 @@
 ## 課表生成
 
 `/me` 五步表單（目標／經驗／日數／時長／器材）→ 規則引擎出一週 split → 「開波」帶動作入 `/train`。
+
+
+## 影相估營養（真 AI）
+
+- 路徑：`POST /api/eat/estimate`（Vercel AI Gateway + AI SDK `generateText` + vision）
+- 預設模型：`AI_GATEWAY_MODEL`（production 設咗 `google/gemini-2.5-flash`）
+- Production 用 **Vercel OIDC** 打 Gateway，唔使喺 client 暴露 key
+- 客戶端先壓縮相片再上傳；IP rate limit（burst + 日額）
+- 成功：`meals.source = 'ai'`；失敗會 toast 並 fallback 示範估算（`mock`）
+- UI 一律標「估算」，份量滑桿即時重算四大營養素
 
 ## 環境變數
 
