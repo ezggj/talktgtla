@@ -62,7 +62,10 @@ export function useUser() {
   return { ...state, signOut }
 }
 
+/** Always production origin for magic-link emails (never localhost / preview). */
 export function authRedirectTo() {
-  if (typeof window === 'undefined') return 'https://talktgtla.com/auth/confirm'
-  return `${window.location.origin}/auth/confirm`
+  const site =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ||
+    'https://talktgtla.com'
+  return `${site}/auth/confirm`
 }
