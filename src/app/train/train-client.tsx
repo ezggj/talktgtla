@@ -81,8 +81,10 @@ import {
   saveWeeklySchedule,
   saveTemplateAsCustom,
   deleteCustomDayPlan,
+  computeWeeklySlotProgress,
   type CustomDayPlan,
   type TodayPlanHint,
+  type WeeklySlotProgress,
 } from '@/lib/fitness/saved-plans'
 import { ActivePlanPanel } from '@/components/fitness/active-plan-panel'
 import { WeeklyPresets } from '@/components/fitness/weekly-presets'
