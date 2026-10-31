@@ -9,6 +9,7 @@ import { Card, CardDesc, CardTitle } from '@/components/ui/card'
 import { Textarea, Input } from '@/components/ui/input'
 import { springSnappy, springSoft } from '@/components/motion/presets'
 import { getOrCreateEatGuestId } from '@/lib/fitness/eat-guest-id'
+import { OPEN_FEEDBACK_EVENT } from '@/lib/ui-events'
 import { cn } from '@/lib/utils'
 
 export type FeedbackCategory = 'idea' | 'bug' | 'love' | 'other'
@@ -62,6 +63,17 @@ export function FeedbackSheet({ fab = false, card = false, userId, className }: 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
+
+  // Hamburger / external open
+  useEffect(() => {
+    if (!fab) return
+    const onOpen = () => {
+      reset()
+      setOpen(true)
+    }
+    window.addEventListener(OPEN_FEEDBACK_EVENT, onOpen)
+    return () => window.removeEventListener(OPEN_FEEDBACK_EVENT, onOpen)
+  }, [fab, reset])
 
   const submit = async () => {
     const text = body.trim()

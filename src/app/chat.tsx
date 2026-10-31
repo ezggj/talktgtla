@@ -739,7 +739,7 @@ export default function Chat() {
                     : `而家 ${onlineCount} 人喺線`}
             </p>
           </div>
-          <div className="absolute right-0 flex items-center gap-2">
+          <div className="absolute right-0 flex items-center gap-2 pr-11">
             {isAdmin ? (
               <>
                 <Link
