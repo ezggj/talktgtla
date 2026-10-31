@@ -87,6 +87,7 @@ import {
 } from '@/lib/fitness/haptic'
 import { clampRestSeconds, loadRestPrefs, saveRestPrefs } from '@/lib/fitness/rest-prefs'
 import { RestTimerControls } from '@/components/fitness/rest-timer-controls'
+import { prefillSetForExercise } from '@/lib/fitness/last-set'
 import { buildOverloadTip } from '@/lib/fitness/overload-tip'
 import { InstallPrompt } from '@/components/pwa/install-prompt'
 import {
@@ -150,17 +151,22 @@ function formatRest(sec: number) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-function volumeOf(sets: WorkoutSet[]) {
-  return sets.reduce((a, s) => a + s.weightKg * s.reps, 0)
+function draftKg(raw: string): number | null {
+  if (raw.trim() === '') return null
+  const n = Number(raw)
+  if (!Number.isFinite(n) || n < 0) return null
+  return n
 }
 
-function lastSetForExercise(sessions: WorkoutSession[], exerciseId: string): WorkoutSet | null {
-  for (const sess of sessions) {
-    for (let i = sess.sets.length - 1; i >= 0; i--) {
-      if (sess.sets[i].exerciseId === exerciseId) return sess.sets[i]
-    }
-  }
-  return null
+function draftReps(raw: string): number | null {
+  if (raw.trim() === '') return null
+  const n = Number(raw)
+  if (!Number.isFinite(n) || n < 0) return null
+  return n
+}
+
+function volumeOf(sets: WorkoutSet[]) {
+  return sets.reduce((a, s) => a + s.weightKg * s.reps, 0)
 }
 
 type Tab = 'today' | 'templates' | 'history' | 'meetup'
@@ -183,8 +189,8 @@ export function TrainClient() {
   const [muscleFilter, setMuscleFilter] = useState<string | null>(null)
   const [equipmentFilter, setEquipmentFilter] = useState<Equipment | null>(null)
   const [selectedEx, setSelectedEx] = useState<string | null>(null)
-  const [weight, setWeight] = useState(60)
-  const [reps, setReps] = useState(8)
+  const [weight, setWeight] = useState('')
+  const [reps, setReps] = useState('')
   const [restSec, setRestSec] = useState(90)
   const [restAutoStart, setRestAutoStart] = useState(true)
   const [canVibrate, setCanVibrate] = useState(false)
@@ -207,6 +213,8 @@ export function TrainClient() {
   const [achToast, setAchToast] = useState<string | null>(null)
   const weightRef = useRef<HTMLInputElement>(null)
   const repsRef = useRef<HTMLInputElement>(null)
+  /** False while kg/reps still match the auto-fill, so a later sync can refresh them. */
+  const draftTouched = useRef(false)
   const loggerRef = useRef<HTMLDivElement>(null)
   const restEndedFocus = useRef(false)
   const [restReadyNext, setRestReadyNext] = useState(false)
@@ -214,6 +222,32 @@ export function TrainClient() {
   const [sfxOn, setSfxOn] = useState(true)
   const [restFullscreen, setRestFullscreen] = useState(true)
   const [pendingOutcome, setPendingOutcome] = useState<SetOutcome>('ok')
+
+  const applyPrefill = useCallback(
+    (
+      exerciseId: string,
+      sess: WorkoutSession | null,
+      history: WorkoutSession[],
+      opts?: { resetOutcome?: boolean }
+    ) => {
+      draftTouched.current = false
+      const found = prefillSetForExercise(history, exerciseId, sess)
+      if (found) {
+        setWeight(String(found.set.weightKg))
+        setReps(String(found.set.reps))
+      } else {
+        setWeight('')
+        setReps('')
+      }
+      if (opts?.resetOutcome) setPendingOutcome('ok')
+    },
+    []
+  )
+
+  const markDraftEdited = () => {
+    draftTouched.current = true
+  }
+
   const [showFirstGuide, setShowFirstGuide] = useState(false)
   const [howtoFavs, setHowtoFavs] = useState<string[]>([])
   const [landscapeLog, setLandscapeLog] = useState(false)
@@ -449,10 +483,8 @@ export function TrainClient() {
     setTab('today')
     const first = ids[0]
     if (first) {
-      const last = lastSetForExercise(loadSessions(), first)
       setSelectedEx(first)
-      setWeight(last?.weightKg ?? 40)
-      setReps(last?.reps ?? 10)
+      applyPrefill(first, sess, loadSessions(), { resetOutcome: true })
     }
     // Clean query so refresh won't restart another session
     try {
@@ -463,7 +495,13 @@ export function TrainClient() {
     } catch {
       /* ignore */
     }
-  }, [ready, searchParams])
+  }, [ready, searchParams, applyPrefill])
+
+  // Cloud hydrate can arrive after the first paint. Refresh untouched kg/reps.
+  useEffect(() => {
+    if (!ready || !selectedEx || draftTouched.current) return
+    applyPrefill(selectedEx, active, sessions)
+  }, [ready, selectedEx, sessions, active, applyPrefill])
 
   useEffect(() => {
     if (!active?.startedAt || active.endedAt) return
@@ -561,17 +599,7 @@ export function TrainClient() {
     setPickerOpen(false)
     setPickerHowtoId(null)
     setSearch('')
-    const last = lastSetForExercise(
-      [...(sess ? [sess] : []), ...sessions].filter(Boolean) as WorkoutSession[],
-      exerciseId
-    )
-    if (last) {
-      setWeight(last.weightKg)
-      setReps(last.reps)
-    } else {
-      setWeight(40)
-      setReps(10)
-    }
+    applyPrefill(exerciseId, sess ?? null, sessions, { resetOutcome: true })
   }
 
   /** One-tap：未開波就開波再揀；已開波就直接加入今日動作。 */
@@ -669,6 +697,9 @@ export function TrainClient() {
 
   const addSet = (outcome: SetOutcome = pendingOutcome) => {
     if (!active || !selectedEx) return
+    const weightKg = draftKg(weight)
+    const repsN = draftReps(reps)
+    if (weightKg == null || repsN == null || weightKg < 0 || repsN < 1) return
     const ex = exerciseById(selectedEx)
     if (!ex) return
     const setIndex = active.sets.filter((s) => s.exerciseId === selectedEx).length + 1
@@ -677,8 +708,8 @@ export function TrainClient() {
       exerciseId: selectedEx,
       exerciseName: ex.nameZh,
       setIndex,
-      weightKg: weight,
-      reps,
+      weightKg,
+      reps: repsN,
       restSec,
       completedAt: new Date().toISOString(),
       outcome,
@@ -688,15 +719,15 @@ export function TrainClient() {
 
     // PR check: heaviest weight for exercise
     const prev = prs[selectedEx]
-    const isPR = !prev || weight > prev.weightKg || (weight === prev.weightKg && reps > prev.reps)
-    if (isPR && weight > 0) {
+    const isPR = !prev || weightKg > prev.weightKg || (weightKg === prev.weightKg && repsN > prev.reps)
+    if (isPR && weightKg > 0) {
       const nextPrs = {
         ...prs,
-        [selectedEx]: { weightKg: weight, reps, at: row.completedAt },
+        [selectedEx]: { weightKg, reps: repsN, at: row.completedAt },
       }
       setPrs(nextPrs)
       savePRs(nextPrs)
-      setPrToast(`${ex.nameZh} · ${weight} kg × ${reps}`)
+      setPrToast(`${ex.nameZh} · ${weightKg} kg × ${repsN}`)
       window.setTimeout(() => setPrToast(null), 2800)
     }
 
@@ -722,15 +753,21 @@ export function TrainClient() {
   }
 
   const bumpWeight = (delta: number) => {
-    setWeight((w) => Math.max(0, Math.round((w + delta) * 4) / 4))
+    markDraftEdited()
+    setWeight((w) => {
+      const cur = draftKg(w)
+      if (cur == null) return delta > 0 ? String(delta) : w
+      return String(Math.max(0, Math.round((cur + delta) * 4) / 4))
+    })
   }
 
   const repeatLastSet = () => {
     if (!active || !selectedEx) return
-    const prev = [...active.sets].reverse().find((s) => s.exerciseId === selectedEx)
+    const prev = prefillSetForExercise(sessions, selectedEx, active)?.set
     if (!prev) return
-    setWeight(prev.weightKg)
-    setReps(prev.reps)
+    setWeight(String(prev.weightKg))
+    setReps(String(prev.reps))
+    draftTouched.current = false
     const ex = exerciseById(selectedEx)
     if (!ex) return
     const setIndex = active.sets.filter((s) => s.exerciseId === selectedEx).length + 1
@@ -850,11 +887,17 @@ export function TrainClient() {
     )
   }
 
-  const lastLoggedForSelected =
-    selectedEx && active
-      ? [...active.sets].reverse().find((s) => s.exerciseId === selectedEx) ||
-        lastSetForExercise(sessions, selectedEx)
-      : null
+  const prefill = selectedEx ? prefillSetForExercise(sessions, selectedEx, active) : null
+  const lastLoggedForSelected = prefill?.set ?? null
+  const weightN = draftKg(weight)
+  const repsN = draftReps(reps)
+  const usingLast =
+    !!lastLoggedForSelected &&
+    weightN === lastLoggedForSelected.weightKg &&
+    repsN === lastLoggedForSelected.reps
+  const prefillHint = usingLast ? (prefill?.source === 'active' ? '用返上一組' : '用返上次') : null
+  const logFigures =
+    weightN != null && repsN != null && weightN >= 0 && repsN >= 1 ? `${weightN}×${repsN}` : ''
 
   const nextPlanExercise = planQueue.find((id) => id !== selectedEx) || null
 
@@ -1359,6 +1402,9 @@ export function TrainClient() {
                           </div>
                           <div className="text-xs text-muted mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                             <span>{exerciseById(selectedEx)?.nameEn}</span>
+                            {prefillHint && (
+                              <span className="text-[11px] font-medium text-accent">{prefillHint}</span>
+                            )}
                             {prs[selectedEx] && (
                               <span className="inline-flex items-center gap-1.5 flex-wrap">
                                 <span className="text-accent">
@@ -1370,8 +1416,9 @@ export function TrainClient() {
                                     const pr = prs[selectedEx!]
                                     if (!pr) return
                                     const nextW = Math.round((pr.weightKg + 2.5) * 2) / 2
-                                    setWeight(nextW)
-                                    setReps(pr.reps)
+                                    markDraftEdited()
+                                    setWeight(String(nextW))
+                                    setReps(String(pr.reps))
                                     setPendingOutcome('ok')
                                     weightRef.current?.focus()
                                   }}
@@ -1381,15 +1428,14 @@ export function TrainClient() {
                                 </button>
                               </span>
                             )}
-                            {lastLoggedForSelected && (
+                            {lastLoggedForSelected && !usingLast && (
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setWeight(lastLoggedForSelected.weightKg)
-                                  setReps(lastLoggedForSelected.reps)
-                                  setPendingOutcome(
-                                    lastLoggedForSelected.outcome || 'ok'
-                                  )
+                                  setWeight(String(lastLoggedForSelected.weightKg))
+                                  setReps(String(lastLoggedForSelected.reps))
+                                  setPendingOutcome(lastLoggedForSelected.outcome || 'ok')
+                                  draftTouched.current = false
                                   weightRef.current?.focus()
                                 }}
                                 className="rounded-full border border-border bg-surface-muted px-2 py-0.5 text-[10px] font-semibold text-accent touch-manipulation"
@@ -1531,7 +1577,13 @@ export function TrainClient() {
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setWeight(overloadTip.suggestedWeightKg!)
+                                    const nextKg = overloadTip.suggestedWeightKg
+                                    if (typeof nextKg !== 'number') return
+                                    markDraftEdited()
+                                    setWeight(String(nextKg))
+                                    if (repsN == null && lastLoggedForSelected) {
+                                      setReps(String(lastLoggedForSelected.reps))
+                                    }
                                     setOverloadDismissedId(overloadTip.id)
                                   }}
                                   className="mt-1.5 text-[11px] font-semibold text-accent touch-manipulation"
@@ -1567,8 +1619,13 @@ export function TrainClient() {
                                 type="number"
                                 inputMode="decimal"
                                 step={2.5}
+                                min={0}
+                                placeholder="—"
                                 value={weight}
-                                onChange={(e) => setWeight(Number(e.target.value) || 0)}
+                                onChange={(e) => {
+                                  markDraftEdited()
+                                  setWeight(e.target.value)
+                                }}
                                 onFocus={(e) => e.currentTarget.select()}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
@@ -1606,8 +1663,14 @@ export function TrainClient() {
                                 </button>
                               ))}
                             </div>
-                            {exerciseById(selectedEx)?.equipment === '槓鈴' && (
-                              <PlateHint weightKg={weight} onPickTotal={(kg) => setWeight(kg)} />
+                            {exerciseById(selectedEx)?.equipment === '槓鈴' && weightN != null && weightN > 0 && (
+                              <PlateHint
+                                weightKg={weightN}
+                                onPickTotal={(kg) => {
+                                  markDraftEdited()
+                                  setWeight(String(kg))
+                                }}
+                              />
                             )}
                           </div>
                           <div>
@@ -1615,7 +1678,14 @@ export function TrainClient() {
                             <div className="flex items-center gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => setReps((r) => Math.max(1, r - 1))}
+                                onClick={() => {
+                                  markDraftEdited()
+                                  setReps((r) => {
+                                    const cur = draftReps(r)
+                                    if (cur == null) return r
+                                    return String(Math.max(1, cur - 1))
+                                  })
+                                }}
                                 className="h-16 w-14 rounded-2xl border border-border/90 bg-surface-muted text-2xl font-medium hover:bg-accent-soft active:scale-95 transition touch-manipulation"
                               >
                                 −
@@ -1624,8 +1694,13 @@ export function TrainClient() {
                                 ref={repsRef}
                                 type="number"
                                 inputMode="numeric"
+                                min={1}
+                                placeholder="—"
                                 value={reps}
-                                onChange={(e) => setReps(Number(e.target.value) || 1)}
+                                onChange={(e) => {
+                                  markDraftEdited()
+                                  setReps(e.target.value)
+                                }}
                                 onFocus={(e) => e.currentTarget.select()}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
@@ -1638,7 +1713,13 @@ export function TrainClient() {
                               />
                               <button
                                 type="button"
-                                onClick={() => setReps((r) => r + 1)}
+                                onClick={() => {
+                                  markDraftEdited()
+                                  setReps((r) => {
+                                    const cur = draftReps(r)
+                                    return String(cur == null ? 1 : cur + 1)
+                                  })
+                                }}
                                 className="h-16 w-14 rounded-2xl border border-border/90 bg-surface-muted text-2xl font-medium hover:bg-accent-soft active:scale-95 transition touch-manipulation"
                               >
                                 +
@@ -1649,10 +1730,13 @@ export function TrainClient() {
                                 <button
                                   key={n}
                                   type="button"
-                                  onClick={() => setReps(n)}
+                                  onClick={() => {
+                                    markDraftEdited()
+                                    setReps(String(n))
+                                  }}
                                   className={cn(
                                     'flex-1 rounded-xl py-2.5 text-xs font-semibold transition tabular-nums touch-manipulation min-h-[44px]',
-                                    reps === n
+                                    repsN === n
                                       ? 'bg-accent-soft text-accent'
                                       : 'text-muted hover:bg-accent-soft hover:text-accent'
                                   )}
@@ -1699,11 +1783,12 @@ export function TrainClient() {
                                 'w-full text-lg gap-2 h-[4.5rem] rounded-[20px] shadow-hover touch-manipulation',
                                 restReadyNext && 'rest-done-glow ring-2 ring-accent/25'
                               )}
+                              disabled={!logFigures}
                               onClick={() => addSet()}
                             >
                               <Plus className="h-7 w-7" />
-                              {restReadyNext ? '下一組 · ' : '記低 · '}
-                              {weight}×{reps}
+                              {restReadyNext ? '下一組' : '記低'}
+                              {logFigures ? ` · ${logFigures}` : ''}
                               {pendingOutcome === 'half' ? ' · 半' : pendingOutcome === 'fail' ? ' · 敗' : ''}
                             </Button>
                           </motion.div>
@@ -2501,10 +2586,11 @@ export function TrainClient() {
             <Button
               size="xl"
               className="flex-1 h-16 rounded-[20px] shadow-hover text-lg touch-manipulation"
+              disabled={!logFigures}
               onClick={() => addSet()}
             >
               <Plus className="h-6 w-6" />
-              記低 · {weight}×{reps}
+              {logFigures ? `記低 · ${logFigures}` : '記低'}
             </Button>
           </div>
         </div>
