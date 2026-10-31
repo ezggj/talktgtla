@@ -4,7 +4,7 @@ import { Card, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ProgressBar } from '@/components/ui/progress'
 import { ShareCardButton } from '@/components/fitness/share-card-button'
-import { buildProteinWeekSummary } from '@/lib/fitness/weekly-summary'
+import { buildProteinWeekSummary, type ProteinSummaryWindow } from '@/lib/fitness/weekly-summary'
 import type { MealEntry } from '@/lib/fitness/storage'
 import { cn } from '@/lib/utils'
 
@@ -21,14 +21,19 @@ export function ProteinWeekCard({
   proteinGoal = 150,
   className,
   onLogMeal,
+  window,
+  dateLabel,
 }: {
   meals: MealEntry[]
   proteinGoal?: number
   className?: string
   /** Optional CTA when week is empty — e.g. scroll to camera */
   onLogMeal?: () => void
+  /** Selected week/month. Omit for the rolling last 7 days. */
+  window?: ProteinSummaryWindow
+  dateLabel?: string
 }) {
-  const s = buildProteinWeekSummary(meals, proteinGoal)
+  const s = buildProteinWeekSummary(meals, proteinGoal, window)
   const tone = s.vibe === 'fire' || s.vibe === 'solid' ? 'accent' : 'muted'
   const empty = s.daysLogged === 0
 
@@ -53,7 +58,9 @@ export function ProteinWeekCard({
       />
       <div className="relative flex items-start justify-between gap-3 mb-2">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold tracking-wide text-accent mb-0.5">一週蛋白 · 口語總結</p>
+          <p className="text-[11px] font-semibold tracking-wide text-accent mb-0.5">
+            {window?.noun ?? '呢個星期'}蛋白 · 口語總結
+          </p>
           <CardTitle className="text-lg leading-snug">{s.title}</CardTitle>
         </div>
         <Badge tone={tone === 'accent' ? 'accent' : 'muted'} className="shrink-0">
@@ -87,7 +94,7 @@ export function ProteinWeekCard({
             variant="soft"
             payload={{
               title: s.title,
-              dateLabel: weekDateLabel(),
+              dateLabel: dateLabel || weekDateLabel(),
               avgProtein: s.avgProtein,
               goal: s.goal,
               pct: s.pct,

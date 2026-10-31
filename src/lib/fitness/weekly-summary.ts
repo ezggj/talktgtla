@@ -116,13 +116,26 @@ export type ProteinWeekSummary = {
   pct: number
 }
 
+export type ProteinSummaryWindow = {
+  fromMs?: number
+  toMs?: number
+  /** Spoken span, e.g. 呢個星期 / 呢個月 */
+  noun?: string
+}
+
 export function buildProteinWeekSummary(
   meals: MealEntry[],
-  proteinGoal = 150
+  proteinGoal = 150,
+  window?: ProteinSummaryWindow
 ): ProteinWeekSummary {
   const now = Date.now()
-  const weekAgo = now - 7 * 86400000
-  const weekMeals = meals.filter((m) => new Date(m.createdAt).getTime() >= weekAgo)
+  const from = window?.fromMs ?? now - 7 * 86400000
+  const to = window?.toMs ?? Number.POSITIVE_INFINITY
+  const noun = window?.noun ?? '呢個星期'
+  const weekMeals = meals.filter((m) => {
+    const t = new Date(m.createdAt).getTime()
+    return t >= from && t < to
+  })
   const proteinByDay = new Map<string, number>()
   for (const m of weekMeals) {
     const d = dayKeyFromIso(m.createdAt)
@@ -137,24 +150,24 @@ export function buildProteinWeekSummary(
   const pct = proteinGoal > 0 ? Math.round((avgProtein / proteinGoal) * 100) : 0
 
   let vibe: WeeklySummary['vibe'] = 'empty'
-  let title = '呢個星期蛋白仲未開波'
+  let title = `${noun}蛋白仲未開波`
   const lines: string[] = []
 
   if (daysLogged === 0) {
-    lines.push('未有飲食紀錄——影一餐或者撳「gym撚常食」模板，星期就有口語總結。')
+    lines.push(`未有飲食紀錄——影一餐或者撳「gym撚常食」，${noun}就有口語總結。`)
     lines.push(`目標大概每日 ${proteinGoal}g 蛋白；茶記加碟菜／會所雞胸都得。`)
   } else if (daysHit >= 5 || pct >= 95) {
-    title = '呢個星期蛋白好穩'
+    title = `${noun}蛋白好穩`
     vibe = 'fire'
     lines.push(`有記 ${daysLogged} 日，其中約 ${daysHit} 日到標（≥9 成目標）。`)
     lines.push(`有記日子平均約 ${avgProtein}g（目標 ${proteinGoal}g，大約 ${pct}%）——繼續咁樣就靚。`)
   } else if (pct >= 70 || daysHit >= 2) {
-    title = '呢個星期蛋白有進度'
+    title = `${noun}蛋白有進度`
     vibe = 'solid'
     lines.push(`記咗 ${daysLogged} 日，平均約 ${avgProtein}g 蛋白——再補一陣就到標。`)
     lines.push('差一截就加會所雞胸／乳清，或者茶記轉白切雞飯。')
   } else {
-    title = '呢個星期蛋白偏少'
+    title = `${noun}蛋白偏少`
     vibe = 'light'
     lines.push(`有記 ${daysLogged} 日，平均約 ${avgProtein}g——未夠 ${proteinGoal}g 目標。`)
     lines.push('唔使完美：加一餐 gym撚常食碗或者蛋白粉，聽日數字就會靚啲。')
