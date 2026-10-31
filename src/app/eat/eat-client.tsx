@@ -1684,6 +1684,73 @@ export function EatClient() {
                         </label>
                       ))}
                     </div>
+                    {draft.aiSnapshot && liveMacros && (
+                      (() => {
+                        const snap = draft.aiSnapshot!
+                        const portion = draft.portion || 1
+                        const aiLive = {
+                          kcal: Math.round(snap.kcal * portion),
+                          protein: Math.round(snap.protein * portion * 10) / 10,
+                          carbs: Math.round(snap.carbs * portion * 10) / 10,
+                          fat: Math.round(snap.fat * portion * 10) / 10,
+                        }
+                        const changed =
+                          Math.abs(aiLive.kcal - liveMacros.kcal) >= 1 ||
+                          Math.abs(aiLive.protein - liveMacros.protein) >= 0.5 ||
+                          Math.abs(aiLive.carbs - liveMacros.carbs) >= 0.5 ||
+                          Math.abs(aiLive.fat - liveMacros.fat) >= 0.5
+                        if (!changed) {
+                          return (
+                            <div className="mb-4 rounded-2xl border border-border/80 bg-surface-muted px-3.5 py-3 text-[11px] text-muted leading-relaxed">
+                              而家同 AI 估一樣。改數字之後會顯示「你改完 vs AI 估」。
+                            </div>
+                          )
+                        }
+                        return (
+                          <div className="mb-4 rounded-2xl border border-accent/30 bg-accent-soft/40 px-3.5 py-3">
+                            <div className="text-[11px] font-semibold text-accent mb-2">你改完 vs AI 估</div>
+                            <div className="grid grid-cols-4 gap-1.5 text-center text-[10px]">
+                              {(
+                                [
+                                  { k: 'kcal' as const, label: 'kcal' },
+                                  { k: 'protein' as const, label: '蛋白' },
+                                  { k: 'carbs' as const, label: '碳水' },
+                                  { k: 'fat' as const, label: '脂肪' },
+                                ]
+                              ).map((item) => {
+                                const yours = liveMacros[item.k]
+                                const ai = aiLive[item.k]
+                                const delta = Math.round((yours - ai) * 10) / 10
+                                return (
+                                  <div key={item.k} className="rounded-xl border border-border/70 bg-surface px-1.5 py-2">
+                                    <div className="text-muted mb-0.5">{item.label}</div>
+                                    <div className="font-semibold tabular-nums text-foreground text-[12px]">{yours}</div>
+                                    <div className="text-muted tabular-nums mt-0.5">AI {ai}</div>
+                                    <div className={delta === 0 ? 'text-muted' : delta > 0 ? 'text-accent font-semibold' : 'text-amber-700 font-semibold'}>
+                                      {delta > 0 ? `+${delta}` : `${delta}`}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                            <button
+                              type="button"
+                              className="mt-2 text-[11px] font-semibold text-accent touch-manipulation"
+                              onClick={() =>
+                                setDraft({
+                                  ...draft,
+                                  baseMacros: { ...draft.aiSnapshot! },
+                                  estimated: true,
+                                })
+                              }
+                            >
+                              還原 AI 估
+                            </button>
+                          </div>
+                        )
+                      })()
+                    )}
+
                     <label className="block mb-5">
                       <div className="flex justify-between text-xs text-muted mb-2">
                         <span>份量調整</span>
