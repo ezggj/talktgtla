@@ -73,6 +73,7 @@ import {
 import { markTrainedToday, syncDaysFromSessions, weekConsistency, type WeekDay } from '@/lib/fitness/streaks'
 import { WeekDots } from '@/components/fitness/week-dots'
 import { TrainHeatmap } from '@/components/fitness/train-heatmap'
+import { LiftProgressCard } from '@/components/fitness/lift-progress-card'
 import { analyzeWorkout, formatDelta, type WorkoutAnalysis } from '@/lib/fitness/analysis'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
@@ -2225,6 +2226,8 @@ export function TrainClient() {
               transition={springSoft}
               className="space-y-4"
             >
+              <LiftProgressCard sessions={sessions} />
+
               <Card>
                 <div className="flex items-center justify-between mb-3">
                   <CardTitle className="text-lg">近 14 日容量</CardTitle>
@@ -2395,7 +2398,7 @@ export function TrainClient() {
           )}
         </AnimatePresence>
 
-        {/* 登入／上雲放主 CTA 之後，唔搶第一屏 */}
+        {/* 登入放主 CTA 之後，唔搶第一屏 */}
         {!user && (
           <div className="mt-5 mb-2">
             <LoginPromptBanner />

@@ -82,7 +82,7 @@ export function buildWeeklySummary(
           ? '蛋白平均差不多到標'
           : proteinAvg >= proteinGoal * 0.55
             ? '蛋白有記，再補一補就靚'
-            : '蛋白偏少——茶記加碟菜／會所雞胸都得'
+            : '蛋白偏少——加蛋、肉、魚、豆腐或者豆奶；碟菜唔計'
       lines.push(
         `記咗 ${weekMeals.length} 餐、${daysWithMeal.size} 日有記；平均約 ${proteinAvg}g 蛋白、${kcalAvg} kcal——其中約 ${hitDays} 日到標。${hit}。`
       )
@@ -155,7 +155,7 @@ export function buildProteinWeekSummary(
 
   if (daysLogged === 0) {
     lines.push(`未有飲食紀錄——影一餐或者撳「gym撚常食」，${noun}就有口語總結。`)
-    lines.push(`目標大概每日 ${proteinGoal}g 蛋白；茶記加碟菜／會所雞胸都得。`)
+    lines.push(`目標大概每日 ${proteinGoal}g 蛋白。加蛋、肉、魚、豆腐或者豆奶；碟菜唔計。`)
   } else if (daysHit >= 5 || pct >= 95) {
     title = `${noun}蛋白好穩`
     vibe = 'fire'

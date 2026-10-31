@@ -39,6 +39,7 @@ import { WeekDots } from '@/components/fitness/week-dots'
 import { WeeklySummaryCard } from '@/components/fitness/weekly-summary-card'
 import { GoalRings } from '@/components/fitness/goal-rings'
 import { TrainHeatmap } from '@/components/fitness/train-heatmap'
+import { LiftProgressCard } from '@/components/fitness/lift-progress-card'
 import {
   FITNESS_ACHIEVEMENTS,
   loadFitnessUnlocked,
@@ -260,6 +261,10 @@ export function MeClient() {
                 <div className="text-[10px] text-muted">餐</div>
               </Card>
             </div>
+          </StaggerItem>
+
+          <StaggerItem>
+            <LiftProgressCard sessions={sessionsLocal} />
           </StaggerItem>
 
           {!user && (

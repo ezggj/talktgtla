@@ -107,7 +107,7 @@ export function buildMonthlySummary(
           ? '蛋白平均差不多到標'
           : proteinAvg >= proteinGoal * 0.55
             ? '蛋白有記，再補一補就靚'
-            : '蛋白偏少——茶記加碟菜／會所雞胸都得'
+            : '蛋白偏少——加蛋、肉、魚、豆腐或者豆奶；碟菜唔計'
       lines.push(
         `飲食 ${monthMeals.length} 餐、${mealDays} 日有記；日均約 ${proteinAvg}g 蛋白、${kcalAvg} kcal——約 ${hitDays} 日到標。${hit}。`
       )
