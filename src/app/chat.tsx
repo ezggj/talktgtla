@@ -670,7 +670,7 @@ export default function Chat() {
             <button
               type="button"
               onClick={toggleTheme}
-              className="text-[11px] text-muted hover:text-foreground transition-colors"
+              className="h-8 min-w-8 px-2 rounded-xl text-[11px] text-muted hover:text-foreground hover:bg-black/[0.04] transition-colors"
               aria-label={themeMode === 'dark' ? '轉日間模式' : '轉夜間模式'}
               title={themeMode === 'dark' ? '日間' : '夜間'}
             >
@@ -679,7 +679,7 @@ export default function Chat() {
             <button
               type="button"
               onClick={() => setShowBadges(true)}
-              className="text-[11px] text-muted hover:text-foreground transition-colors"
+              className="h-8 px-2.5 rounded-xl text-[11px] text-muted hover:text-foreground hover:bg-black/[0.04] transition-colors"
               aria-label="徽章"
             >
               徽章{unlocked.size > 0 ? ` ${unlocked.size}` : ''}
@@ -1023,7 +1023,7 @@ export default function Chat() {
         <button
           type="button"
           onClick={() => setShowTerms((v) => !v)}
-          className="w-full text-center text-[11px] text-muted hover:text-foreground transition-colors transition-colors"
+          className="w-full text-center text-[11px] text-muted hover:text-foreground transition-colors"
           aria-expanded={showTerms}
         >
           免責聲明{showTerms ? ' · 收起' : ' · 詳情'}
@@ -1057,12 +1057,12 @@ export default function Chat() {
               Talk tgt la
             </h2>
             <p className="text-sm text-muted mb-5 leading-relaxed">
-              香港人一齊傾偈。Enter 就送；訓練同飲食喺下面。講咩自己負責。
+              香港人一齊傾偈。Enter 就送；訓練同飲食喺下面 tabs。講咩自己負責。
             </p>
             <button
               type="button"
               onClick={closeWelcome}
-              className="w-full rounded-full bg-accent text-white py-2.5 text-sm font-medium hover:bg-[#0d6a63] active:scale-[0.98] transition-all shadow-soft"
+              className="w-full rounded-2xl bg-accent text-white py-3 text-sm font-medium hover:bg-[#0d6a63] active:scale-[0.98] transition-all shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2"
             >
               開始傾
             </button>

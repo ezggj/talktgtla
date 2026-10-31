@@ -20,6 +20,9 @@ import { Stagger, StaggerItem } from '@/components/motion/stagger'
 import { springSoft, springSnappy } from '@/components/motion/presets'
 import { Button } from '@/components/ui/button'
 import { Card, CardDesc, CardTitle } from '@/components/ui/card'
+import { PageHeader } from '@/components/ui/page-header'
+import { PageSkeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ProgressBar, ProgressRing } from '@/components/ui/progress'
@@ -459,11 +462,7 @@ export function EatClient() {
   if (!ready || !authReady) {
     return (
       <AppShell>
-        <div className="max-w-2xl mx-auto space-y-4 pt-8">
-          <div className="h-10 w-48 rounded-2xl bg-border/70 skeleton-pulse" />
-          <div className="h-28 rounded-[20px] bg-border/50 skeleton-pulse" />
-          <div className="h-40 rounded-[20px] bg-border/40 skeleton-pulse" />
-        </div>
+        <PageSkeleton wide />
       </AppShell>
     )
   }
@@ -475,13 +474,12 @@ export function EatClient() {
   return (
     <AppShell>
       <PageTransition className="max-w-2xl mx-auto">
-        <header className="mb-6">
-          <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted mb-2">飲食</p>
-          <h1 className="font-serif text-3xl sm:text-4xl tracking-tight">影低呢餐</h1>
-          <p className="mt-2 text-sm text-muted max-w-md">
-            卡路里、蛋白、碳水、脂肪一齊估。登入之後歷史會留低，隨時翻睇日／週／月總計。
-          </p>
-        </header>
+        <PageHeader
+          className="mb-6"
+          eyebrow="飲食"
+          title="影低呢餐"
+          description="卡路里、蛋白、碳水、脂肪一齊估。登入之後歷史會留低，隨時翻睇日／週／月總計。"
+        />
 
         {!user && (
           <div className="mb-5">
@@ -714,13 +712,23 @@ export function EatClient() {
         </div>
 
         {periodMeals.length === 0 ? (
-          <Card className="text-center py-14 mb-8">
-            <Utensils className="h-8 w-8 text-muted mx-auto mb-3 opacity-45" />
-            <CardTitle className="text-lg mb-1">呢段時間未有記錄</CardTitle>
-            <CardDesc className="max-w-xs mx-auto">
-              影低一餐，或者撳下面「香港常見」。登入之後成個星期都可以留低，之後翻睇月計。
-            </CardDesc>
-          </Card>
+          <EmptyState
+            className="mb-8"
+            title={
+              period === 'day'
+                ? '今日未有記錄'
+                : period === 'week'
+                  ? '呢個星期未有記錄'
+                  : '呢個月未有記錄'
+            }
+            description={
+              period === 'day'
+                ? '影低一餐，或者撳「香港常見」加示範。登入之後會入雲端歷史。'
+                : '換去「日」計影一餐，或者撳上面箭嘴睇其他日子。登入之後週／月總計會齊啲。'
+            }
+            actionLabel="影一餐"
+            onAction={() => cameraRef.current?.click()}
+          />
         ) : (
           <Stagger className="space-y-3 mb-8">
             {periodMeals.map((m) => (
@@ -870,27 +878,48 @@ export function EatClient() {
                       onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                       className="font-serif text-xl h-12 mb-4 border-0 shadow-none px-0 focus:ring-0"
                     />
-                    <div className="grid grid-cols-4 gap-2 mb-5">
+                    <p className="text-[11px] text-muted mb-2">估出嚟嘅數字 · 撳格直接改</p>
+                    <div className="grid grid-cols-2 gap-2 mb-4">
                       {(
                         [
-                          { k: 'kcal', label: 'kcal', v: liveMacros!.kcal },
-                          { k: 'protein', label: '蛋白', v: liveMacros!.protein },
-                          { k: 'carbs', label: '碳水', v: liveMacros!.carbs },
-                          { k: 'fat', label: '脂肪', v: liveMacros!.fat },
-                        ] as const
+                          { k: 'kcal' as const, label: '卡路里', unit: 'kcal' },
+                          { k: 'protein' as const, label: '蛋白', unit: 'g' },
+                          { k: 'carbs' as const, label: '碳水', unit: 'g' },
+                          { k: 'fat' as const, label: '脂肪', unit: 'g' },
+                        ]
                       ).map((item) => (
-                        <div
+                        <label
                           key={item.k}
-                          className="rounded-2xl border border-border bg-[#fafaf9] px-2 py-3 text-center"
+                          className="rounded-2xl border border-border/90 bg-[#fafaf9] px-3 py-2.5 focus-within:ring-2 focus-within:ring-accent/25 focus-within:border-accent/35 transition"
                         >
-                          <div className="text-base font-semibold tabular-nums">{item.v}</div>
-                          <div className="text-[10px] text-muted">{item.label}</div>
-                        </div>
+                          <div className="text-[10px] text-muted mb-1">{item.label}</div>
+                          <div className="flex items-baseline gap-1">
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              className="w-full bg-transparent text-lg font-semibold tabular-nums outline-none"
+                              value={liveMacros![item.k]}
+                              onChange={(e) => {
+                                const nextVal = Number(e.target.value) || 0
+                                const portion = draft.portion || 1
+                                setDraft({
+                                  ...draft,
+                                  baseMacros: {
+                                    ...draft.baseMacros,
+                                    [item.k]: Math.round((nextVal / portion) * 10) / 10,
+                                  },
+                                  estimated: false,
+                                })
+                              }}
+                            />
+                            <span className="text-[10px] text-muted shrink-0">{item.unit}</span>
+                          </div>
+                        </label>
                       ))}
                     </div>
                     <label className="block mb-5">
                       <div className="flex justify-between text-xs text-muted mb-2">
-                        <span>份量</span>
+                        <span>份量調整</span>
                         <span className="tabular-nums text-accent font-medium">
                           {Math.round(draft.portion * 100)}%
                         </span>
@@ -904,6 +933,11 @@ export function EatClient() {
                         onChange={(e) => setDraft({ ...draft, portion: Number(e.target.value) })}
                         className="w-full accent-[var(--accent)] h-2"
                       />
+                      <div className="mt-1.5 flex justify-between text-[10px] text-muted">
+                        <span>¼</span>
+                        <span>正常</span>
+                        <span>雙倍</span>
+                      </div>
                     </label>
                     <Button size="lg" className="w-full" onClick={confirmDraft}>
                       <Check className="h-4 w-4" />

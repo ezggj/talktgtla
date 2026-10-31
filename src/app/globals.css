@@ -10,13 +10,20 @@
   --accent: #0f766e;
   --accent-soft: #ccfbf1;
   --border: #e7e5e4;
+  --border-subtle: #f0efee;
   --danger: #b91c1c;
   --warning: #b45309;
   --radius: 18px;
-  --shadow-soft: 0 1px 2px rgba(26, 26, 26, 0.04), 0 8px 24px rgba(26, 26, 26, 0.04);
-  --shadow-hover: 0 2px 4px rgba(26, 26, 26, 0.05), 0 12px 28px rgba(26, 26, 26, 0.08);
-  --nav-h: 4.75rem;
+  --shadow-soft: 0 1px 2px rgba(26, 26, 26, 0.035), 0 6px 20px rgba(26, 26, 26, 0.035);
+  --shadow-hover: 0 2px 4px rgba(26, 26, 26, 0.045), 0 10px 28px rgba(26, 26, 26, 0.07);
+  --nav-h: 4.5rem;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
 }
 
 @theme inline {
@@ -52,6 +59,11 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+::selection {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--foreground);
+}
+
 .font-serif {
   font-family: var(--font-serif);
   font-optical-sizing: auto;
@@ -69,6 +81,17 @@ body {
   box-shadow: var(--shadow-hover);
 }
 
+.divider-subtle {
+  border-color: color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.focus-ring {
+  outline: none;
+}
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
 .chat-messages {
   scroll-behavior: smooth;
   overscroll-behavior: contain;
@@ -76,57 +99,63 @@ body {
 }
 
 @keyframes msg-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes reply-bar-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes emoji-picker-in {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes reply-bar-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes emoji-picker-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes welcome-in {
-  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes toast-in {
-  from { opacity: 0; transform: translate(-50%, -8px); }
+  from { opacity: 0; transform: translate(-50%, -6px); }
   to { opacity: 1; transform: translate(-50%, 0); }
 }
 
 @keyframes pulse-soft {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.85; }
 }
 
 @keyframes pr-burst {
-  0% { transform: scale(0.8); opacity: 0; }
-  40% { transform: scale(1.05); opacity: 1; }
+  0% { transform: scale(0.85); opacity: 0; }
+  40% { transform: scale(1.04); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
 
-.chat-msg { animation: msg-in 220ms ease-out both; }
-.chat-reply-bar { animation: reply-bar-in 180ms ease-out both; }
-.emoji-picker { animation: emoji-picker-in 160ms ease-out both; }
-.welcome-card { animation: welcome-in 220ms ease-out both; }
+@keyframes success-pop {
+  0% { transform: scale(0.96); opacity: 0.6; }
+  60% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.chat-msg { animation: msg-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.chat-reply-bar { animation: reply-bar-in 160ms ease-out both; }
+.emoji-picker { animation: emoji-picker-in 150ms ease-out both; }
+.welcome-card { animation: welcome-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .achievement-toast { animation: toast-in 200ms ease-out both; }
-.skeleton-pulse { animation: pulse-soft 1.4s ease-in-out infinite; }
-.pr-burst { animation: pr-burst 480ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.skeleton-pulse { animation: pulse-soft 1.5s ease-in-out infinite; }
+.pr-burst { animation: pr-burst 460ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.success-pop { animation: success-pop 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 @media (prefers-reduced-motion: reduce) {
   .chat-messages { scroll-behavior: auto; }
-  .chat-msg, .chat-reply-bar, .emoji-picker, .welcome-card, .achievement-toast, .skeleton-pulse, .pr-burst {
+  .chat-msg, .chat-reply-bar, .emoji-picker, .welcome-card, .achievement-toast, .skeleton-pulse, .pr-burst, .success-pop {
     animation: none;
   }
 }
 
-/* Hide scrollbar for slang chips etc. */
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

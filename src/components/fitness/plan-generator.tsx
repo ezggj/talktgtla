@@ -133,7 +133,7 @@ export function PlanGenerator({ userId }: Props) {
             <Badge tone="accent">課表</Badge>
             <CardTitle className="mt-2 text-xl">一星期點練？</CardTitle>
             <CardDesc className="mt-2">
-              講你目標同器材，即刻出一套課表。之後一掣開波入訓練。
+              講你目標同器材，即刻出一套課表。撳「一掣開波」就入訓練頁開始記組。
               {!userId && '（登入先會存上雲）'}
             </CardDesc>
           </div>
@@ -218,10 +218,10 @@ export function PlanGenerator({ userId }: Props) {
                     </div>
                     <Link
                       href={href}
-                      className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-medium border border-border bg-surface shadow-soft hover:bg-[#f5f5f4]"
+                      className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-semibold bg-accent text-white shadow-soft hover:bg-[#0d6a63] transition-colors"
                     >
                       <Play className="h-3.5 w-3.5" />
-                      開波
+                      一掣開波
                     </Link>
                   </div>
                   <ul className="space-y-2">

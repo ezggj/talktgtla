@@ -11,6 +11,8 @@ import { Stagger, StaggerItem } from '@/components/motion/stagger'
 import { springSnappy } from '@/components/motion/presets'
 import { Button } from '@/components/ui/button'
 import { Card, CardDesc, CardTitle } from '@/components/ui/card'
+import { PageHeader } from '@/components/ui/page-header'
+import { PageSkeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { LoginCard } from '@/components/auth/login-card'
@@ -99,10 +101,7 @@ export function MeClient() {
   if (!ready || !authReady) {
     return (
       <AppShell>
-        <div className="max-w-lg mx-auto space-y-4 pt-8">
-          <div className="h-10 w-32 rounded-2xl bg-border/70 skeleton-pulse" />
-          <div className="h-40 rounded-[20px] bg-border/50 skeleton-pulse" />
-        </div>
+        <PageSkeleton />
       </AppShell>
     )
   }
@@ -110,21 +109,19 @@ export function MeClient() {
   return (
     <AppShell>
       <PageTransition className="max-w-lg mx-auto">
-        <header className="mb-8">
-          <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted mb-2">我</p>
-          <h1 className="font-serif text-3xl sm:text-4xl tracking-tight">呢度係你嘅</h1>
-          <p className="mt-2 text-sm text-muted">
-            登入之後訓練同飲食會上雲；飲食隨時可以翻睇日／週／月蛋白同卡路里。
-          </p>
-        </header>
+        <PageHeader
+          eyebrow="我"
+          title="呢度係你嘅"
+          description="登入之後訓練同飲食會上雲；飲食隨時可以翻睇日／週／月蛋白同卡路里。"
+        />
 
         {authError && (
           <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-            登入連結失效或者跳轉未設好。返嚟「我」再寄一次，或者填 6 位碼；又或者試 Google／Apple。
+            登入連結失效或者跳轉未設好。返嚟「我」再寄一次，或者填 6 位碼；又或者試 Google。
           </div>
         )}
 
-        <Stagger className="space-y-4">
+        <Stagger className="space-y-5">
           <StaggerItem>
             <LoginCard user={user} configured={configured} onSignOut={signOut} />
           </StaggerItem>
@@ -139,7 +136,7 @@ export function MeClient() {
           )}
 
           <StaggerItem>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               <Card className="py-4">
                 <div className="text-[11px] text-muted mb-1">連練</div>
                 <div className="text-2xl font-semibold tabular-nums text-accent">{streak}</div>
@@ -188,14 +185,14 @@ export function MeClient() {
                   />
                 </label>
                 <Button onClick={() => void persist()} className="w-full">
-                  {saved ? '存好喇 ✓' : '儲低目標'}
+                  {saved ? <span className="success-pop">存好喇 ✓</span> : '儲低目標'}
                 </Button>
               </div>
             </Card>
           </StaggerItem>
 
           <StaggerItem>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-3">
               {(
                 [
                   { href: '/', label: '傾偈', icon: MessageCircle },

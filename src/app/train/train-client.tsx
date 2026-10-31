@@ -19,12 +19,15 @@ import {
 import { AppShell } from '@/components/shell/app-shell'
 import { PageTransition } from '@/components/motion/page-transition'
 import { Stagger, StaggerItem } from '@/components/motion/stagger'
-import { springSoft, springSnappy } from '@/components/motion/presets'
+import { springSoft, springSnappy, tabPanel } from '@/components/motion/presets'
 import { Button } from '@/components/ui/button'
 import { Card, CardDesc, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ProgressBar } from '@/components/ui/progress'
+import { PageHeader } from '@/components/ui/page-header'
+import { PageSkeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   EXERCISES,
   TEMPLATES,
@@ -105,6 +108,7 @@ export function TrainClient() {
   const [lastFinished, setLastFinished] = useState<WorkoutSession | null>(null)
   const [lastAnalysis, setLastAnalysis] = useState<WorkoutAnalysis | null>(null)
   const [justAdded, setJustAdded] = useState<string | null>(null)
+  const [planQueue, setPlanQueue] = useState<string[]>([])
 
   useEffect(() => {
     const s = loadSessions()
@@ -144,26 +148,40 @@ export function TrainClient() {
     const raw = searchParams.get('exercises')
     const fromPlan = searchParams.get('plan')
     if (!raw) return
-    const ids = raw.split(',').map((x) => x.trim()).filter(Boolean)
+    const ids = raw.split(',').map((x) => x.trim()).filter(Boolean).filter((id) => !!exerciseById(id))
     if (ids.length === 0) return
-    if (loadActiveSession()) return
+    setPlanQueue(ids)
+    const existing = loadActiveSession()
+    if (existing && !existing.endedAt) {
+      // Already mid-session — keep it, just seed the queue for quick switch
+      setActive(existing)
+      setTab('today')
+      return
+    }
     const sess: WorkoutSession = {
       id: newId(),
       startedAt: new Date().toISOString(),
       sets: [],
-      templateId: fromPlan || 'plan',
+      templateId: fromPlan ? `plan:${fromPlan}` : 'plan',
     }
     saveActiveSession(sess)
     setActive(sess)
     setTab('today')
     const first = ids[0]
     if (first) {
-      const ex = exerciseById(first)
-      if (ex) {
-        setSelectedEx(first)
-        setWeight(40)
-        setReps(10)
-      }
+      const last = lastSetForExercise(loadSessions(), first)
+      setSelectedEx(first)
+      setWeight(last?.weightKg ?? 40)
+      setReps(last?.reps ?? 10)
+    }
+    // Clean query so refresh won't restart another session
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('exercises')
+      url.searchParams.delete('plan')
+      window.history.replaceState({}, '', url.pathname)
+    } catch {
+      /* ignore */
     }
   }, [ready, searchParams])
 
@@ -208,8 +226,11 @@ export function TrainClient() {
     }
     persistActive(sess)
     setTab('today')
-    if (exerciseIds?.[0]) {
+    if (exerciseIds?.length) {
+      setPlanQueue(exerciseIds)
       pickExercise(exerciseIds[0], sess)
+    } else {
+      setPlanQueue([])
     }
   }
 
@@ -267,6 +288,57 @@ export function TrainClient() {
     setJustAdded(row.id)
     window.setTimeout(() => setJustAdded(null), 500)
 
+    setRestLeft(restSec)
+    setRestRunning(true)
+    try {
+      if (navigator.vibrate) navigator.vibrate(18)
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const bumpWeight = (delta: number) => {
+    setWeight((w) => Math.max(0, Math.round((w + delta) * 4) / 4))
+  }
+
+  const repeatLastSet = () => {
+    if (!active || !selectedEx) return
+    const prev = [...active.sets].reverse().find((s) => s.exerciseId === selectedEx)
+    if (!prev) return
+    setWeight(prev.weightKg)
+    setReps(prev.reps)
+    const ex = exerciseById(selectedEx)
+    if (!ex) return
+    const setIndex = active.sets.filter((s) => s.exerciseId === selectedEx).length + 1
+    const row: WorkoutSet = {
+      id: newId(),
+      exerciseId: selectedEx,
+      exerciseName: ex.nameZh,
+      setIndex,
+      weightKg: prev.weightKg,
+      reps: prev.reps,
+      restSec,
+      completedAt: new Date().toISOString(),
+    }
+    const next = { ...active, sets: [...active.sets, row] }
+    persistActive(next)
+    const prPrev = prs[selectedEx]
+    const isPR =
+      !prPrev ||
+      prev.weightKg > prPrev.weightKg ||
+      (prev.weightKg === prPrev.weightKg && prev.reps > prPrev.reps)
+    if (isPR && prev.weightKg > 0) {
+      const nextPrs = {
+        ...prs,
+        [selectedEx]: { weightKg: prev.weightKg, reps: prev.reps, at: row.completedAt },
+      }
+      setPrs(nextPrs)
+      savePRs(nextPrs)
+      setPrToast(`${ex.nameZh} · ${prev.weightKg} kg × ${prev.reps}`)
+      window.setTimeout(() => setPrToast(null), 2800)
+    }
+    setJustAdded(row.id)
+    window.setTimeout(() => setJustAdded(null), 500)
     setRestLeft(restSec)
     setRestRunning(true)
     try {
@@ -372,40 +444,40 @@ export function TrainClient() {
   if (!ready || !authReady) {
     return (
       <AppShell>
-        <div className="max-w-2xl mx-auto space-y-4 pt-8">
-          <div className="h-10 w-40 rounded-2xl bg-border/70 skeleton-pulse" />
-          <div className="h-32 rounded-[20px] bg-border/50 skeleton-pulse" />
-          <div className="h-48 rounded-[20px] bg-border/40 skeleton-pulse" />
-        </div>
+        <PageSkeleton wide />
       </AppShell>
     )
   }
 
+  const lastLoggedForSelected =
+    selectedEx && active
+      ? [...active.sets].reverse().find((s) => s.exerciseId === selectedEx) ||
+        lastSetForExercise(sessions, selectedEx)
+      : null
+
+  const nextPlanExercise = planQueue.find((id) => id !== selectedEx) || null
+
   return (
     <AppShell>
       <PageTransition className="max-w-2xl mx-auto">
-        <header className="mb-8 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted mb-2">訓練</p>
-            <h1 className="font-serif text-3xl sm:text-4xl tracking-tight text-foreground">
-              今日爆機未？
-            </h1>
-            <p className="mt-2 text-sm text-muted max-w-sm">
-              一掣加組、自動帶入上次重量——唔使慢慢填表。
-            </p>
-          </div>
-          {active && !active.endedAt && (
-            <div className="shrink-0 rounded-2xl border border-border bg-surface px-3.5 py-2.5 shadow-soft text-right">
-              <div className="flex items-center gap-1.5 text-[10px] text-muted justify-end">
-                <Clock className="h-3 w-3" />
-                練緊
+        <PageHeader
+          eyebrow="訓練"
+          title="今日爆機未？"
+          description="一掣加組、自動帶入上次重量——唔使慢慢填表。"
+          trailing={
+            active && !active.endedAt ? (
+              <div className="shrink-0 rounded-2xl border border-border/80 bg-surface px-3.5 py-2.5 shadow-soft text-right">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted justify-end">
+                  <Clock className="h-3 w-3" />
+                  練緊
+                </div>
+                <div className="font-semibold tabular-nums text-lg text-accent leading-tight">
+                  {formatDuration(elapsed)}
+                </div>
               </div>
-              <div className="font-semibold tabular-nums text-lg text-accent leading-tight">
-                {formatDuration(elapsed)}
-              </div>
-            </div>
-          )}
-        </header>
+            ) : undefined
+          }
+        />
 
         {!user && (
           <div className="mb-5">
@@ -450,9 +522,9 @@ export function TrainClient() {
           {tab === 'today' && (
             <motion.div
               key="today"
-              initial={reduce ? false : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduce ? undefined : { opacity: 0, y: -8 }}
+              initial={reduce ? false : tabPanel.initial}
+              animate={tabPanel.animate}
+              exit={reduce ? undefined : tabPanel.exit}
               transition={springSoft}
               className="space-y-5"
             >
@@ -578,27 +650,59 @@ export function TrainClient() {
                           <div className="font-serif text-2xl tracking-tight">
                             {exerciseById(selectedEx)?.nameZh}
                           </div>
-                          <div className="text-xs text-muted mt-0.5">
-                            {exerciseById(selectedEx)?.nameEn}
+                          <div className="text-xs text-muted mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            <span>{exerciseById(selectedEx)?.nameEn}</span>
                             {prs[selectedEx] && (
-                              <span className="ml-2 text-accent">
-                                · PR {prs[selectedEx].weightKg}kg × {prs[selectedEx].reps}
+                              <span className="text-accent">
+                                PR {prs[selectedEx].weightKg}kg × {prs[selectedEx].reps}
+                              </span>
+                            )}
+                            {lastLoggedForSelected && (
+                              <span>
+                                上次 {lastLoggedForSelected.weightKg} kg × {lastLoggedForSelected.reps}
                               </span>
                             )}
                           </div>
-                          <div className="mt-2.5">
+                          <div className="mt-2">
                             <ExerciseHowTo exerciseId={selectedEx} />
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 mb-4">
+                        {planQueue.length > 1 && (
+                          <div className="mb-3 flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                            {planQueue.map((id) => {
+                              const ex = exerciseById(id)
+                              if (!ex) return null
+                              const done = active?.sets.some((s) => s.exerciseId === id)
+                              return (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  onClick={() => pickExercise(id)}
+                                  className={cn(
+                                    'shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium border transition',
+                                    selectedEx === id
+                                      ? 'bg-accent text-white border-accent'
+                                      : done
+                                        ? 'bg-accent-soft/60 text-accent border-accent/20'
+                                        : 'bg-surface border-border text-muted hover:text-foreground'
+                                  )}
+                                >
+                                  {ex.nameZh}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-3 mb-3">
                           <div>
                             <label className="text-[11px] text-muted mb-1.5 block">重量 (kg)</label>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => setWeight((w) => Math.max(0, Math.round((w - 2.5) * 2) / 2))}
-                                className="h-12 w-12 rounded-2xl border border-border bg-[#fafaf9] text-lg font-medium hover:bg-accent-soft active:scale-95 transition"
+                                onClick={() => bumpWeight(-2.5)}
+                                className="h-14 w-12 rounded-2xl border border-border/90 bg-[#fafaf9] text-xl font-medium hover:bg-accent-soft active:scale-95 transition"
                               >
                                 −
                               </button>
@@ -608,31 +712,37 @@ export function TrainClient() {
                                 step={2.5}
                                 value={weight}
                                 onChange={(e) => setWeight(Number(e.target.value) || 0)}
-                                className="text-center text-lg font-semibold tabular-nums h-12"
+                                className="text-center text-xl font-semibold tabular-nums h-14 px-1"
                               />
                               <button
                                 type="button"
-                                onClick={() => setWeight((w) => Math.round((w + 2.5) * 2) / 2)}
-                                className="h-12 w-12 rounded-2xl border border-border bg-[#fafaf9] text-lg font-medium hover:bg-accent-soft active:scale-95 transition"
+                                onClick={() => bumpWeight(2.5)}
+                                className="h-14 w-12 rounded-2xl border border-border/90 bg-[#fafaf9] text-xl font-medium hover:bg-accent-soft active:scale-95 transition"
                               >
                                 +
                               </button>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => setWeight((w) => Math.round((w + 2.5) * 2) / 2)}
-                              className="mt-2 w-full text-xs text-accent font-medium py-1.5 rounded-xl hover:bg-accent-soft transition"
-                            >
-                              +2.5 kg
-                            </button>
+                            <div className="mt-2 flex gap-1">
+                              {[-5, -2.5, 2.5, 5].map((d) => (
+                                <button
+                                  key={d}
+                                  type="button"
+                                  onClick={() => bumpWeight(d)}
+                                  className="flex-1 rounded-xl py-1.5 text-[11px] font-medium text-accent hover:bg-accent-soft transition tabular-nums"
+                                >
+                                  {d > 0 ? '+' : ''}
+                                  {d}
+                                </button>
+                              ))}
+                            </div>
                           </div>
                           <div>
                             <label className="text-[11px] text-muted mb-1.5 block">次數</label>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               <button
                                 type="button"
                                 onClick={() => setReps((r) => Math.max(1, r - 1))}
-                                className="h-12 w-12 rounded-2xl border border-border bg-[#fafaf9] text-lg font-medium hover:bg-accent-soft active:scale-95 transition"
+                                className="h-14 w-12 rounded-2xl border border-border/90 bg-[#fafaf9] text-xl font-medium hover:bg-accent-soft active:scale-95 transition"
                               >
                                 −
                               </button>
@@ -641,25 +751,63 @@ export function TrainClient() {
                                 inputMode="numeric"
                                 value={reps}
                                 onChange={(e) => setReps(Number(e.target.value) || 1)}
-                                className="text-center text-lg font-semibold tabular-nums h-12"
+                                className="text-center text-xl font-semibold tabular-nums h-14 px-1"
                               />
                               <button
                                 type="button"
                                 onClick={() => setReps((r) => r + 1)}
-                                className="h-12 w-12 rounded-2xl border border-border bg-[#fafaf9] text-lg font-medium hover:bg-accent-soft active:scale-95 transition"
+                                className="h-14 w-12 rounded-2xl border border-border/90 bg-[#fafaf9] text-xl font-medium hover:bg-accent-soft active:scale-95 transition"
                               >
                                 +
                               </button>
                             </div>
+                            <div className="mt-2 flex gap-1">
+                              {[6, 8, 10, 12].map((n) => (
+                                <button
+                                  key={n}
+                                  type="button"
+                                  onClick={() => setReps(n)}
+                                  className={cn(
+                                    'flex-1 rounded-xl py-1.5 text-[11px] font-medium transition tabular-nums',
+                                    reps === n
+                                      ? 'bg-accent-soft text-accent'
+                                      : 'text-muted hover:bg-accent-soft hover:text-accent'
+                                  )}
+                                >
+                                  {n}
+                                </button>
+                              ))}
+                            </div>
                           </div>
                         </div>
 
-                        <motion.div whileTap={reduce ? undefined : { scale: 0.98 }} transition={springSnappy}>
-                          <Button size="xl" className="w-full text-base gap-2" onClick={addSet}>
-                            <Plus className="h-5 w-5" />
-                            ＋1 組 · {weight} kg × {reps}
+                        <div className="flex gap-2 mb-2">
+                          <motion.div className="flex-[1.6]" whileTap={reduce ? undefined : { scale: 0.98 }} transition={springSnappy}>
+                            <Button size="xl" className="w-full text-base gap-2 h-14" onClick={addSet}>
+                              <Plus className="h-5 w-5" />
+                              記低 · {weight}×{reps}
+                            </Button>
+                          </motion.div>
+                          <Button
+                            size="xl"
+                            variant="secondary"
+                            className="flex-1 h-14 text-sm px-3"
+                            disabled={!lastLoggedForSelected}
+                            onClick={repeatLastSet}
+                            title="同上組重量次數再記一組"
+                          >
+                            同上
                           </Button>
-                        </motion.div>
+                        </div>
+                        {nextPlanExercise && (
+                          <button
+                            type="button"
+                            onClick={() => pickExercise(nextPlanExercise)}
+                            className="w-full text-center text-xs font-medium text-accent py-2 rounded-xl hover:bg-accent-soft transition"
+                          >
+                            下一個：{exerciseById(nextPlanExercise)?.nameZh} →
+                          </button>
+                        )}
                       </>
                     ) : (
                       <button
@@ -730,9 +878,9 @@ export function TrainClient() {
           {tab === 'templates' && (
             <motion.div
               key="templates"
-              initial={reduce ? false : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduce ? undefined : { opacity: 0, y: -8 }}
+              initial={reduce ? false : tabPanel.initial}
+              animate={tabPanel.animate}
+              exit={reduce ? undefined : tabPanel.exit}
               transition={springSoft}
             >
               <Stagger className="grid gap-3 sm:grid-cols-2">
@@ -771,9 +919,9 @@ export function TrainClient() {
           {tab === 'history' && (
             <motion.div
               key="history"
-              initial={reduce ? false : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduce ? undefined : { opacity: 0, y: -8 }}
+              initial={reduce ? false : tabPanel.initial}
+              animate={tabPanel.animate}
+              exit={reduce ? undefined : tabPanel.exit}
               transition={springSoft}
               className="space-y-4"
             >
@@ -783,7 +931,9 @@ export function TrainClient() {
                   <CardTitle className="text-lg">PR 牆</CardTitle>
                 </div>
                 {Object.keys(prs).length === 0 ? (
-                  <p className="text-sm text-muted">未有個人最佳——練完第一組就會喺度出現。</p>
+                  <p className="text-sm text-muted leading-relaxed">
+                    未有個人最佳——練完第一組破紀錄就會喺度出現。
+                  </p>
                 ) : (
                   <ul className="space-y-2">
                     {Object.entries(prs)
@@ -805,11 +955,12 @@ export function TrainClient() {
               </Card>
 
               {sessions.length === 0 ? (
-                <Card className="text-center py-12">
-                  <History className="h-8 w-8 text-muted mx-auto mb-3 opacity-50" />
-                  <CardTitle className="text-lg mb-1">仲未有歷史</CardTitle>
-                  <CardDesc>練完第一次之後，日曆同容量會喺度慢慢長出來。</CardDesc>
-                </Card>
+                <EmptyState
+                  title="仲未有歷史"
+                  description="練完第一次之後，日曆同容量會喺度慢慢長出來。"
+                  actionLabel="去今日開波"
+                  onAction={() => setTab('today')}
+                />
               ) : (
                 <Stagger className="space-y-3">
                   {sessions.slice(0, 20).map((s) => {

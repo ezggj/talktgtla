@@ -176,7 +176,7 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
   return (
     <Card className="relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--accent-soft),_transparent_60%)] pointer-events-none" />
-      <div className="relative space-y-4">
+      <div className="relative space-y-5">
         <div>
           <Badge tone="accent">登入</Badge>
           <CardTitle className="mt-2 text-xl">登入先完整用</CardTitle>
@@ -202,9 +202,9 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
         </div>
 
         <div className="flex items-center gap-3 text-[11px] text-muted">
-          <div className="h-px flex-1 bg-border" />
+          <div className="h-px flex-1 bg-border/70" />
           <span>或者用電郵</span>
-          <div className="h-px flex-1 bg-border" />
+          <div className="h-px flex-1 bg-border/70" />
         </div>
 
         <label className="block text-xs text-muted">
@@ -292,13 +292,13 @@ function GoogleGlyph() {
 /** Slim prompt for train/eat when guest. */
 export function LoginPromptBanner({ href = '/me' }: { href?: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm shadow-soft flex items-center justify-between gap-3">
-      <p className="text-muted text-xs sm:text-sm leading-relaxed">
+    <div className="rounded-2xl border border-border/80 bg-surface px-4 py-3.5 shadow-soft flex items-center justify-between gap-3">
+      <p className="text-muted text-xs sm:text-[13px] leading-relaxed">
         而家係本機模式。登入之後訓練／飲食會上雲，仲可以睇日／週／月總計。
       </p>
       <Link
         href={href}
-        className="shrink-0 text-xs font-semibold text-accent hover:underline"
+        className="shrink-0 inline-flex h-8 items-center rounded-xl bg-accent-soft px-3 text-xs font-semibold text-accent hover:bg-[#b7f0e6] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
       >
         去登入
       </Link>

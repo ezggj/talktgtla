@@ -20,7 +20,7 @@ export function AppShell({
           'md:pl-[88px]',
           flush
             ? 'pb-[calc(var(--nav-h)+var(--safe-bottom))] md:pb-0'
-            : 'px-4 pt-6 pb-[calc(var(--nav-h)+1.5rem+var(--safe-bottom))] md:px-10 md:pt-10 md:pb-12',
+            : 'px-4 pt-6 pb-[calc(var(--nav-h)+1.5rem+var(--safe-bottom))] sm:px-5 md:px-10 md:pt-10 md:pb-12',
           className
         )}
       >

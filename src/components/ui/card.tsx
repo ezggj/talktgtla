@@ -12,7 +12,7 @@ export function Card({
 }: React.HTMLAttributes<HTMLDivElement> & { hover?: boolean }) {
   const reduce = useReducedMotion()
   const classes = cn(
-    'rounded-[20px] border border-border bg-surface shadow-soft p-5',
+    'rounded-[20px] border border-border/90 bg-surface shadow-soft p-5',
     className
   )
   if (!hover || reduce) {
@@ -25,7 +25,7 @@ export function Card({
   return (
     <motion.div
       className={classes}
-      whileHover={{ scale: 1.02, boxShadow: 'var(--shadow-hover)' }}
+      whileHover={{ scale: 1.012, boxShadow: 'var(--shadow-hover)' }}
       transition={springSnappy}
       {...(props as React.ComponentProps<typeof motion.div>)}
     >

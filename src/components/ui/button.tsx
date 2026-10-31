@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { springSnappy } from '@/components/motion/presets'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 rounded-2xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45 select-none',
+  'inline-flex items-center justify-center gap-2 rounded-2xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-40 select-none',
   {
     variants: {
       variant: {
@@ -20,9 +20,9 @@ const buttonVariants = cva(
       size: {
         default: 'h-11 px-5 text-sm',
         sm: 'h-9 px-3.5 text-xs rounded-xl',
-        lg: 'h-14 px-6 text-base rounded-[20px]',
+        lg: 'h-12 px-6 text-[15px] rounded-[18px]',
         icon: 'h-11 w-11',
-        xl: 'h-16 px-6 text-base rounded-[20px]',
+        xl: 'h-14 px-6 text-base rounded-[20px]',
       },
     },
     defaultVariants: { variant: 'default', size: 'default' },
@@ -50,8 +50,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <motion.button
         ref={ref}
         className={classes}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
+        whileHover={{ scale: 1.015 }}
+        whileTap={{ scale: 0.975 }}
         transition={springSnappy}
         {...(props as React.ComponentProps<typeof motion.button>)}
       >
