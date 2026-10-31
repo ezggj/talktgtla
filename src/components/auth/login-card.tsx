@@ -26,15 +26,13 @@ function otpErrorMessage(raw: string): string {
     lower.includes('429') ||
     lower.includes('email rate limit')
   ) {
-    return '寄得太密喇——等大概一個鐘，或者改撳 Google／Apple。舊電郵入面如果有 6 位碼，可以直接填。'
+    return '寄得太密喇——等大概一個鐘，或者改撳 Google。舊電郵入面如果有 6 位碼，可以直接填。'
   }
   return raw
 }
 
-function providerNotEnabledMessage(provider: 'google' | 'apple') {
-  return provider === 'google'
-    ? 'Google 登入仲未喺後台開好——試下 Apple，或者用電郵啦。'
-    : 'Apple 登入仲未喺後台開好——試下 Google，或者用電郵啦。'
+function providerNotEnabledMessage(_provider: 'google') {
+  return 'Google 登入仲未喺後台開好——試下用電郵啦。'
 }
 
 export function LoginCard({ user, configured, onSignOut, compact }: Props) {
@@ -42,11 +40,11 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
   const [otp, setOtp] = useState('')
   const [phase, setPhase] = useState<'idle' | 'sent'>('idle')
   const [busy, setBusy] = useState(false)
-  const [oauthBusy, setOauthBusy] = useState<'google' | 'apple' | null>(null)
+  const [oauthBusy, setOauthBusy] = useState<'google' | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  const signInWithOAuth = async (provider: 'google' | 'apple') => {
+  const signInWithOAuth = async (provider: 'google') => {
     setErr(null)
     setMsg(null)
     setOauthBusy(provider)
@@ -72,7 +70,7 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
       // Browser redirects; keep spinner until unload.
     } catch (e) {
       setOauthBusy(null)
-      const raw = e instanceof Error ? e.message : `${provider === 'google' ? 'Google' : 'Apple'} 登入唔到`
+      const raw = e instanceof Error ? e.message : `Google 登入唔到`
       const lower = raw.toLowerCase()
       setErr(
         lower.includes('provider') || lower.includes('not enabled')
@@ -183,7 +181,7 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
           <Badge tone="accent">登入</Badge>
           <CardTitle className="mt-2 text-xl">登入先完整用</CardTitle>
           <CardDesc className="mt-2">
-            一掣 Google 或者 Apple 最爽。訪客都可以試訓練／飲食；登入先會上雲同睇齊日週月統計。
+            撳 Google 最方便。訪客都可以試訓練／飲食；登入先會上雲同睇齊日週月統計。
           </CardDesc>
         </div>
 
@@ -200,20 +198,6 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
               <GoogleGlyph />
             )}
             用 Google 登入
-          </Button>
-          <Button
-            className="w-full !bg-[#111111] !text-white hover:!bg-black border-transparent"
-            size="lg"
-            variant="secondary"
-            onClick={() => void signInWithOAuth('apple')}
-            disabled={oauthLocked}
-          >
-            {oauthBusy === 'apple' ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <AppleGlyph />
-            )}
-            用 Apple 登入
           </Button>
         </div>
 
@@ -276,9 +260,6 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
         </div>
         {msg && <p className="text-xs text-accent leading-relaxed">{msg}</p>}
         {err && <p className="text-xs text-red-600 leading-relaxed">{err}</p>}
-        <p className="text-[10px] text-muted leading-relaxed">
-          Apple 登入要喺 Supabase 開 Apple provider，並喺 Apple Developer 整 Services ID 同 key；未開好會顯示提示。
-        </p>
       </div>
     </Card>
   )
@@ -307,13 +288,6 @@ function GoogleGlyph() {
   )
 }
 
-function AppleGlyph() {
-  return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden fill="currentColor">
-      <path d="M16.365 12.66c-.015-1.612.906-2.387 1.004-2.45-.548-1.01-1.4-1.15-1.7-1.164-1.292-.092-2.244.76-2.823.76-.58 0-1.477-.74-2.43-.72-1.25.018-2.404.727-3.046 1.847-1.302 2.26-.333 5.605.935 7.438.62.9 1.36 1.91 2.33 1.874.935-.037 1.29-.605 2.42-.605 1.13 0 1.45.605 2.44.586.996-.017 1.63-.91 2.24-1.812.71-1.038.998-2.042.998-2.094-.024-.01-1.94-.744-1.962-2.66zm-1.84-6.85c.516-.624.864-1.49.769-2.354-.743.03-1.644.495-2.176 1.12-.478.55-.897 1.43-.784 2.275.828.064 1.675-.42 2.19-1.041z" />
-    </svg>
-  )
-}
 
 /** Slim prompt for train/eat when guest. */
 export function LoginPromptBanner({ href = '/me' }: { href?: string }) {
