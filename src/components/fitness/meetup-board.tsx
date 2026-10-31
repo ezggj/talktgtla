@@ -23,6 +23,55 @@ import {
   type GymMeetup,
 } from '@/lib/fitness/meetups'
 import { cn } from '@/lib/utils'
+import {
+  showAppNotification,
+  requestNotificationPermissionCantonese,
+  notificationPermission,
+} from '@/lib/pwa/notifications'
+
+const WATCH_KEY = 'talktgtla-meetup-watch-v1'
+const PREF_AREA_KEY = 'talktgtla-meetup-pref-area-v1'
+
+function loadWatch(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(WATCH_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as Record<string, number>
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveWatch(map: Record<string, number>) {
+  try {
+    localStorage.setItem(WATCH_KEY, JSON.stringify(map))
+  } catch {
+    /* ignore */
+  }
+}
+
+function watchMeetup(id: string, joinCount: number) {
+  const map = loadWatch()
+  map[id] = joinCount
+  saveWatch(map)
+}
+
+function loadPrefArea(): string {
+  try {
+    return localStorage.getItem(PREF_AREA_KEY)?.trim() || ''
+  } catch {
+    return ''
+  }
+}
+
+function savePrefArea(area: string) {
+  try {
+    localStorage.setItem(PREF_AREA_KEY, area.trim())
+  } catch {
+    /* ignore */
+  }
+}
 
 type JoinsMap = Record<string, { display_name: string; joined_at: string }[]>
 
@@ -112,6 +161,89 @@ export function MeetupBoard({ className }: { className?: string }) {
     void refresh()
   }, [refresh])
 
+  // Light poll while board open — notify if watched meetup join_count rises
+  useEffect(() => {
+    let cancelled = false
+    const tick = async () => {
+      try {
+        const res = await fetch('/api/meetups', { cache: 'no-store' })
+        const data = await res.json()
+        if (cancelled) return
+        const list = (data.meetups || []) as GymMeetup[]
+        setMeetups(list)
+        setJoins((data.joins || {}) as JoinsMap)
+        const watch = loadWatch()
+        let changed = false
+        for (const m of list) {
+          if (!(m.id in watch)) continue
+          const prev = watch[m.id] ?? 0
+          if (m.join_count > prev) {
+            watch[m.id] = m.join_count
+            changed = true
+            void showAppNotification({
+              title: '有人入咗你台',
+              body: `${m.area} · ${m.focus} · 而家 ${m.join_count} 人`,
+              tag: `meetup-join-${m.id}`,
+              url: '/train',
+            })
+          }
+        }
+        const pref = loadPrefArea()
+        if (pref) {
+          const seenKey = 'talktgtla-meetup-seen-ids-v1'
+          const rawSeen = localStorage.getItem(seenKey)
+          // First run: seed current open IDs so we don't spam old台
+          if (!rawSeen) {
+            try {
+              const seed = list.filter((m) => m.status === 'open').map((m) => m.id)
+              localStorage.setItem(seenKey, JSON.stringify(seed.slice(-80)))
+            } catch {
+              /* ignore */
+            }
+          } else {
+            let seen: string[] = []
+            try {
+              seen = JSON.parse(rawSeen) as string[]
+            } catch {
+              seen = []
+            }
+            const seenSet = new Set(seen)
+            let sawNew = false
+            for (const m of list) {
+              if (m.status !== 'open') continue
+              if (m.area !== pref) continue
+              if (seenSet.has(m.id)) continue
+              seenSet.add(m.id)
+              sawNew = true
+              if (m.id in watch) continue
+              void showAppNotification({
+                title: '你睇緊嘅分店有新台',
+                body: `${m.area} · ${m.focus} · ${m.host_name}`,
+                tag: `meetup-new-${m.id}`,
+                url: '/train',
+              })
+            }
+            if (sawNew) {
+              try {
+                localStorage.setItem(seenKey, JSON.stringify([...seenSet].slice(-80)))
+              } catch {
+                /* ignore */
+              }
+            }
+          }
+        }
+        if (changed) saveWatch(watch)
+      } catch {
+        /* ignore poll errors */
+      }
+    }
+    const id = window.setInterval(tick, 45000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [])
+
   useEffect(() => {
     if (!selectedGym) return
     if (!selectedGym.areas.includes(area)) {
@@ -157,6 +289,16 @@ export function MeetupBoard({ className }: { className?: string }) {
       setNote('')
       setFilterArea(area)
       showToast('開咗台——等人入嚟凑')
+      if (data.meetup?.id) {
+        watchMeetup(data.meetup.id, data.meetup.join_count ?? 1)
+        savePrefArea(area)
+        if (notificationPermission() === 'default') {
+          void requestNotificationPermissionCantonese()
+        }
+      } else if (typeof data.id === 'string') {
+        watchMeetup(data.id, 1)
+        savePrefArea(area)
+      }
       await refresh()
     } catch {
       setError('開台失敗，請再試')
@@ -191,6 +333,11 @@ export function MeetupBoard({ className }: { className?: string }) {
         return
       }
       showToast(`已入台 · ${m.area} ${m.focus}`)
+      watchMeetup(m.id, (m.join_count || 0) + 1)
+      savePrefArea(m.area)
+      if (notificationPermission() === 'default') {
+        void requestNotificationPermissionCantonese()
+      }
       await refresh()
     } catch {
       setError('入台失敗，請再試')

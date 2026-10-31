@@ -70,7 +70,8 @@ import { TrainHeatmap } from '@/components/fitness/train-heatmap'
 import { analyzeWorkout, formatDelta, type WorkoutAnalysis } from '@/lib/fitness/analysis'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
-import { buzzLight, notifyRestDone, flashDocumentTitle } from '@/lib/fitness/haptic'
+import { buzzLight, notifyRestDone, flashDocumentTitle, armRestNotification } from '@/lib/fitness/haptic'
+import { InstallPrompt } from '@/components/pwa/install-prompt'
 import {
   DEFAULT_WEEKLY_PPL,
   SCHEDULE_PRESETS,
@@ -211,6 +212,7 @@ export function TrainClient() {
     () => buildTrainCoachBlurb(sessions).lines[0] || '',
     [sessions]
   )
+
 
   useEffect(() => {
     const s = loadSessions()
@@ -496,6 +498,7 @@ export function TrainClient() {
     restEndedFocus.current = false
     setRestReadyNext(false)
     buzzLight()
+    void armRestNotification(restSec)
   }
 
   const bumpWeight = (delta: number) => {
@@ -544,6 +547,7 @@ export function TrainClient() {
     setRestRunning(true)
     setRestReadyNext(false)
     buzzLight()
+    void armRestNotification(restSec)
   }
 
   const finishSession = () => {
@@ -999,6 +1003,7 @@ export function TrainClient() {
                                   setRestSec(s)
                                   setRestLeft(s)
                                   setRestRunning(true)
+                                  void armRestNotification(s)
                                 }}
                                 className={cn(
                                   'rounded-full px-2.5 py-1 text-[11px] border transition touch-manipulation',
@@ -2223,6 +2228,10 @@ export function TrainClient() {
                 <p className="text-[10px] text-muted mt-3 leading-relaxed">
                   提示只係一般訓練參考，唔係醫療建議。身體唔舒服就停低休息。
                 </p>
+              </div>
+
+              <div className="mb-4">
+                <InstallPrompt variant="banner" forceAfterWorkout />
               </div>
 
               {lastFinished && lastAnalysis && (
