@@ -117,7 +117,7 @@ function GymCard({
               <span className="font-medium tabular-nums text-foreground">
                 {formatMonthlyRange(gym)}
               </span>
-              <span className="text-muted">／月 · 大約參考</span>
+              <span className="text-muted"> · 大約／參考</span>
             </span>
           </div>
           <div className="flex gap-2 text-muted">
@@ -148,7 +148,7 @@ function CompareTable({ gyms, onRemove }: { gyms: HkGym[]; onRemove: (id: string
 
   const rows: { label: string; cell: (g: HkGym) => React.ReactNode }[] = [
     {
-      label: '月費（大約）',
+      label: '月費（大約／參考）',
       cell: (g) => (
         <span className="tabular-nums font-medium">{formatMonthlyRange(g)}</span>
       ),
@@ -414,9 +414,9 @@ export function HkGymCompare() {
             !filters.query.trim() && (
               <p className="text-[11px] text-muted px-0.5">
                 置頂：<span className="text-foreground font-medium">247 Fitness</span>
-                （全港最多分店）同{' '}
+                （140+ 分店 · 12個月約 $550）同{' '}
                 <span className="text-foreground font-medium">EFX24</span>
-                （商場旗艦 24h）——再向下睇其他選擇。
+                （12個月約 $538）——再向下睇其他選擇。
               </p>
             )}
           {filtered.map((g) => (
@@ -434,7 +434,7 @@ export function HkGymCompare() {
       {selected.length > 0 ? <div className="h-16 md:hidden" aria-hidden /> : null}
 
       <p className="text-[10px] text-muted text-center leading-relaxed px-2 pb-2">
-        月費、分店同開放時間會變——呢度係靜態整理，僅供參考，唔構成報價或建議。簽約前請向會所確認最新條款同隱藏收費。
+        月費、分店同開放時間會變——呢度係靜態整理（對齊公開官網／消委會等大約數），僅供參考，唔構成報價或建議。簽約前請向會所確認最新條款、按金同隱藏收費。
       </p>
 
       <AnimatePresence>
