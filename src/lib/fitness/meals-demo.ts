@@ -2,11 +2,11 @@ import type { MealMacros } from './storage'
 
 /** HK-flavoured quick-add presets + demo estimates when AI Gateway unavailable */
 
-export type DishCategory = '茶記' | '會所蛋白' | '小食' | '早餐'
+export type DishCategory = '茶記' | 'gym撚常食' | '小食' | '早餐'
 
 export const DISH_CATEGORY_LABEL: Record<DishCategory, string> = {
   '茶記': '茶記／街坊',
-  '會所蛋白': '會所蛋白餐',
+  'gym撚常食': 'gym撚常食',
   '小食': '高蛋白小食',
   '早餐': '早餐',
 }
@@ -27,7 +27,7 @@ export const HK_DISH_ESTIMATES: {
     name: '雞胸便當',
     hint: '健身友善 · 配菜睇情況',
     macros: { kcal: 420, protein: 48, carbs: 35, fat: 10, fiber: 6 },
-    category: '會所蛋白',
+    category: 'gym撚常食',
   },
   {
     name: '蛋治 + 咖啡',
@@ -129,7 +129,7 @@ export const HK_DISH_ESTIMATES: {
     name: '沙律雞胸',
     hint: '低脂 · 醬汁另計',
     macros: { kcal: 340, protein: 42, carbs: 18, fat: 10, fiber: 5 },
-    category: '會所蛋白',
+    category: 'gym撚常食',
   },
   {
     name: '牛肉麵',
@@ -142,25 +142,25 @@ export const HK_DISH_ESTIMATES: {
     name: '會所雞胸糙米飯',
     hint: '會所食堂 · 高蛋白主餐',
     macros: { kcal: 480, protein: 52, carbs: 48, fat: 10, fiber: 6 },
-    category: '會所蛋白',
+    category: 'gym撚常食',
   },
   {
     name: '會所牛肉沙律碗',
     hint: '會所 · 少飯高蛋白',
     macros: { kcal: 420, protein: 46, carbs: 22, fat: 16, fiber: 7 },
-    category: '會所蛋白',
+    category: 'gym撚常食',
   },
   {
     name: '會所三文魚飯',
     hint: '會所 · Omega-3＋蛋白',
     macros: { kcal: 560, protein: 42, carbs: 52, fat: 18, fiber: 4 },
-    category: '會所蛋白',
+    category: 'gym撚常食',
   },
   {
     name: '會所雞蛋清蛋白碗',
     hint: '會所自助 · 蛋白為主',
     macros: { kcal: 310, protein: 40, carbs: 18, fat: 8, fiber: 3 },
-    category: '會所蛋白',
+    category: 'gym撚常食',
   },
   {
     name: '健身室蛋白棒',
@@ -178,13 +178,13 @@ export const HK_DISH_ESTIMATES: {
     name: '低脂芝士雞胸卷',
     hint: '會所／餐牌常見',
     macros: { kcal: 390, protein: 44, carbs: 28, fat: 10, fiber: 3 },
-    category: '會所蛋白',
+    category: 'gym撚常食',
   },
   {
     name: '會所豆腐魚柳飯',
     hint: '會所 · 清淡高蛋白',
     macros: { kcal: 450, protein: 40, carbs: 50, fat: 10, fiber: 5 },
-    category: '會所蛋白',
+    category: 'gym撚常食',
   },
   {
     name: '訓練後乳清＋蕉',
@@ -196,7 +196,7 @@ export const HK_DISH_ESTIMATES: {
     name: '會所蝦仁蛋白炒飯',
     hint: '會所 · 蛋白飯',
     macros: { kcal: 520, protein: 38, carbs: 58, fat: 14, fiber: 3 },
-    category: '會所蛋白',
+    category: 'gym撚常食',
   },
 ]
 
@@ -207,7 +207,7 @@ export function dishesByCategory(cat?: DishCategory | '全部') {
 }
 
 export function clubProteinDishes() {
-  return HK_DISH_ESTIMATES.filter((d) => d.category === '會所蛋白')
+  return HK_DISH_ESTIMATES.filter((d) => d.category === 'gym撚常食')
 }
 
 export function mockEstimateFromFile(fileName: string): { name: string; macros: MealMacros } {
