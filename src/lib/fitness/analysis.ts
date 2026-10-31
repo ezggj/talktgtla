@@ -1,6 +1,13 @@
 import type { WorkoutSession, WorkoutSet } from './storage'
 import { exerciseById } from './exercises'
 
+export type SessionPr = {
+  exerciseId: string
+  name: string
+  weightKg: number
+  reps: number
+}
+
 export type WorkoutAnalysis = {
   volume: number
   sets: number
@@ -10,7 +17,53 @@ export type WorkoutAnalysis = {
   durationDeltaPct: number | null
   compareLabel: string | null
   tips: string[]
+  /** PRs set during this session (heavier, or same weight with more reps). */
+  prs?: SessionPr[]
   generatedAt: string
+}
+
+function isBetterLoad(
+  next: { weightKg: number; reps: number },
+  prev: { weightKg: number; reps: number }
+) {
+  return next.weightKg > prev.weightKg || (next.weightKg === prev.weightKg && next.reps > prev.reps)
+}
+
+/** PRs vs earlier finished sessions. First logged weight for an exercise counts. */
+export function sessionPersonalRecords(
+  current: WorkoutSession,
+  history: WorkoutSession[]
+): SessionPr[] {
+  const finished = history.filter((s) => s.endedAt && s.id !== current.id)
+  const ids = [...new Set(current.sets.map((s) => s.exerciseId))]
+  const out: SessionPr[] = []
+  for (const id of ids) {
+    const sets = current.sets.filter((s) => s.exerciseId === id && s.weightKg > 0)
+    if (!sets.length) continue
+    const best = sets.reduce((a, b) => (isBetterLoad(b, a) ? b : a))
+    let histW = 0
+    let histR = 0
+    let seen = false
+    for (const sess of finished) {
+      for (const s of sess.sets) {
+        if (s.exerciseId !== id || s.weightKg <= 0) continue
+        seen = true
+        if (s.weightKg > histW || (s.weightKg === histW && s.reps > histR)) {
+          histW = s.weightKg
+          histR = s.reps
+        }
+      }
+    }
+    const isPr = !seen || best.weightKg > histW || (best.weightKg === histW && best.reps > histR)
+    if (!isPr) continue
+    out.push({
+      exerciseId: id,
+      name: exerciseById(id)?.nameZh || best.exerciseName,
+      weightKg: best.weightKg,
+      reps: best.reps,
+    })
+  }
+  return out.slice(0, 4)
 }
 
 export function volumeOf(sets: WorkoutSet[]) {
@@ -107,25 +160,6 @@ function weightsFlat(all: WorkoutSession[], current: WorkoutSession) {
   return null
 }
 
-function prCandidates(current: WorkoutSession, history: WorkoutSession[]) {
-  const names: string[] = []
-  for (const ex of [...new Set(current.sets.map((s) => s.exerciseId))]) {
-    const curMax = Math.max(...current.sets.filter((s) => s.exerciseId === ex).map((s) => s.weightKg), 0)
-    if (curMax <= 0) continue
-    let histMax = 0
-    for (const sess of history) {
-      if (!sess.endedAt || sess.id === current.id) continue
-      for (const s of sess.sets) {
-        if (s.exerciseId === ex) histMax = Math.max(histMax, s.weightKg)
-      }
-    }
-    if (curMax > histMax) {
-      names.push(exerciseById(ex)?.nameZh || current.sets.find((s) => s.exerciseId === ex)!.exerciseName)
-    }
-  }
-  return names.slice(0, 2)
-}
-
 /** Build post-workout analysis + HK Cantonese tips (max 4). Soft, practical, no medical claims. */
 export function analyzeWorkout(
   current: WorkoutSession,
@@ -166,7 +200,8 @@ export function analyzeWorkout(
   const top = topVolumeExercise(current.sets)
   const flatEx = weightsFlat(history, current)
   const dropEx = dropOffSets(current.sets)
-  const prs = prCandidates(current, history)
+  const sessionPrs = sessionPersonalRecords(current, history)
+  const prs = sessionPrs.map((p) => p.name)
   const uniqueEx = new Set(current.sets.map((s) => s.exerciseId)).size
 
   if (finishedBefore === 0) {
@@ -242,6 +277,7 @@ export function analyzeWorkout(
     durationDeltaPct,
     compareLabel,
     tips: tips.slice(0, 4),
+    prs: sessionPrs,
     generatedAt: new Date().toISOString(),
   }
 }

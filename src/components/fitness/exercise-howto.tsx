@@ -4,10 +4,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ChevronDown, ExternalLink, Lightbulb, Play, Star } from 'lucide-react'
 import {
+  displayNicknames,
   GENERIC_CUES,
   resolveExerciseGuide,
   type ExerciseGuide,
 } from '@/lib/exercises/library'
+
+const CUE_TAGS = ['擺位', '發力', '小心', '再講'] as const
 import { springSoft, springSnappy } from '@/components/motion/presets'
 import { cn } from '@/lib/utils'
 import { isHowtoFav, toggleHowtoFav } from '@/lib/fitness/howto-favs'
@@ -60,6 +63,7 @@ export function ExerciseHowTo({
   const favId = guide?.id || exerciseId || ''
 
   const cues = guide?.cues?.length ? guide.cues : [...GENERIC_CUES]
+  const nicks = guide ? displayNicknames(guide) : []
   const title = guide ? `${guide.nameZh} · 點做` : '點做'
   const ytId = useMemo(() => youtubeIdFromUrl(guide?.demoUrl), [guide?.demoUrl])
   useEffect(() => {
@@ -116,7 +120,14 @@ export function ExerciseHowTo({
               )}
             >
               <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="text-xs font-semibold text-accent">{title}</div>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-accent">{title}</div>
+                  {nicks.length > 0 && (
+                    <p className="mt-0.5 text-[11px] text-muted leading-snug">
+                      俗稱：{nicks.join(' · ')}
+                    </p>
+                  )}
+                </div>
                 {favId ? (
                   <button
                     type="button"
@@ -178,7 +189,7 @@ export function ExerciseHowTo({
               <ul className="space-y-2">
                 {cues.map((c, i) => (
                   <li key={i} className="text-xs text-foreground/90 leading-relaxed flex gap-2">
-                    <span className="text-accent shrink-0 font-medium">{i + 1}.</span>
+                    <span className="text-accent shrink-0 font-semibold w-8">{CUE_TAGS[i] || `${i + 1}.`}</span>
                     <span>{c}</span>
                   </li>
                 ))}
