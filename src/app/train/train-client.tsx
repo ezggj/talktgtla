@@ -32,7 +32,10 @@ import { EmptyState } from '@/components/ui/empty-state'
 import {
   EXERCISES,
   TEMPLATES,
+  NEWBIE_QUICK_TEMPLATES,
+  NEWBIE_SEARCH_CHIPS,
   exerciseById,
+  matchedAliasLabel,
   searchExercises,
 } from '@/lib/fitness/exercises'
 import { ExerciseHowTo, ExerciseHowToHint } from '@/components/fitness/exercise-howto'
@@ -122,6 +125,7 @@ export function TrainClient() {
   const [elapsed, setElapsed] = useState(0)
   const [prs, setPrs] = useState(loadPRs())
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerHowtoId, setPickerHowtoId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [selectedEx, setSelectedEx] = useState<string | null>(null)
   const [weight, setWeight] = useState(60)
@@ -314,6 +318,7 @@ export function TrainClient() {
     if (!ex) return
     setSelectedEx(exerciseId)
     setPickerOpen(false)
+    setPickerHowtoId(null)
     setSearch('')
     const last = lastSetForExercise(
       [...(sess ? [sess] : []), ...sessions].filter(Boolean) as WorkoutSession[],
@@ -326,6 +331,25 @@ export function TrainClient() {
       setWeight(40)
       setReps(10)
     }
+  }
+
+  /** One-tap：未開波就開波再揀；已開波就直接加入今日動作。 */
+  const addToToday = (exerciseId: string) => {
+    if (!exerciseById(exerciseId)) return
+    if (!active) {
+      const sess: WorkoutSession = {
+        id: newId(),
+        startedAt: new Date().toISOString(),
+        sets: [],
+        templateId: undefined,
+      }
+      persistActive(sess)
+      setTab('today')
+      setPlanQueue([])
+      pickExercise(exerciseId, sess)
+      return
+    }
+    pickExercise(exerciseId)
   }
 
   const addSet = () => {
@@ -662,6 +686,54 @@ export function TrainClient() {
                           <Play className="h-4 w-4" />
                           開波
                         </Button>
+                      </div>
+                    </Card>
+                  </StaggerItem>
+                  <StaggerItem>
+                    <Card className="py-4 border-accent/25 bg-accent-soft/30">
+                      <div className="flex items-start gap-2 mb-2">
+                        <Badge tone="accent">新手</Badge>
+                        <CardTitle className="text-lg leading-snug">
+                          唔識 RDL／硬拉／保加利亞？
+                        </CardTitle>
+                      </div>
+                      <CardDesc className="mb-3">
+                        搜俗稱就搵到；每個動作有「點做」步驟＋示範。一掣開波用腿日或推拉腿模板。
+                      </CardDesc>
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {NEWBIE_SEARCH_CHIPS.map((chip) => (
+                          <button
+                            key={chip}
+                            type="button"
+                            onClick={() => {
+                              startSession()
+                              setSearch(chip)
+                              setPickerOpen(true)
+                              setPickerHowtoId(null)
+                            }}
+                            className="rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-medium text-accent hover:bg-accent-soft touch-manipulation"
+                          >
+                            搜「{chip}」
+                          </button>
+                        ))}
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {NEWBIE_QUICK_TEMPLATES.slice(0, 4).map((t) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => startSession(t.id, t.exerciseIds)}
+                            className="text-left rounded-2xl border border-border bg-surface px-3 py-2.5 hover:border-accent/40 hover:bg-accent-soft/40 transition touch-manipulation"
+                          >
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              {t.badge && <Badge tone="muted">{t.badge}</Badge>}
+                              <span className="text-sm font-semibold">{t.name}</span>
+                            </div>
+                            <p className="text-[10px] text-muted leading-relaxed line-clamp-2">
+                              {t.desc}
+                            </p>
+                          </button>
+                        ))}
                       </div>
                     </Card>
                   </StaggerItem>
@@ -1180,10 +1252,26 @@ export function TrainClient() {
               transition={springSoft}
             >
               <Stagger className="grid gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2 mb-1">
+                  <p className="text-xs text-muted leading-relaxed">
+                    推拉腿（PPL）＝推日／拉日／腿日輪流。新手可先用「新手腿日」——入面有 RDL、保加利亞，撳動作就睇點做。
+                  </p>
+                </div>
                 {TEMPLATES.map((t) => (
                   <StaggerItem key={t.id}>
-                    <Card hover className="h-full flex flex-col">
-                      <CardTitle className="text-xl">{t.name}</CardTitle>
+                    <Card
+                      hover
+                      className={cn(
+                        'h-full flex flex-col',
+                        t.newbie && 'border-accent/30 bg-accent-soft/20'
+                      )}
+                    >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {t.badge && (
+                          <Badge tone={t.newbie ? 'accent' : 'muted'}>{t.badge}</Badge>
+                        )}
+                        <CardTitle className="text-xl">{t.name}</CardTitle>
+                      </div>
                       <CardDesc className="mt-1 mb-4 flex-1">{t.desc}</CardDesc>
                       <div className="flex flex-wrap gap-1 mb-4">
                         {t.exerciseIds.slice(0, 4).map((id) => (
@@ -1368,46 +1456,121 @@ export function TrainClient() {
               transition={springSoft}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-4 border-b border-border flex items-center gap-2">
-                <Search className="h-4 w-4 text-muted shrink-0" />
-                <Input
-                  autoFocus
-                  placeholder="搜：卧推、練胸、闊背、rdl…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="border-0 shadow-none focus:ring-0 px-0 h-10"
-                />
-                <button type="button" onClick={() => setPickerOpen(false)} aria-label="關閉">
-                  <X className="h-5 w-5 text-muted" />
-                </button>
+              <div className="p-4 border-b border-border space-y-3">
+                <div className="flex items-center gap-2">
+                  <Search className="h-4 w-4 text-muted shrink-0" />
+                  <Input
+                    autoFocus
+                    placeholder="搜俗稱：RDL、保加利亞、後腿、硬拉…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="border-0 shadow-none focus:ring-0 px-0 h-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPickerOpen(false)
+                      setPickerHowtoId(null)
+                    }}
+                    aria-label="關閉"
+                  >
+                    <X className="h-5 w-5 text-muted" />
+                  </button>
+                </div>
+                <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 -mx-1 px-1">
+                  {NEWBIE_SEARCH_CHIPS.map((chip) => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => setSearch(chip)}
+                      className={cn(
+                        'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium touch-manipulation',
+                        search === chip
+                          ? 'border-accent bg-accent text-white'
+                          : 'border-border text-accent hover:bg-accent-soft'
+                      )}
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-muted leading-relaxed">
+                  撳動作＝加入今日訓練；「點做」睇步驟／GIF。未開波都會自動幫你開場。
+                </p>
               </div>
               <ul className="overflow-y-auto p-2 flex-1">
-                {(search ? filtered : EXERCISES).map((ex) => (
-                  <li key={ex.id}>
-                    <div className="flex items-center gap-1 rounded-2xl hover:bg-accent-soft/60 transition">
-                      <button
-                        type="button"
-                        onClick={() => pickExercise(ex.id)}
-                        className="flex-1 text-left rounded-2xl px-3 py-3 flex items-center justify-between min-w-0"
-                      >
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium">{ex.nameZh}</div>
-                          <div className="text-[11px] text-muted">
-                            {ex.nameEn} · {ex.muscle}
-                          </div>
-                        </div>
-                        {prs[ex.id] && (
-                          <span className="text-[11px] text-accent tabular-nums ml-2 shrink-0">
-                            {prs[ex.id].weightKg}kg
-                          </span>
-                        )}
-                      </button>
-                      <div className="pr-2.5 shrink-0">
-                        <ExerciseHowToHint exercise={ex} />
-                      </div>
-                    </div>
+                {(search ? filtered : EXERCISES).length === 0 ? (
+                  <li className="px-3 py-8 text-center text-sm text-muted">
+                    搵唔到「{search}」——試吓 RDL、保加利亞、後腿、硬拉
                   </li>
-                ))}
+                ) : (
+                  (search ? filtered : EXERCISES).map((ex) => {
+                    const aliasHit = search ? matchedAliasLabel(ex, search) : null
+                    const howtoOpen = pickerHowtoId === ex.id
+                    return (
+                      <li key={ex.id} className="mb-1">
+                        <div className="rounded-2xl hover:bg-accent-soft/60 transition">
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => addToToday(ex.id)}
+                              className="flex-1 text-left rounded-2xl px-3 py-3 flex items-center justify-between min-w-0"
+                            >
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium flex items-center gap-2 flex-wrap">
+                                  <span>{ex.nameZh}</span>
+                                  <span className="text-[10px] font-semibold text-accent">
+                                    加入今日
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-muted">
+                                  {ex.nameEn} · {ex.muscle}
+                                  {aliasHit ? ` · 又叫「${aliasHit}」` : ''}
+                                </div>
+                              </div>
+                              {prs[ex.id] && (
+                                <span className="text-[11px] text-accent tabular-nums ml-2 shrink-0">
+                                  {prs[ex.id].weightKg}kg
+                                </span>
+                              )}
+                            </button>
+                            <div className="pr-2 shrink-0 flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setPickerHowtoId((cur) => (cur === ex.id ? null : ex.id))
+                                }}
+                                className="rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-accent hover:bg-accent-soft touch-manipulation"
+                              >
+                                {howtoOpen ? '收埋' : '點做'}
+                              </button>
+                              <ExerciseHowToHint exercise={ex} />
+                            </div>
+                          </div>
+                          {howtoOpen && (
+                            <div className="px-3 pb-3" onClick={(e) => e.stopPropagation()}>
+                              <ExerciseHowTo
+                                exerciseId={ex.id}
+                                variant="panel"
+                                alwaysOpen
+                              />
+                              <Button
+                                size="sm"
+                                variant="soft"
+                                className="mt-2 w-full"
+                                onClick={() => addToToday(ex.id)}
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                                一鍵加入今日 · {ex.nameZh}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    )
+                  })
+                )}
               </ul>
             </motion.div>
           </motion.div>

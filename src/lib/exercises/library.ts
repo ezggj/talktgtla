@@ -118,13 +118,14 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Deadlift',
     aliases: [
       'deadlift', '背', '硬拉', '傳統硬拉', '拉背', '硬拉槓', '傳統拉', 'dl',
-      '杠鈴硬拉', '槓鈴硬拉', '硬拉日', 'conventional',
+      '杠鈴硬拉', '槓鈴硬拉', '硬拉日', 'conventional', '死拉', '地拉', '拉槓',
+      'conventional deadlift', 'conv dl', '地板硬拉',
     ],
     muscle: '背',
     cues: [
-      '槓貼小腿，髖鉸鏈彎腰握槓，背打直、核心收，肩喺槓微前方。',
-      '用腳踩地推起，槓貼身向上；到頂髖前推，唔好過度後仰。',
-      '常見錯：圓背起槓、槓離身太遠、用腰「拗起」——痛腰即停。',
+      '槓貼小腿，髖向後推彎腰握槓；背打直、核心收實，肩喺槓微前方——呢個就係 Threads 成日講嘅 deadlift／硬拉。',
+      '用腳踩地「推地板」起身，槓一路貼大腿；到頂髖向前夾，唔好過度後仰或者甩腰。',
+      '常見錯：圓背起槓、槓離身、用腰拗起。痛腰即停。想練後髀多啲就轉做 RDL（羅馬尼亞硬拉）。',
     ],
     demoUrl: 'https://www.youtube.com/watch?v=op9kVnSso6Q',
     demoLabel: 'YouTube 硬拉教學',
@@ -321,6 +322,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Leg Curl',
     aliases: [
       '腿彎舉', 'leg curl', '腿彎', '後腿機', '腘繩肌機', '趴腿彎', '坐姿腿彎', '腳彎',
+      '後腿', '後髀', '腘繩', '腿後側', '腿後', 'hamstring curl', 'ham curl',
     ],
     muscle: '腿',
     cues: [
@@ -337,14 +339,15 @@ export const EXERCISES: ExerciseGuide[] = [
     nameZh: '羅馬尼亞硬拉',
     nameEn: 'RDL',
     aliases: [
-      'rdl', '羅馬', '羅馬尼亞', '直腿硬拉', '羅馬硬拉', '直腿', '臀腿', 'romanian deadlift',
-      '羅馬利亞硬拉',
+      'rdl', 'RDL', '羅馬', '羅馬尼亞', '直腿硬拉', '羅馬硬拉', '直腿', '臀腿', 'romanian deadlift',
+      '羅馬利亞硬拉', '羅馬尼亞硬拉', '後腿硬拉', '後髀拉', '腘繩硬拉', '腿後側硬拉', '腿後硬拉',
+      'romanian', 'straight leg deadlift', 'SLDL', 'sldl',
     ],
     muscle: '腿',
     cues: [
-      '微屈膝固定角度，髖向後推，槓貼大腿下滑，背一直打直。',
-      '感到腘繩肌（後髀）拉緊就停，再用臀腿拉返起身。',
-      '同傳統硬拉分別：膝幾乎唔彎多，重點係髖鉸鏈同後髀。',
+      '企直微屈膝（角度全程唔變），槓／啞鈴貼大腿，髖向後推——好似關車門用臀頂。',
+      '背打直落到感到後髀（腿後側）拉緊就停；再用臀夾返企起，唔好圓背拗腰。',
+      '同「硬拉／deadlift」分別：硬拉由地面拉起、膝會伸直多啲；RDL 膝幾乎唔再彎，專練後髀同臀。',
     ],
     demoUrl: 'https://www.youtube.com/watch?v=jEy_czbCRng',
     demoLabel: 'YouTube RDL 教學',
@@ -373,12 +376,14 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Bulgarian Split Squat',
     aliases: [
       '保加利亞', 'bulgarian', '分腿蹲', '後腳抬高蹲', 'bss', 'bulgarian split squat', '單腿蹲凳',
+      '保加', '保加利亞蹲', '後腳抬凳蹲', '單腿蹲', '後腿抬高', 'rear foot elevated', 'RFESS',
+      '腿日分腿', '後腳凳',
     ],
     muscle: '腿',
     cues: [
-      '後腳搁凳上，前腳踩實，軀幹微前傾。',
-      '前膝彎下蹲，後膝向下；主要係前腳出力。',
-      '常見錯：前腳太近／太遠、膝內扣——調步距到舒服。',
+      '後腳腳背／腳尖搁矮凳或臥推凳，前腳踩實向前約一大步，軀幹微前傾。',
+      '前膝慢慢彎落（膝跟腳尖方向），後膝向下；身體重量主要喺前腳——好似單腳深蹲。',
+      '唔識名？港 gym 常叫「保加利亞」／BSS。常見錯：前腳太近會跪到、太遠會拗腰；調到前小腿大致垂直。',
     ],
     demoUrl: 'https://www.youtube.com/watch?v=2C-uNgKwPLE',
     demoLabel: 'YouTube 保加利亞蹲',
@@ -1005,6 +1010,33 @@ export function exerciseById(id: string) {
   return EXERCISES.find((e) => e.id === id)
 }
 
+/** Quick chips for Threads / HK slang newbies — picker + idle train card. */
+export const NEWBIE_SEARCH_CHIPS = [
+  'RDL',
+  '硬拉',
+  '保加利亞',
+  '後腿',
+  '深蹲',
+  '臀推',
+  '弓步',
+  '腿推',
+] as const
+
+/** Synonyms people type that should expand before matching. */
+const QUERY_SYNONYMS: Record<string, string[]> = {
+  死拉: ['硬拉', 'deadlift'],
+  地拉: ['硬拉', 'deadlift'],
+  羅馬: ['rdl', '羅馬尼亞硬拉'],
+  直腿拉: ['rdl', '直腿硬拉'],
+  後腿: ['腿彎舉', '後腿機', 'rdl'],
+  後髀: ['腿彎舉', 'rdl', '腘繩'],
+  保加: ['保加利亞', 'bulgarian'],
+  bss: ['bulgarian', '保加利亞'],
+  legday: ['腿', '深蹲'],
+  'leg day': ['腿', '深蹲'],
+  腿日: ['腿', '深蹲', 'rdl'],
+}
+
 function normalizeQuery(q: string) {
   return q
     .trim()
@@ -1015,15 +1047,67 @@ function normalizeQuery(q: string) {
     .replace(/铃/g, '鈴')
 }
 
+function expandQueryTokens(q: string): string[] {
+  const raw = q.trim()
+  const base = normalizeQuery(raw)
+  if (!base) return []
+  const tokens = new Set<string>([base])
+  // also keep spaced lower form for synonym table keys
+  const spaced = raw.trim().toLowerCase()
+  for (const [key, extras] of Object.entries(QUERY_SYNONYMS)) {
+    const nk = normalizeQuery(key)
+    if (base === nk || base.includes(nk) || spaced === key.toLowerCase()) {
+      extras.forEach((e) => tokens.add(normalizeQuery(e)))
+    }
+  }
+  return [...tokens]
+}
+
+function exerciseHaystack(e: ExerciseGuide) {
+  return normalizeQuery([e.id, e.nameZh, e.nameEn, e.muscle, ...e.aliases].join(' '))
+}
+
 export function searchExercises(q: string) {
-  const s = normalizeQuery(q)
-  if (!s) return EXERCISES
-  return EXERCISES.filter((e) => {
-    const hay = normalizeQuery(
-      [e.nameZh, e.nameEn, e.muscle, ...e.aliases].join(' ')
-    )
-    return hay.includes(s) || e.aliases.some((a) => normalizeQuery(a).includes(s))
-  })
+  const tokens = expandQueryTokens(q)
+  if (!tokens.length) return EXERCISES
+
+  const scored = EXERCISES.map((e) => {
+    const hay = exerciseHaystack(e)
+    let score = 0
+    for (const t of tokens) {
+      if (!t) continue
+      if (normalizeQuery(e.id) === t) score += 100
+      if (normalizeQuery(e.nameZh) === t || normalizeQuery(e.nameEn) === t) score += 80
+      if (e.aliases.some((a) => normalizeQuery(a) === t)) score += 70
+      if (hay.includes(t)) score += 20
+      // alias contains query (e.g. user typed 保加 → 保加利亞)
+      if (e.aliases.some((a) => normalizeQuery(a).includes(t))) score += 15
+    }
+    return { e, score }
+  }).filter((x) => x.score > 0)
+
+  scored.sort((a, b) => b.score - a.score || a.e.nameZh.localeCompare(b.e.nameZh, 'zh-HK'))
+  return scored.map((x) => x.e)
+}
+
+/** Which alias / name matched the query — show under picker rows. */
+export function matchedAliasLabel(exercise: ExerciseGuide, q: string): string | null {
+  const tokens = expandQueryTokens(q)
+  if (!tokens.length) return null
+  for (const t of tokens) {
+    for (const a of exercise.aliases) {
+      const na = normalizeQuery(a)
+      if (na === t || na.includes(t) || t.includes(na)) {
+        if (a !== exercise.nameZh && normalizeQuery(a) !== normalizeQuery(exercise.nameEn)) {
+          return a
+        }
+      }
+    }
+    if (normalizeQuery(exercise.nameEn).includes(t) || t.includes(normalizeQuery(exercise.nameEn))) {
+      return exercise.nameEn
+    }
+  }
+  return null
 }
 
 /** Resolve guide by id or fuzzy name; null → use generic cues in UI. */
@@ -1031,6 +1115,8 @@ export function resolveExerciseGuide(idOrName?: string | null) {
   if (!idOrName) return null
   const byId = exerciseById(idOrName)
   if (byId) return byId
+  const hits = searchExercises(idOrName)
+  if (hits.length === 1) return hits[0]
   const s = idOrName.trim().toLowerCase()
   return (
     EXERCISES.find(
@@ -1039,6 +1125,6 @@ export function resolveExerciseGuide(idOrName?: string | null) {
         e.nameZh.includes(idOrName) ||
         e.nameEn.toLowerCase() === s ||
         e.aliases.some((a) => a.toLowerCase() === s || normalizeQuery(a) === normalizeQuery(idOrName))
-    ) || null
+    ) || hits[0] || null
   )
 }

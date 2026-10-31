@@ -37,6 +37,8 @@ type Props = {
   variant?: 'inline' | 'panel'
   className?: string
   defaultOpen?: boolean
+  /** Skip toggle — always show steps + demo (picker expand). */
+  alwaysOpen?: boolean
 }
 
 export function ExerciseHowTo({
@@ -45,10 +47,12 @@ export function ExerciseHowTo({
   variant = 'inline',
   className,
   defaultOpen = false,
+  alwaysOpen = false,
 }: Props) {
   const reduce = useReducedMotion()
-  const [open, setOpen] = useState(defaultOpen)
+  const [open, setOpen] = useState(defaultOpen || alwaysOpen)
   const [gifFailed, setGifFailed] = useState(false)
+  const shown = alwaysOpen || open
   const guide =
     resolveExerciseGuide(exerciseId) || resolveExerciseGuide(exerciseName || undefined)
 
@@ -60,6 +64,7 @@ export function ExerciseHowTo({
 
   return (
     <div className={cn('w-full', className)}>
+      {!alwaysOpen && (
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -86,9 +91,10 @@ export function ExerciseHowTo({
           )}
         />
       </button>
+      )}
 
       <AnimatePresence initial={false}>
-        {open && (
+        {shown && (
           <motion.div
             key="howto"
             initial={reduce ? false : { opacity: 0, height: 0, y: -4 }}
