@@ -135,6 +135,33 @@ function periodLabel(k: PeriodKind) {
   return k === 'day' ? '日' : k === 'week' ? '週' : '月'
 }
 
+function periodMacroTip(opts: {
+  period: PeriodKind
+  protein: number
+  kcal: number
+  proteinGoal: number
+  kcalGoal: number
+  spanDays: number
+  loggedDays: number
+}) {
+  const budgetP = opts.proteinGoal * opts.spanDays
+  const budgetK = opts.kcalGoal * opts.spanDays
+  const leftP = Math.round(budgetP - opts.protein)
+  const leftK = Math.round(budgetK - opts.kcal)
+  const avg = opts.loggedDays > 0 ? Math.round(opts.protein / opts.loggedDays) : 0
+  if (opts.period === 'day') {
+    if (leftP <= 0 && leftK <= 0) return '呢日蛋白同卡路里都過咗目標——聽日再調就得。'
+    if (leftP <= 0) return `蛋白到標。卡路里仲剩約 ${Math.max(0, leftK)} kcal。`
+    if (leftK <= 0) return `卡路里過咗。蛋白仲差 ${leftP}g——加蛋白、少加澱粉。`
+    return `仲差約 ${leftP}g 蛋白 · ${leftK} kcal。影一餐或者港式快加都得。`
+  }
+  const noun = opts.period === 'week' ? '呢個星期' : '呢個月'
+  if (leftP <= 0) {
+    return `${noun}蛋白已過全日目標。有記日子日均約 ${avg}g，穩陣就得。`
+  }
+  return `${noun}對住每日 ${opts.proteinGoal}g × ${opts.spanDays} 日，仲差約 ${leftP}g 蛋白。有記 ${opts.loggedDays} 日，日均 ${avg}g。`
+}
+
 export function EatClient() {
   const reduce = useReducedMotion()
   const { ready: authReady, user } = useUser()
@@ -380,6 +407,18 @@ export function EatClient() {
     }
     return sumMacros(periodMeals)
   }, [buckets, periodMeals])
+
+  const periodSpanDays = useMemo(() => {
+    if (period === 'week') return 7
+    if (period === 'month') {
+      return new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate()
+    }
+    return 1
+  }, [period, anchor])
+
+  const periodLoggedDays = useMemo(() => {
+    return new Set(periodMeals.map((m) => todayKey(new Date(m.createdAt)))).size
+  }, [periodMeals])
 
   const todayMeals = useMemo(() => {
     const day = todayKey(new Date())
@@ -1057,7 +1096,10 @@ export function EatClient() {
                 </button>
                 <div className="text-center min-w-0 px-1">
                   <div className="text-sm font-medium truncate">{range.label}</div>
-                  <div className="text-[11px] text-muted tabular-nums">{periodMeals.length} 餐</div>
+                  <div className="text-[11px] text-muted tabular-nums">
+                    {periodMeals.length} 餐
+                    {period !== 'day' && periodLoggedDays > 0 ? ` · 有記 ${periodLoggedDays} 日` : ''}
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -1068,6 +1110,9 @@ export function EatClient() {
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
+              <p className="mb-2 text-center text-[10px] font-semibold tracking-wide text-muted">
+                {period === 'day' ? '呢日合計' : '呢段合計'}
+              </p>
               <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-center">
                 {(
                   [
@@ -1088,30 +1133,41 @@ export function EatClient() {
                   </div>
                 ))}
               </div>
-              {period !== 'day' && periodMeals.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-border/70">
-                  <div className="flex justify-between text-[10px] text-muted mb-1.5">
-                    <span>呢段蛋白進度（對目標 × 日數粗估）</span>
-                    <span className="tabular-nums">
-                      {Math.round(periodSum.protein)}g
-                    </span>
-                  </div>
-                  <ProgressBar
-                    value={periodSum.protein}
-                    max={Math.max(
-                      1,
-                      goals.proteinG *
-                        (period === 'week' ? 7 : new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate())
-                    )}
-                    tone="protein"
-                    height="md"
-                  />
-                </div>
-              )}
-              {period === 'month' && buckets.length > 1 && (
-                <p className="mt-3 text-[11px] text-muted text-center">
-                  本月有記錄嘅日子：{buckets.length} 日
+              {periodMeals.length === 0 ? (
+                <p className="mt-3 text-center text-[12px] leading-relaxed text-muted">
+                  呢段未有餐。下面可以港式快加、影相，或者手動入數。
                 </p>
+              ) : (
+                <div className="mt-3 space-y-2 border-t border-border/70 pt-3">
+                  {period !== 'day' && (
+                    <>
+                      <div className="mb-1.5 flex justify-between text-[10px] text-muted">
+                        <span>
+                          蛋白進度 · 日均{' '}
+                          {Math.round(periodSum.protein / Math.max(1, periodLoggedDays))}g
+                        </span>
+                        <span className="tabular-nums">{Math.round(periodSum.protein)}g</span>
+                      </div>
+                      <ProgressBar
+                        value={periodSum.protein}
+                        max={Math.max(1, goals.proteinG * periodSpanDays)}
+                        tone="protein"
+                        height="md"
+                      />
+                    </>
+                  )}
+                  <p className="text-[12px] leading-relaxed text-muted">
+                    {periodMacroTip({
+                      period,
+                      protein: periodSum.protein,
+                      kcal: periodSum.kcal,
+                      proteinGoal: goals.proteinG,
+                      kcalGoal: goals.kcal,
+                      spanDays: periodSpanDays,
+                      loggedDays: periodLoggedDays,
+                    })}
+                  </p>
+                </div>
               )}
             </Card>
           </motion.div>
@@ -1166,6 +1222,16 @@ export function EatClient() {
           <ProteinWeekCard
             meals={meals}
             proteinGoal={goals.proteinG}
+            window={
+              period === 'day'
+                ? undefined
+                : {
+                    fromMs: range.from.getTime(),
+                    toMs: range.to.getTime(),
+                    noun: period === 'week' ? '呢個星期' : '呢個月',
+                  }
+            }
+            dateLabel={period === 'day' ? undefined : range.label}
             onLogMeal={() => {
               const el = document.getElementById('eat-camera')
               el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -1220,7 +1286,23 @@ export function EatClient() {
         {(period === 'month' || period === 'week') && (
           <Card className="mb-6">
             <CardTitle className="text-lg mb-1">飲食日曆</CardTitle>
-            <CardDesc className="mb-4">色越深＝當日蛋白越多。撳日子就跳去嗰日。</CardDesc>
+            <CardDesc className="mb-3">
+              色越深＝當日蛋白越多。金圈＝到標（約 9 成目標）。撳日子跳去嗰日。
+            </CardDesc>
+            <div className="mb-3 flex flex-wrap items-center gap-3 text-[10px] text-muted">
+              <span className="inline-flex items-center gap-1">
+                <span className="h-3 w-3 rounded-md border border-border bg-surface" />
+                無記錄
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-3 w-3 rounded-md bg-accent/35" />
+                有記
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-3 w-3 rounded-md bg-accent ring-2 ring-[#F59E0B]" />
+                到標
+              </span>
+            </div>
             <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] text-muted mb-1">
               {['日', '一', '二', '三', '四', '五', '六'].map((d) => (
                 <div key={d}>{d}</div>
@@ -1235,12 +1317,22 @@ export function EatClient() {
                 const iso = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
                 const p = monthHeat.get(iso) || 0
                 const intensity = p === 0 ? 0 : 0.15 + (p / heatMax) * 0.85
+                const hit = goals.proteinG > 0 && p >= goals.proteinG * 0.9
+                const selected = iso === todayKey(anchor)
+                const dayDate = new Date(`${iso}T12:00:00`)
+                const inFocus =
+                  period !== 'week' || (dayDate >= range.from && dayDate < range.to)
                 return (
                   <button
                     key={iso}
                     type="button"
                     onClick={() => jumpToDay(iso)}
-                    className="aspect-square rounded-lg sm:rounded-xl text-[10px] sm:text-[11px] font-medium tabular-nums border border-border/60 hover:scale-105 transition touch-manipulation"
+                    className={cn(
+                      'aspect-square rounded-lg sm:rounded-xl text-[10px] sm:text-[11px] font-medium tabular-nums border transition touch-manipulation',
+                      hit ? 'border-[#F59E0B] ring-2 ring-[#F59E0B]/80' : 'border-border/60',
+                      selected && 'outline outline-2 outline-offset-1 outline-accent',
+                      !inFocus && 'opacity-35'
+                    )}
                     style={{
                       background:
                         p === 0
@@ -1248,13 +1340,35 @@ export function EatClient() {
                           : `color-mix(in srgb, #0F766E ${Math.round(intensity * 100)}%, #FAFAF9)`,
                       color: intensity > 0.55 ? '#fff' : '#1A1A1A',
                     }}
-                    title={`${iso}: ${Math.round(p)}g 蛋白`}
+                    title={`${iso}: ${Math.round(p)}g 蛋白${hit ? ' · 到標' : ''}`}
                   >
                     {day}
                   </button>
                 )
               })}
             </div>
+            {monthHeat.size === 0 ? (
+              <p className="mt-3 text-[12px] leading-relaxed text-muted">
+                呢個月未有蛋白紀錄。影一餐或者港式快加，格仔就會著色。
+              </p>
+            ) : (
+              <p className="mt-3 text-[12px] leading-relaxed text-muted">
+                {(() => {
+                  let logged = 0
+                  let hits = 0
+                  monthHeat.forEach((p, iso) => {
+                    if (period === 'week') {
+                      const d = new Date(`${iso}T12:00:00`)
+                      if (d < range.from || d >= range.to) return
+                    }
+                    if (p > 0) logged += 1
+                    if (goals.proteinG > 0 && p >= goals.proteinG * 0.9) hits += 1
+                  })
+                  const focus = period === 'week' ? '呢個星期' : '呢個月'
+                  return `${focus}有記 ${logged} 日，到標 ${hits} 日。撳格仔睇嗰日食咗咩。`
+                })()}
+              </p>
+            )}
           </Card>
         )}
 
