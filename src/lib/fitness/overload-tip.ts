@@ -1,10 +1,12 @@
 /** Pure client progressive-overload tip from session history. */
 
+import { lastSetInSession, prefillSetForExercise } from './last-set'
 import type { WorkoutSession, WorkoutSet } from './storage'
 
 export type OverloadTip = {
   id: string
   text: string
+  /** Same baseline as the train-page prefill: that weight, or that weight + 2.5. */
   suggestedWeightKg?: number
 }
 
@@ -18,18 +20,18 @@ function setsFor(session: WorkoutSession, exerciseId: string): WorkoutSet[] {
   return session.sets.filter((s) => s.exerciseId === exerciseId)
 }
 
-function topWorkingSet(sets: WorkoutSet[]): WorkoutSet | null {
-  if (!sets.length) return null
-  return [...sets].sort((a, b) => b.weightKg * b.reps - a.weightKg * a.reps || b.weightKg - a.weightKg)[0]
-}
-
 function fmt(w: number) {
   return Number.isInteger(w) ? String(w) : w.toFixed(1).replace(/\.0$/, '')
+}
+
+function bump(weightKg: number) {
+  return Math.round((weightKg + 2.5) * 2) / 2
 }
 
 /**
  * Suggest a calm Cantonese tip when there is enough history.
  * Needs ≥2 finished sessions with the exercise, OR ≥1 finished + ≥2 sets in active.
+ * The suggested kg is always the prefill weight, or prefill + 2.5 — never a different set.
  */
 export function buildOverloadTip(
   exerciseId: string,
@@ -37,6 +39,9 @@ export function buildOverloadTip(
   active: WorkoutSession | null
 ): OverloadTip | null {
   if (!exerciseId) return null
+  const anchor = prefillSetForExercise(sessions, exerciseId, active)
+  if (!anchor) return null
+
   const hist = finishedWithExercise(
     sessions.filter((s) => !active || s.id !== active.id),
     exerciseId
@@ -46,68 +51,63 @@ export function buildOverloadTip(
   const enoughActive = hist.length >= 1 && activeSets.length >= 2
   if (!enoughHistory && !enoughActive) return null
 
-  const lastSess = hist[0]
-  const lastSets = lastSess ? setsFor(lastSess, exerciseId) : []
-  const lastTop = topWorkingSet(lastSets)
-  if (!lastTop) return null
+  const { weightKg, reps } = anchor.set
+  const when = anchor.source === 'active' ? '上一組' : '上次'
 
-  // Check last 3 finished sessions for hitting target reps at same weight
   const recent = hist.slice(0, 3)
   if (recent.length >= 3) {
-    const weights = recent.map((s) => {
-      const top = topWorkingSet(setsFor(s, exerciseId))
-      return top
-    })
-    if (weights.every(Boolean)) {
-      const w0 = weights[0]!
-      const sameWeight = weights.every((w) => w!.weightKg === w0.weightKg)
+    const lasts = recent.map((s) => lastSetInSession(s, exerciseId))
+    if (lasts.every(Boolean)) {
+      const w0 = lasts[0]!
+      const sameWeight = lasts.every((w) => w!.weightKg === w0.weightKg)
       const target = Math.max(w0.reps, 8)
-      const allHit = weights.every((w) => w!.reps >= target)
-      if (sameWeight && allHit) {
-        const next = Math.round((w0.weightKg + 2.5) * 2) / 2
+      const allHit = lasts.every((w) => w!.reps >= target)
+      if (sameWeight && allHit && weightKg === w0.weightKg) {
+        const next = bump(weightKg)
         return {
-          id: `triple-${exerciseId}-${w0.weightKg}`,
-          text: `連續三次打齊 ${target} 下（${fmt(w0.weightKg)}kg），今次可以試 +2.5 → ${fmt(next)}kg`,
+          id: `triple-${exerciseId}-${weightKg}`,
+          text: `連續三次打齊 ${target} 下（${fmt(weightKg)}kg），今次可以試 +2.5 → ${fmt(next)}kg`,
           suggestedWeightKg: next,
         }
       }
     }
   }
 
-  // Active session: if already logged ≥2 solid sets matching last weight, nudge up
-  if (activeSets.length >= 2 && lastTop) {
-    const solid = activeSets.filter((s) => s.weightKg >= lastTop.weightKg && s.reps >= lastTop.reps)
-    if (solid.length >= 2) {
-      const next = Math.round((lastTop.weightKg + 2.5) * 2) / 2
-      return {
-        id: `active-solid-${exerciseId}-${activeSets.length}`,
-        text: `呢兩組都穩陣打到 ${fmt(lastTop.weightKg)}×${lastTop.reps}，下一組試 ${fmt(next)}？`,
-        suggestedWeightKg: next,
+  if (anchor.source === 'active' && activeSets.length >= 2) {
+    const prev = hist[0] ? lastSetInSession(hist[0], exerciseId) : null
+    if (prev && weightKg >= prev.weightKg) {
+      const solid = activeSets.filter((s) => s.weightKg >= prev.weightKg && s.reps >= prev.reps)
+      if (solid.length >= 2) {
+        const next = bump(weightKg)
+        return {
+          id: `active-solid-${exerciseId}-${activeSets.length}`,
+          text: `呢兩組都穩陣打到 ${fmt(weightKg)}×${reps}，下一組試 ${fmt(next)}？`,
+          suggestedWeightKg: next,
+        }
       }
     }
   }
 
-  // Default: reference last session
-  if (lastTop.reps >= 8) {
-    const next = Math.round((lastTop.weightKg + 2.5) * 2) / 2
+  if (reps >= 8) {
+    const next = bump(weightKg)
     return {
-      id: `last-ok-${exerciseId}-${lastSess.id}`,
-      text: `上次 ${fmt(lastTop.weightKg)}×${lastTop.reps}，今次穩陣可以試 ${fmt(next)}`,
+      id: `last-ok-${exerciseId}-${anchor.source}-${weightKg}`,
+      text: `${when} ${fmt(weightKg)}×${reps}，今次穩陣可以試 ${fmt(next)}`,
       suggestedWeightKg: next,
     }
   }
 
-  if (lastTop.reps <= 5 && lastTop.weightKg > 0) {
+  if (reps <= 5 && weightKg > 0) {
     return {
-      id: `last-hard-${exerciseId}-${lastSess.id}`,
-      text: `上次 ${fmt(lastTop.weightKg)}×${lastTop.reps} 有啲硬——今次可以沿用重量，先打齊 reps`,
-      suggestedWeightKg: lastTop.weightKg,
+      id: `last-hard-${exerciseId}-${anchor.source}-${weightKg}`,
+      text: `${when} ${fmt(weightKg)}×${reps} 有啲硬——今次可以沿用重量，先打齊 reps`,
+      suggestedWeightKg: weightKg,
     }
   }
 
   return {
-    id: `last-ref-${exerciseId}-${lastSess.id}`,
-    text: `上次 ${fmt(lastTop.weightKg)}×${lastTop.reps}——今次睇手感微調就得`,
-    suggestedWeightKg: lastTop.weightKg,
+    id: `last-ref-${exerciseId}-${anchor.source}-${weightKg}`,
+    text: `${when} ${fmt(weightKg)}×${reps}——今次睇手感微調就得`,
+    suggestedWeightKg: weightKg,
   }
 }
