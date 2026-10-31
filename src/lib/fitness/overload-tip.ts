@@ -1,4 +1,7 @@
-/** Pure client progressive-overload tip from session history. */
+/**
+ * Older progressive-overload blurb.
+ * In-flow tips (開波 / 記組 / 完場) live in train-tips.ts and stay rules-only.
+ */
 
 import { lastSetInSession, prefillSetForExercise } from './last-set'
 import type { WorkoutSession, WorkoutSet } from './storage'
