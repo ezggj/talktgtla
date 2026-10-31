@@ -42,6 +42,8 @@ import {
   isSameDay,
   loadGoals,
   loadMeals,
+  loadPRs,
+  loadSessions,
   newId,
   saveMeals,
   todayKey,
@@ -52,12 +54,18 @@ import {
   addDays,
   deleteMealCloud,
   fetchMealPeriodTotals,
-  fetchMeals,
-  migrateLocalMeals,
   rangeForPeriod,
   startOfDay,
   upsertMeal,
 } from '@/lib/fitness/cloud'
+import { migrateLocalFitnessToCloud } from '@/lib/fitness/migrate'
+import { ShareCardButton } from '@/components/fitness/share-card-button'
+import {
+  evaluateFitnessAchievements,
+  unlockFitnessAchievements,
+  loadFitnessUnlocked,
+  fitnessAchievementById,
+} from '@/lib/fitness/achievements'
 import { cn } from '@/lib/utils'
 
 type Draft = {
@@ -129,7 +137,7 @@ export function EatClient() {
     setReady(true)
   }, [loadLocal])
 
-  // Cloud hydrate + migrate when logged in
+  // Cloud hydrate + idempotent local → cloud migrate when logged in
   useEffect(() => {
     if (!authReady || !user) return
     let cancelled = false
@@ -137,13 +145,10 @@ export function EatClient() {
       setSyncing(true)
       try {
         const supabase = createClient()
-        await migrateLocalMeals(supabase, user.id, loadMeals())
-        // Pull generous history (enough for monthly rollups client-side + RPC)
-        const remote = await fetchMeals(supabase, { limit: 800 })
+        const result = await migrateLocalFitnessToCloud(supabase, user.id)
         if (cancelled) return
-        setMeals(remote)
-        saveMeals(remote)
-        setCloudNote('飲食歷史已 sync 上雲')
+        setMeals(result.meals)
+        setCloudNote(result.note)
       } catch (e) {
         if (!cancelled) setCloudNote(e instanceof Error ? e.message : 'sync 唔到')
       } finally {
@@ -414,6 +419,22 @@ export function EatClient() {
     const next = [entry, ...meals]
     void persistList(next, entry, draft.file)
     setDraft(null)
+    try {
+      const newly = evaluateFitnessAchievements({
+        sessions: loadSessions(),
+        meals: next,
+        prs: loadPRs(),
+        proteinGoal: goals.proteinG,
+        already: loadFitnessUnlocked(),
+      })
+      if (newly.length) {
+        unlockFitnessAchievements(newly)
+        const a = fitnessAchievementById(newly[0])
+        if (a) showToast(`${a.emoji} 解鎖：${a.title}`)
+      }
+    } catch {
+      /* ignore */
+    }
   }
 
   const removeMeal = (id: string) => {
@@ -440,7 +461,25 @@ export function EatClient() {
       note: dish.hint,
       source: 'mock',
     }
-    void persistList([entry, ...meals], entry)
+    const next = [entry, ...meals]
+    void persistList(next, entry)
+    showToast(`已快加「${dish.name}」`)
+    try {
+      const newly = evaluateFitnessAchievements({
+        sessions: loadSessions(),
+        meals: next,
+        prs: loadPRs(),
+        proteinGoal: goals.proteinG,
+        already: loadFitnessUnlocked(),
+      })
+      if (newly.length) {
+        unlockFitnessAchievements(newly)
+        const a = fitnessAchievementById(newly[0])
+        if (a) showToast(`${a.emoji} 解鎖：${a.title}`)
+      }
+    } catch {
+      /* ignore */
+    }
   }
 
   const shiftAnchor = (dir: -1 | 1) => {
@@ -772,8 +811,8 @@ export function EatClient() {
         {/* HK dishes */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-serif text-xl">香港常見</h2>
-            <Badge tone="muted">示範估算</Badge>
+            <h2 className="font-serif text-xl">港餐快加</h2>
+            <Badge tone="muted">一掣入帳</Badge>
           </div>
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
             {HK_DISH_ESTIMATES.map((d, i) => (
@@ -880,6 +919,28 @@ export function EatClient() {
                         <Badge>{m.macros.kcal} kcal</Badge>
                         <Badge tone="muted">{m.macros.carbs}g C</Badge>
                         <Badge tone="muted">{m.macros.fat}g F</Badge>
+                      </div>
+                      <div className="mt-2.5">
+                        <ShareCardButton
+                          kind="meal"
+                          size="sm"
+                          variant="soft"
+                          label="分享呢餐"
+                          payload={{
+                            name: m.name,
+                            kcal: m.macros.kcal,
+                            protein: m.macros.protein,
+                            carbs: m.macros.carbs,
+                            fat: m.macros.fat,
+                            dateLabel: new Date(m.createdAt).toLocaleString('zh-HK', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            }),
+                            note: m.note,
+                          }}
+                        />
                       </div>
                     </div>
                   </div>

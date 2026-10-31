@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Cloud, Dumbbell, Flame, MessageCircle, Target, Utensils } from 'lucide-react'
+import { Cloud, Dumbbell, Flame, MessageCircle, Target, Trophy, Utensils } from 'lucide-react'
 import { AppShell } from '@/components/shell/app-shell'
 import { PageTransition } from '@/components/motion/page-transition'
 import { Stagger, StaggerItem } from '@/components/motion/stagger'
@@ -23,17 +23,21 @@ import {
   saveGoals,
   loadSessions,
   loadMeals,
+  loadPRs,
   type FitnessGoals,
 } from '@/lib/fitness/storage'
-import {
-  fetchProfile,
-  upsertGoals,
-  migrateLocalWorkouts,
-  migrateLocalMeals,
-} from '@/lib/fitness/cloud'
+import { fetchProfile, upsertGoals } from '@/lib/fitness/cloud'
+import { migrateLocalFitnessToCloud } from '@/lib/fitness/migrate'
 import { PlanGenerator } from '@/components/fitness/plan-generator'
+import { GymNudgeCard } from '@/components/fitness/gym-nudge-card'
 import { computeStreak, trainedToday, weekConsistency, type WeekDay } from '@/lib/fitness/streaks'
 import { WeekDots } from '@/components/fitness/week-dots'
+import {
+  FITNESS_ACHIEVEMENTS,
+  loadFitnessUnlocked,
+  type FitnessAchievementId,
+} from '@/lib/fitness/achievements'
+import { exerciseById } from '@/lib/fitness/exercises'
 
 export function MeClient() {
   const { ready: authReady, user, configured, signOut } = useUser()
@@ -48,6 +52,8 @@ export function MeClient() {
   const [weekCount, setWeekCount] = useState(0)
   const [sessionCount, setSessionCount] = useState(0)
   const [mealCount, setMealCount] = useState(0)
+  const [unlocked, setUnlocked] = useState<Set<FitnessAchievementId>>(new Set())
+  const [prs, setPrs] = useState(loadPRs())
   const authError = search.get('auth') === 'error'
 
   useEffect(() => {
@@ -61,10 +67,12 @@ export function MeClient() {
     setWeekCount(w.trainedCount)
     setSessionCount(sessions.filter((s) => s.endedAt).length)
     setMealCount(meals.length)
+    setUnlocked(loadFitnessUnlocked())
+    setPrs(loadPRs())
     setReady(true)
   }, [])
 
-  // Load profile + migrate local → cloud once logged in
+  // Load profile + idempotent migrate local → cloud once logged in
   useEffect(() => {
     if (!authReady || !user) return
     let cancelled = false
@@ -80,11 +88,15 @@ export function MeClient() {
         } else {
           await upsertGoals(supabase, user.id, loadGoals())
         }
-        const w = await migrateLocalWorkouts(supabase, user.id, loadSessions())
-        const m = await migrateLocalMeals(supabase, user.id, loadMeals())
-        if (!cancelled && (w > 0 || m > 0)) {
-          setSyncNote(`本機資料已上雲：${w} 次訓練、${m} 餐`)
-        }
+        const result = await migrateLocalFitnessToCloud(supabase, user.id)
+        if (cancelled) return
+        setSessionCount(result.workouts.filter((s) => s.endedAt).length)
+        setMealCount(result.meals.length)
+        const w = weekConsistency(result.workouts)
+        setWeekDays(w.days)
+        setWeekCount(w.trainedCount)
+        setStreak(w.streak)
+        setSyncNote(result.note)
       } catch (e) {
         if (!cancelled) {
           setSyncNote(e instanceof Error ? e.message : 'sync 唔到')
@@ -200,6 +212,71 @@ export function MeClient() {
               </div>
             </StaggerItem>
           )}
+
+          <StaggerItem>
+            <GymNudgeCard streak={streak} />
+          </StaggerItem>
+
+          <StaggerItem>
+            <Card className="py-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Trophy className="h-4 w-4 text-accent" />
+                <CardTitle className="text-lg">PR 牆</CardTitle>
+              </div>
+              {Object.keys(prs).length === 0 ? (
+                <p className="text-sm text-muted leading-relaxed">
+                  未有個人最佳——訓練頁記組破紀錄就會喺度出現。
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {Object.entries(prs)
+                    .sort((a, b) => b[1].weightKg - a[1].weightKg)
+                    .slice(0, 6)
+                    .map(([id, pr]) => (
+                      <li
+                        key={id}
+                        className="flex items-center justify-between rounded-xl border border-border px-3 py-2.5"
+                      >
+                        <span className="text-sm font-medium">{exerciseById(id)?.nameZh || id}</span>
+                        <span className="text-sm tabular-nums text-accent font-semibold">
+                          {pr.weightKg} kg × {pr.reps}
+                        </span>
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </Card>
+          </StaggerItem>
+
+          <StaggerItem>
+            <Card className="py-4">
+              <div className="flex items-center justify-between mb-3">
+                <CardTitle className="text-lg">成就</CardTitle>
+                <Badge tone="muted">
+                  {unlocked.size}/{FITNESS_ACHIEVEMENTS.length}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {FITNESS_ACHIEVEMENTS.map((a) => {
+                  const on = unlocked.has(a.id)
+                  return (
+                    <div
+                      key={a.id}
+                      className={
+                        on
+                          ? 'rounded-2xl border border-accent/25 bg-accent-soft/50 px-3 py-2.5'
+                          : 'rounded-2xl border border-border bg-[#fafaf9] px-3 py-2.5 opacity-55'
+                      }
+                    >
+                      <div className="text-base leading-none mb-1">{a.emoji}</div>
+                      <div className="text-xs font-medium">{a.title}</div>
+                      <div className="text-[10px] text-muted mt-0.5 leading-snug">{a.description}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </Card>
+          </StaggerItem>
 
           <StaggerItem>
             <PlanGenerator userId={user?.id ?? null} />

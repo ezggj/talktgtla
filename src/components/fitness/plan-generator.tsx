@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Loader2, Sparkles, Play } from 'lucide-react'
+import { Check, Loader2, Sparkles, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardDesc, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -23,6 +23,13 @@ import {
 } from '@/lib/fitness/plan-generator'
 import { cn } from '@/lib/utils'
 import { ExerciseHowTo } from '@/components/fitness/exercise-howto'
+import { loadSessions } from '@/lib/fitness/storage'
+import { computePlanWeekProgress } from '@/lib/fitness/plan-progress'
+import {
+  evaluateFitnessAchievements,
+  unlockFitnessAchievements,
+  loadFitnessUnlocked,
+} from '@/lib/fitness/achievements'
 
 type Props = {
   userId: string | null
@@ -193,6 +200,7 @@ export function PlanGenerator({ userId }: Props) {
 
         {plan && (
           <div className="space-y-3 pt-2 border-t border-border">
+            <PlanWeekProgress plan={plan} />
             <div>
               <div className="font-serif text-lg">{plan.title}</div>
               <p className="text-xs text-muted mt-1 leading-relaxed">{plan.summary}</p>
@@ -286,6 +294,83 @@ function ChipRow({
           {o.label}
         </motion.button>
       ))}
+    </div>
+  )
+}
+
+
+
+function PlanWeekProgress({ plan }: { plan: GeneratedPlan }) {
+  const [progress, setProgress] = useState<ReturnType<typeof computePlanWeekProgress> | null>(null)
+
+  useEffect(() => {
+    const sessions = loadSessions()
+    setProgress(computePlanWeekProgress(plan, sessions))
+  }, [plan])
+
+  useEffect(() => {
+    if (!progress || progress.total <= 0) return
+    const ratio = progress.doneCount / progress.total
+    const newly = evaluateFitnessAchievements({
+      sessions: loadSessions(),
+      meals: [],
+      prs: {},
+      planDoneRatio: ratio,
+      already: loadFitnessUnlocked(),
+    })
+    if (newly.length) unlockFitnessAchievements(newly)
+  }, [progress])
+
+  if (!progress) {
+    return <div className="h-16 rounded-2xl bg-border/50 skeleton-pulse mb-1" aria-hidden />
+  }
+
+  const next = progress.nextIncomplete
+  const nextHref = next
+    ? `/train?plan=${encodeURIComponent(plan.title)}&exercises=${encodeURIComponent(
+        next.day.exercises.map((e) => e.exerciseId).join(',')
+      )}`
+    : null
+
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-3.5 mb-1">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="text-xs font-medium text-muted">呢個星期進度</div>
+        <Badge tone={progress.doneCount > 0 ? 'accent' : 'muted'}>
+          {progress.doneCount}/{progress.total} 日
+        </Badge>
+      </div>
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {progress.days.map((d) => (
+          <span
+            key={d.day.dayIndex}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium border',
+              d.done
+                ? 'bg-accent-soft text-accent border-accent/25'
+                : d.isToday
+                  ? 'bg-[#FEF3C7] text-[#92400E] border-[#F59E0B]/30'
+                  : 'bg-[#fafaf9] text-muted border-border'
+            )}
+            title={d.slotDate}
+          >
+            {d.done ? <Check className="h-3 w-3" /> : null}
+            {d.day.nameZh.replace('星期', '')}
+          </span>
+        ))}
+      </div>
+      {nextHref && next && (
+        <Link
+          href={nextHref}
+          className="inline-flex w-full items-center justify-center gap-1.5 h-10 rounded-xl text-xs font-semibold bg-accent text-white shadow-soft hover:bg-[#0d6a63] transition-colors"
+        >
+          <Play className="h-3.5 w-3.5" />
+          {next.isToday ? '繼續今日課表' : `繼續 · ${next.day.nameZh}`}
+        </Link>
+      )}
+      {!next && progress.doneCount > 0 && (
+        <p className="text-[11px] text-accent text-center">呢個星期課表全部打卡 ✓</p>
+      )}
     </div>
   )
 }

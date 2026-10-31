@@ -24,6 +24,7 @@ import {
 import { applyTheme, resolveInitialTheme, type ThemeMode } from '@/lib/theme'
 import { AppShell } from '@/components/shell/app-shell'
 import { computeStreak, trainedToday } from '@/lib/fitness/streaks'
+import { getDailyTopic, topicStarterLine } from '@/lib/fitness/daily-topic'
 
 type Message = {
   id: number
@@ -712,10 +713,10 @@ export default function Chat() {
               {onlineCount == null
                 ? '連線中…'
                 : onlineCount <= 0
-                  ? '而家靜靜地'
+                  ? '而家靜靜地 · 等人上線'
                   : onlineCount === 1
-                    ? '得你一個'
-                    : `${onlineCount} 人喺度`}
+                    ? '得你一個喺度'
+                    : `而家 ${onlineCount} 人喺線`}
             </p>
           </div>
           <div className="absolute right-0 flex items-center gap-2">
@@ -740,6 +741,13 @@ export default function Chat() {
           </div>
         </div>
       </header>
+
+      <DailyTopicBanner
+        onUseTopic={(line) => {
+          setNewMessage((prev) => (prev ? `${prev} ${line}` : line))
+          requestAnimationFrame(() => inputRef.current?.focus())
+        }}
+      />
 
       {!isSupabaseConfigured && (
         <div className="mx-4 mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
@@ -769,14 +777,25 @@ export default function Chat() {
           )}
           {messagesLoaded && messages.length === 0 && (
             <div className="flex h-full min-h-[220px] items-center justify-center px-2">
-              <div className="welcome-card w-full max-w-xs rounded-[20px] border border-border/80 bg-surface px-6 py-10 text-center shadow-soft">
+              <div className="welcome-card w-full max-w-sm rounded-[20px] border border-border/80 bg-surface px-6 py-10 text-center shadow-soft">
                 <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-accent-soft text-accent text-lg" aria-hidden>
                   💬
                 </div>
-                <h3 className="font-serif text-lg tracking-tight">未有人開波</h3>
+                <h3 className="font-serif text-lg tracking-tight">房暫時靜靜地</h3>
                 <p className="mt-2 text-sm text-muted leading-relaxed">
-                  第一句由你嚟。潮語／表情掣喺下面，想匿名都得。
+                  機械人已停——淨係真人。第一句由你；或者用今日話題開波。
                 </p>
+                <button
+                  type="button"
+                  className="mt-4 inline-flex items-center justify-center rounded-xl bg-accent-soft px-3.5 py-2 text-xs font-semibold text-accent hover:bg-[#b7f0e6] transition"
+                  onClick={() => {
+                    const line = topicStarterLine()
+                    setNewMessage(line)
+                    requestAnimationFrame(() => inputRef.current?.focus())
+                  }}
+                >
+                  用今日話題開波
+                </button>
               </div>
             </div>
           )}
@@ -1242,5 +1261,37 @@ export default function Chat() {
     </div>
 
     </AppShell>
+  )
+}
+
+
+function DailyTopicBanner({ onUseTopic }: { onUseTopic: (line: string) => void }) {
+  const [topic, setTopic] = useState<ReturnType<typeof getDailyTopic> | null>(null)
+  useEffect(() => {
+    setTopic(getDailyTopic())
+  }, [])
+  if (!topic) {
+    return (
+      <div className="mx-3 mt-2 h-[58px] rounded-2xl border border-border/60 bg-surface/80 skeleton-pulse" aria-hidden />
+    )
+  }
+  return (
+    <div className="mx-3 mt-2 mb-0 rounded-2xl border border-border/80 bg-surface/95 px-3.5 py-2.5 shadow-soft flex items-center gap-3">
+      <div className="text-lg shrink-0" aria-hidden>
+        {topic.emoji}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] font-medium text-muted uppercase tracking-wide">今日話題</div>
+        <div className="text-sm font-medium truncate">{topic.title}</div>
+        <div className="text-[11px] text-muted truncate">{topic.hint}</div>
+      </div>
+      <button
+        type="button"
+        onClick={() => onUseTopic(topicStarterLine(topic))}
+        className="shrink-0 rounded-xl bg-accent-soft px-2.5 py-1.5 text-[11px] font-semibold text-accent hover:bg-[#b7f0e6] transition touch-manipulation"
+      >
+        用呢句
+      </button>
+    </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   Check,
@@ -48,11 +48,17 @@ import {
   isSameDay,
   todayKey,
 } from '@/lib/fitness/storage'
+import { persistFinishedWorkout } from '@/lib/fitness/cloud'
+import { migrateLocalFitnessToCloud } from '@/lib/fitness/migrate'
+import { volumeByDay } from '@/lib/fitness/plan-progress'
+import { GymNudgeCard } from '@/components/fitness/gym-nudge-card'
+import { ShareCardButton } from '@/components/fitness/share-card-button'
 import {
-  fetchWorkouts,
-  migrateLocalWorkouts,
-  persistFinishedWorkout,
-} from '@/lib/fitness/cloud'
+  evaluateFitnessAchievements,
+  unlockFitnessAchievements,
+  fitnessAchievementById,
+  loadFitnessUnlocked,
+} from '@/lib/fitness/achievements'
 import { markTrainedToday, syncDaysFromSessions, weekConsistency, type WeekDay } from '@/lib/fitness/streaks'
 import { WeekDots } from '@/components/fitness/week-dots'
 import { analyzeWorkout, formatDelta, type WorkoutAnalysis } from '@/lib/fitness/analysis'
@@ -118,6 +124,10 @@ export function TrainClient() {
   const [lastAnalysis, setLastAnalysis] = useState<WorkoutAnalysis | null>(null)
   const [justAdded, setJustAdded] = useState<string | null>(null)
   const [planQueue, setPlanQueue] = useState<string[]>([])
+  const [achToast, setAchToast] = useState<string | null>(null)
+  const weightRef = useRef<HTMLInputElement>(null)
+  const repsRef = useRef<HTMLInputElement>(null)
+  const restEndedFocus = useRef(false)
 
   useEffect(() => {
     const s = loadSessions()
@@ -128,20 +138,18 @@ export function TrainClient() {
     setReady(true)
   }, [])
 
-  // Cloud hydrate when logged in
+  // Cloud hydrate + idempotent local → cloud migrate when logged in
   useEffect(() => {
     if (!authReady || !user) return
     let cancelled = false
     ;(async () => {
       try {
         const supabase = createClient()
-        await migrateLocalWorkouts(supabase, user.id, loadSessions())
-        const remote = await fetchWorkouts(supabase, 80)
+        const result = await migrateLocalFitnessToCloud(supabase, user.id)
         if (cancelled) return
-        setSessions(remote)
-        saveSessions(remote)
-        syncDaysFromSessions(remote)
-        setCloudNote('訓練已 sync 上雲')
+        setSessions(result.workouts)
+        syncDaysFromSessions(result.workouts)
+        setCloudNote(result.note)
       } catch (e) {
         if (!cancelled) setCloudNote(e instanceof Error ? e.message : '訓練 sync 唔到')
       }
@@ -214,6 +222,18 @@ export function TrainClient() {
         if (navigator.vibrate) navigator.vibrate([40, 30, 40])
       } catch {
         /* ignore */
+      }
+      // Auto-focus weight for next set (fewer taps)
+      if (!restEndedFocus.current) {
+        restEndedFocus.current = true
+        window.setTimeout(() => {
+          const el = weightRef.current
+          if (el) {
+            el.focus()
+            el.select()
+          }
+          restEndedFocus.current = false
+        }, 80)
       }
       return
     }
@@ -299,6 +319,7 @@ export function TrainClient() {
 
     setRestLeft(restSec)
     setRestRunning(true)
+    restEndedFocus.current = false
     try {
       if (navigator.vibrate) navigator.vibrate(18)
     } catch {
@@ -387,6 +408,25 @@ export function TrainClient() {
         }
       })()
     }
+    // Fitness achievements
+    try {
+      const newly = evaluateFitnessAchievements({
+        sessions: next,
+        meals: [],
+        prs: loadPRs(),
+        already: loadFitnessUnlocked(),
+      })
+      if (newly.length) {
+        unlockFitnessAchievements(newly)
+        const a = fitnessAchievementById(newly[0])
+        if (a) {
+          setAchToast(`${a.emoji} ${a.title}`)
+          window.setTimeout(() => setAchToast(null), 2600)
+        }
+      }
+    } catch {
+      /* ignore */
+    }
   }
 
   const discardSession = () => {
@@ -403,6 +443,7 @@ export function TrainClient() {
   const [weekVolume, setWeekVolume] = useState(0)
   const [sparkline, setSparkline] = useState<number[]>([0, 0, 0, 0, 0, 0, 0])
   const [sparkLabels, setSparkLabels] = useState<string[]>(['一','二','三','四','五','六','日'])
+  const [historyCurve, setHistoryCurve] = useState<{ key: string; label: string; volume: number }[]>([])
   const [weekDays, setWeekDays] = useState<WeekDay[]>([])
   const [weekTrainCount, setWeekTrainCount] = useState(0)
   const [streak, setStreak] = useState(0)
@@ -440,6 +481,7 @@ export function TrainClient() {
       labs.push(labels[d.getDay() === 0 ? 6 : d.getDay() - 1])
     }
     setSparkLabels(labs)
+    setHistoryCurve(volumeByDay(sessions, 14))
   }, [sessions, ready])
 
   const setsByExercise = useMemo(() => {
@@ -547,12 +589,19 @@ export function TrainClient() {
               {!active ? (
                 <Stagger className="space-y-4">
                   <StaggerItem>
+                    <GymNudgeCard
+                      streak={streak}
+                      hasActiveSession={false}
+                      onStart={() => startSession()}
+                    />
+                  </StaggerItem>
+                  <StaggerItem>
                     <Card className="overflow-hidden relative">
                       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--accent-soft),_transparent_55%)] pointer-events-none" />
                       <div className="relative">
                         <CardTitle>未開波？</CardTitle>
                         <CardDesc className="mt-2 mb-5">
-                          撳下面開今日場。組間休息、上一組重量會自動跟住你。
+                          撳下面開今日場。組間休息完會自動 focus 重量——少撳幾吓。
                         </CardDesc>
                         <Button size="lg" className="w-full sm:w-auto" onClick={() => startSession()}>
                           <Play className="h-4 w-4" />
@@ -646,7 +695,7 @@ export function TrainClient() {
                           </div>
                           <p className="text-[11px] text-muted mt-0.5 leading-relaxed">
                             {restLeft === 0
-                              ? '呼吸定啲，再上就得。'
+                              ? '重量格已 focus——改完撳 Enter 或者「記低」就得。'
                               : restRunning
                                 ? '倒數緊——想加就 +15'
                                 : '已暫停'}
@@ -819,12 +868,23 @@ export function TrainClient() {
                                 −
                               </button>
                               <Input
+                                ref={weightRef}
                                 type="number"
                                 inputMode="decimal"
                                 step={2.5}
                                 value={weight}
                                 onChange={(e) => setWeight(Number(e.target.value) || 0)}
+                                onFocus={(e) => e.currentTarget.select()}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    addSet()
+                                  } else if (e.key === 'ArrowRight' || (e.key === 'Tab' && !e.shiftKey)) {
+                                    /* default tab ok */
+                                  }
+                                }}
                                 className="text-center text-xl font-semibold tabular-nums h-14 px-1"
+                                aria-label="重量公斤"
                               />
                               <button
                                 type="button"
@@ -859,11 +919,20 @@ export function TrainClient() {
                                 −
                               </button>
                               <Input
+                                ref={repsRef}
                                 type="number"
                                 inputMode="numeric"
                                 value={reps}
                                 onChange={(e) => setReps(Number(e.target.value) || 1)}
+                                onFocus={(e) => e.currentTarget.select()}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    addSet()
+                                  }
+                                }}
                                 className="text-center text-xl font-semibold tabular-nums h-14 px-1"
+                                aria-label="次數"
                               />
                               <button
                                 type="button"
@@ -1048,6 +1117,20 @@ export function TrainClient() {
               className="space-y-4"
             >
               <Card>
+                <div className="flex items-center justify-between mb-3">
+                  <CardTitle className="text-lg">近 14 日容量</CardTitle>
+                  <Badge tone="muted">曲線</Badge>
+                </div>
+                <Sparkline
+                  values={historyCurve.map((d) => d.volume)}
+                  labels={historyCurve.map((d) => d.label)}
+                />
+                <p className="mt-2 text-[11px] text-muted">
+                  同課表打通：喺「我」頁出計劃後一掣開波，完場會計入呢度。
+                </p>
+              </Card>
+
+              <Card>
                 <div className="flex items-center gap-2 mb-3">
                   <Trophy className="h-4 w-4 text-accent" />
                   <CardTitle className="text-lg">PR 牆</CardTitle>
@@ -1214,6 +1297,22 @@ export function TrainClient() {
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {achToast && (
+          <motion.div
+            className="fixed top-20 left-1/2 z-[60] -translate-x-1/2 rounded-2xl bg-accent text-white px-4 py-3 shadow-hover max-w-[90vw]"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={springSoft}
+            role="status"
+          >
+            <div className="text-xs opacity-80">解鎖成就</div>
+            <div className="text-sm font-medium">{achToast}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Finish modal */}
       <AnimatePresence>
         {finishOpen && lastAnalysis && (
@@ -1284,6 +1383,33 @@ export function TrainClient() {
                 </p>
               </div>
 
+              {lastFinished && lastAnalysis && (
+                <div className="mb-3">
+                  <ShareCardButton
+                    kind="workout"
+                    label="分享呢場"
+                    payload={{
+                      title: '搞掂！',
+                      volume: lastAnalysis.volume,
+                      sets: lastAnalysis.sets,
+                      durationSec: lastAnalysis.durationSec,
+                      topExercises: [
+                        ...new Map(
+                          lastFinished.sets.map((s) => [
+                            s.exerciseId,
+                            `${s.exerciseName} ${s.weightKg}×${s.reps}`,
+                          ])
+                        ).values(),
+                      ].slice(0, 5),
+                      dateLabel: new Date(lastFinished.endedAt || lastFinished.startedAt).toLocaleString(
+                        'zh-HK',
+                        { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
+                      ),
+                      tip: lastAnalysis.tips[0],
+                    }}
+                  />
+                </div>
+              )}
               <Button
                 className="w-full"
                 onClick={() => {

@@ -6,6 +6,13 @@ import { clientIpFromRequest } from '@/lib/request-ip'
 
 export const maxDuration = 60
 
+/**
+ * Vision meal estimate via Vercel AI Gateway (`AI_GATEWAY_MODEL` or gemini flash).
+ * NOTE (#2): Real AI still needs AI Gateway Credits — typically add a credit card /
+ * customer verification on the Vercel team. Without billing, client falls back to mock
+ * HK dish estimates. Codes: gateway_billing | gateway_quota.
+ */
+
 const DEFAULT_MODEL = 'google/gemini-2.5-flash'
 /** ~1.2MB base64 ≈ ~900KB binary after client compress */
 const MAX_DATA_URL_CHARS = 1_600_000

@@ -1,6 +1,6 @@
 import type { MealMacros } from './storage'
 
-/** HK-flavoured demo estimates for UI when no AI yet */
+/** HK-flavoured quick-add presets + demo estimates when AI Gateway unavailable */
 export const HK_DISH_ESTIMATES: {
   name: string
   hint: string
@@ -35,6 +35,36 @@ export const HK_DISH_ESTIMATES: {
     name: '番茄肉醬意粉',
     hint: '西式簡餐',
     macros: { kcal: 560, protein: 26, carbs: 72, fat: 16, fiber: 5 },
+  },
+  {
+    name: '白切雞飯',
+    hint: '茶記 · 皮油睇你',
+    macros: { kcal: 620, protein: 36, carbs: 70, fat: 18, fiber: 2 },
+  },
+  {
+    name: '魚蛋粉',
+    hint: '街邊小食 · 一碗',
+    macros: { kcal: 480, protein: 22, carbs: 62, fat: 14, fiber: 2 },
+  },
+  {
+    name: '雲吞麵',
+    hint: '細碗 · 大約 8 粒',
+    macros: { kcal: 450, protein: 24, carbs: 58, fat: 12, fiber: 2 },
+  },
+  {
+    name: '三文治套餐',
+    hint: '咖啡店 · 連飲品粗估',
+    macros: { kcal: 520, protein: 22, carbs: 48, fat: 24, fiber: 3 },
+  },
+  {
+    name: '牛肉飯',
+    hint: '茶記 · 滑蛋／炒蛋另計',
+    macros: { kcal: 700, protein: 34, carbs: 80, fat: 22, fiber: 2 },
+  },
+  {
+    name: '希臘乳酪水果',
+    hint: '高蛋白小食',
+    macros: { kcal: 280, protein: 22, carbs: 28, fat: 8, fiber: 3 },
   },
 ]
 
