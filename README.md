@@ -16,7 +16,7 @@
 ## Auth 同雲端
 
 - Supabase Auth：**Google OAuth（建議）**＋電郵六位數字（次選，唔係 magic link）
-- 登入後：訓練、飲食、目標、課表上雲；RLS 只得自己
+- 登入後：訓練、飲食、目標、課表同步去你個帳戶；RLS 只得自己
 - 訪客仍可用本機 localStorage；登入會遷移本機資料
 - `authRedirectTo()` 永遠用 `https://talktgtla.com`（`NEXT_PUBLIC_SITE_URL`），避免電郵／OAuth 跳去 localhost
 - **Dashboard 必須設定**（Authentication → URL Configuration）：

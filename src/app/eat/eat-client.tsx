@@ -45,11 +45,13 @@ import {
   clubProteinDishes,
   supplementDishes,
   filterHkDishes,
+  mealShortcuts,
   estimateFromFoodName,
   mockEstimateFromFile,
   scaleMacros,
   type DishBrand,
   type DishCategory,
+  type MealShortcut,
 } from '@/lib/fitness/meals-demo'
 import { ProteinWeekCard } from '@/components/fitness/protein-week-card'
 import { ProteinReminderCard } from '@/components/fitness/protein-reminder-card'
@@ -134,6 +136,8 @@ function mealTimeLabel(iso: string) {
 function periodLabel(k: PeriodKind) {
   return k === 'day' ? '日' : k === 'week' ? '週' : '月'
 }
+
+const MEAL_CHIPS = mealShortcuts()
 
 function periodMacroTip(opts: {
   period: PeriodKind
@@ -900,6 +904,46 @@ export function EatClient() {
     }
   }
 
+  const addShortcut = (chip: MealShortcut) => {
+    const entry: MealEntry = {
+      id: newId(),
+      createdAt: new Date().toISOString(),
+      name: chip.label,
+      macros: { ...chip.macros },
+      portion: 1,
+      estimated: true,
+      note: chip.vegSide ? chip.hint : `${chip.place}約數`,
+      source: 'mock',
+    }
+    const next = [entry, ...meals]
+    void persistList(next, entry)
+    if (period !== 'day' || todayKey(anchor) !== todayKey()) {
+      setPeriod('day')
+      setAnchor(startOfDay(new Date()))
+    }
+    showToast(
+      chip.vegSide
+        ? `已加${chip.label} · 約 ${chip.macros.kcal} kcal，蛋白約 ${chip.macros.protein}g`
+        : `已加${chip.label} · 約 ${chip.macros.kcal} kcal、${chip.macros.protein}g 蛋白`
+    )
+    try {
+      const newly = evaluateFitnessAchievements({
+        sessions: loadSessions(),
+        meals: next,
+        prs: loadPRs(),
+        proteinGoal: goals.proteinG,
+        already: loadFitnessUnlocked(),
+      })
+      if (newly.length) {
+        unlockFitnessAchievements(newly)
+        const a = fitnessAchievementById(newly[0])
+        if (a) showToast(`${a.emoji} 解鎖：${a.title}`)
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
   const shiftAnchor = (dir: -1 | 1) => {
     if (period === 'day') setAnchor((a) => addDays(a, dir))
     else if (period === 'week') setAnchor((a) => addDays(a, dir * 7))
@@ -1015,6 +1059,58 @@ export function EatClient() {
               <div className="text-[10px] text-muted mt-0.5 leading-snug">{desc}</div>
             </button>
           ))}
+        </div>
+
+        <div className="mb-4">
+          <div className="mb-1 flex items-baseline justify-between gap-2">
+            <h2 className="font-serif text-lg leading-tight">茶記／飯堂</h2>
+            <span className="text-[10px] text-muted">一撳入帳 · 數字係約</span>
+          </div>
+          <p className="mb-2 text-[11px] text-muted leading-relaxed">
+            蛋白睇蛋、肉、魚、豆腐、豆奶。碟菜約 1–2g，唔當蛋白。
+          </p>
+          {(['茶記', '飯堂'] as const).map((place) => (
+            <div key={place} className="mb-2">
+              <div className="mb-1 text-[10px] font-medium text-muted">
+                {place === '茶記' ? '茶餐廳' : '飯堂'}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {MEAL_CHIPS.filter((chip) => chip.place === place && !chip.vegSide).map((chip) => (
+                  <button
+                    key={chip.label}
+                    type="button"
+                    onClick={() => addShortcut(chip)}
+                    aria-label={`加${chip.label}，約 ${chip.macros.kcal} 卡路里、${chip.macros.protein} 克蛋白`}
+                    className="rounded-2xl border border-border bg-surface px-2.5 py-1.5 text-left shadow-soft touch-manipulation active:scale-[0.98]"
+                  >
+                    <span className="block text-[12px] font-semibold leading-tight">{chip.label}</span>
+                    <span className="mt-0.5 block text-[10px] tabular-nums text-muted">
+                      約 {chip.macros.kcal} · {chip.macros.protein}g 蛋白
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div>
+            <div className="mb-1 text-[10px] font-medium text-muted">碟菜 · 唔當蛋白</div>
+            <div className="flex flex-wrap gap-1.5">
+              {MEAL_CHIPS.filter((chip) => chip.vegSide).map((chip) => (
+                <button
+                  key={chip.label}
+                  type="button"
+                  onClick={() => addShortcut(chip)}
+                  aria-label={`加${chip.label}，約 ${chip.macros.kcal} 卡路里，蛋白約 ${chip.macros.protein} 克，碟菜冇咩蛋白`}
+                  className="rounded-2xl border border-border bg-surface-muted px-2.5 py-1.5 text-left touch-manipulation active:scale-[0.98]"
+                >
+                  <span className="block text-[12px] font-semibold leading-tight">{chip.label}</span>
+                  <span className="mt-0.5 block text-[10px] tabular-nums text-muted">
+                    約 {chip.macros.kcal} kcal · 蛋白約 {chip.macros.protein}g
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {!user && (
@@ -1135,7 +1231,7 @@ export function EatClient() {
               </div>
               {periodMeals.length === 0 ? (
                 <p className="mt-3 text-center text-[12px] leading-relaxed text-muted">
-                  呢段未有餐。下面可以港式快加、影相，或者手動入數。
+                  呢段未有餐。上面一掣茶記／飯堂，或者下面港式快加。
                 </p>
               ) : (
                 <div className="mt-3 space-y-2 border-t border-border/70 pt-3">
@@ -1465,6 +1561,7 @@ export function EatClient() {
                   <div className="text-[10px] text-accent mb-0.5">再食一次</div>
                   <div className="text-sm font-medium mb-0.5 line-clamp-1">{m.name}</div>
                   <div className="text-xs text-accent font-semibold tabular-nums">
+                    {m.estimated ? '約 ' : ''}
                     {m.macros.protein}g 蛋白 · {m.macros.kcal} kcal
                   </div>
                 </motion.button>
@@ -1599,7 +1696,7 @@ export function EatClient() {
                 <div className="text-sm font-medium mb-0.5">{d.name}</div>
                 <div className="text-[10px] text-muted mb-2 line-clamp-1">{d.hint}</div>
                 <div className="text-xs text-accent font-semibold tabular-nums">
-                  {shown.protein}g 蛋白 · {shown.kcal} kcal
+                  約 {shown.protein}g 蛋白 · {shown.kcal} kcal
                 </div>
               </motion.button>
             )})}
@@ -1634,7 +1731,7 @@ export function EatClient() {
                 <div className="text-sm font-medium mb-0.5">{d.name}</div>
                 <div className="text-[10px] text-muted mb-2 line-clamp-1">{d.hint}</div>
                 <div className="text-xs text-accent font-semibold tabular-nums">
-                  {d.macros.protein}g 蛋白 · {d.macros.kcal} kcal
+                  約 {d.macros.protein}g 蛋白 · {d.macros.kcal} kcal
                 </div>
               </motion.button>
             )})}
@@ -1668,7 +1765,7 @@ export function EatClient() {
                 <div className="text-sm font-medium mb-0.5">{d.name}</div>
                 <div className="text-[10px] text-muted mb-2 line-clamp-1">{d.hint}</div>
                 <div className="text-xs text-accent font-semibold tabular-nums">
-                  {d.macros.protein}g 蛋白 · {d.macros.kcal} kcal
+                  約 {d.macros.protein}g 蛋白 · {d.macros.kcal} kcal
                 </div>
               </motion.button>
             )})}
@@ -1864,7 +1961,7 @@ export function EatClient() {
                       </div>
                       <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
                         <Badge tone="accent">{m.macros.protein}g P</Badge>
-                        <Badge>{m.macros.kcal} kcal</Badge>
+                        <Badge>{m.estimated ? `約 ${m.macros.kcal}` : m.macros.kcal} kcal</Badge>
                         <Badge tone="muted">{m.macros.carbs}g C</Badge>
                         <Badge tone="muted">{m.macros.fat}g F</Badge>
                       </div>

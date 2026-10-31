@@ -707,9 +707,51 @@ export const HK_DISH_ESTIMATES: {
     macros: { kcal: 150, protein: 28, carbs: 2, fat: 3, fiber: 0 },
     category: '補劑',
   },
+
+  // —— 茶餐廳／飯堂口語名（一掣快加，數字係約） ——
+  {
+    name: '餐蛋麵',
+    hint: '茶記 · 午餐肉蛋麵粗估',
+    macros: { kcal: 540, protein: 22, carbs: 58, fat: 24, fiber: 2 },
+    category: '茶記',
+  },
+  {
+    name: '燒味飯',
+    hint: '茶記 · 燒味一份飯粗估',
+    macros: { kcal: 700, protein: 34, carbs: 78, fat: 26, fiber: 2 },
+    category: '茶記',
+  },
+  {
+    name: '碟菜',
+    hint: '茶記碟菜 · 菜心／芥蘭粗估 · 蛋白約 1g，唔當蛋白來源',
+    macros: { kcal: 70, protein: 1, carbs: 6, fat: 4, fiber: 2 },
+    category: '茶記',
+  },
+  {
+    name: '菜心',
+    hint: '茶記碟菜 · 一碟菜心粗估 · 蛋白約 1g',
+    macros: { kcal: 60, protein: 1, carbs: 5, fat: 3, fiber: 2 },
+    category: '茶記',
+  },
+  {
+    name: '蒸雞飯',
+    hint: '飯堂 · 蒸雞脾連飯粗估',
+    macros: { kcal: 560, protein: 42, carbs: 58, fat: 12, fiber: 3 },
+    category: '茶記',
+  },
+  {
+    name: '兩餸飯',
+    hint: '飯堂 · 蛋白係嗰碟肉／魚／蛋／豆腐，碟菜約 1g',
+    macros: { kcal: 620, protein: 22, carbs: 72, fat: 18, fiber: 4 },
+    category: '茶記',
+  },
+  {
+    name: '三餸飯',
+    hint: '飯堂 · 兩碟肉／魚／蛋／豆腐，碟菜約 1g',
+    macros: { kcal: 760, protein: 32, carbs: 80, fat: 26, fiber: 5 },
+    category: '茶記',
+  },
 ]
-
-
 
 export type DishBrand = '全部' | '譚仔' | '茶記街坊' | '大家樂' | '大快活' | '便利店補劑'
 
@@ -761,6 +803,55 @@ export function clubProteinDishes() {
 
 export function supplementDishes() {
   return HK_DISH_ESTIMATES.filter((d) => d.category === '補劑')
+}
+
+export type MealShortcut = {
+  /** Chip label — what people say */
+  label: string
+  /** Name written into the diary */
+  name: string
+  place: '茶記' | '飯堂'
+  macros: MealMacros
+  hint: string
+  /** 碟菜／素菜。蛋白只得約 0–2g，晶片唔當蛋白來源。 */
+  vegSide?: boolean
+}
+
+const SHORTCUT_DEFS: { label: string; name: string; place: '茶記' | '飯堂'; vegSide?: boolean }[] = [
+  { label: '叉燒飯', name: '叉燒飯', place: '茶記' },
+  { label: '燒味飯', name: '燒味飯', place: '茶記' },
+  { label: '乾炒牛河', name: '乾炒牛河', place: '茶記' },
+  { label: '雲吞麵', name: '雲吞麵', place: '茶記' },
+  { label: '餐蛋麵', name: '餐蛋麵', place: '茶記' },
+  { label: '豬扒飯', name: '豬扒飯', place: '茶記' },
+  { label: '白切雞飯', name: '白切雞飯', place: '茶記' },
+  { label: '魚蛋粉', name: '魚蛋粉', place: '茶記' },
+  { label: '焗豬扒飯', name: '焗豬扒飯', place: '茶記' },
+  { label: '菠蘿油', name: '菠蘿油', place: '茶記' },
+  { label: '西多', name: '西多士', place: '茶記' },
+  { label: '奶茶', name: '港式奶茶', place: '茶記' },
+  { label: '凍檸茶', name: '凍檸茶', place: '茶記' },
+  { label: '碟菜', name: '碟菜', place: '茶記', vegSide: true },
+  { label: '菜心', name: '菜心', place: '茶記', vegSide: true },
+  { label: '兩餸飯', name: '兩餸飯', place: '飯堂' },
+  { label: '三餸飯', name: '三餸飯', place: '飯堂' },
+  { label: '蒸雞飯', name: '蒸雞飯', place: '飯堂' },
+]
+
+/** One-tap 茶餐廳／飯堂 chips. Macros are local rough estimates. */
+export function mealShortcuts(): MealShortcut[] {
+  const out: MealShortcut[] = []
+  for (const def of SHORTCUT_DEFS) {
+    const dish = HK_DISH_ESTIMATES.find((d) => d.name === def.name)
+    if (!dish) continue
+    const protein = def.vegSide ? Math.min(2, Math.max(0, dish.macros.protein)) : dish.macros.protein
+    out.push({
+      ...def,
+      macros: { ...dish.macros, protein },
+      hint: dish.hint,
+    })
+  }
+  return out
 }
 
 export function mockEstimateFromFile(fileName: string): { name: string; macros: MealMacros } {
