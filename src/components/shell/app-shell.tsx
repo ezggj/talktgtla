@@ -1,6 +1,7 @@
 'use client'
 
 import { BottomNav } from './bottom-nav'
+import { FeedbackSheet } from '@/components/feedback/feedback-sheet'
 import { cn } from '@/lib/utils'
 
 export function AppShell({
@@ -26,6 +27,7 @@ export function AppShell({
       >
         {children}
       </div>
+      <FeedbackSheet fab />
       <BottomNav />
     </div>
   )

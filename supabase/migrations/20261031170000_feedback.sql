@@ -1,0 +1,2 @@
+-- Applied via Supabase MCP: create_feedback_table on project etbgulbuzezrdoqvvamy
+-- public.feedback + submit_feedback / list_feedback / update_feedback_status

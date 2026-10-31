@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { LoginCard } from '@/components/auth/login-card'
 import { SyncToast } from '@/components/ui/sync-toast'
+import { FeedbackSheet } from '@/components/feedback/feedback-sheet'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -432,6 +433,10 @@ export function MeClient() {
             </div>
           </StaggerItem>
           )}
+
+          <StaggerItem>
+            <FeedbackSheet card userId={user?.id ?? null} />
+          </StaggerItem>
 
           <StaggerItem>
             <CardDesc className="text-center text-[11px] px-2">

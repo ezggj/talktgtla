@@ -19,6 +19,56 @@ type AdminStats = {
   as_of: string
 }
 
+
+type FeedbackItem = {
+  id: string
+  created_at: string
+  body: string
+  category: string
+  page: string | null
+  contact: string | null
+  status: string
+  guest_id?: string | null
+  user_id?: string | null
+}
+
+const CATEGORY_LABEL: Record<string, string> = {
+  idea: '提議',
+  bug: '壞咗',
+  love: '讚好',
+  other: '其他',
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  new: '新',
+  seen: '已睇',
+  done: '搞掂',
+  wont: '唔做',
+}
+
+function relativeTimeHk(iso: string): string {
+  try {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return iso
+    const now = Date.now()
+    const diffSec = Math.round((now - d.getTime()) / 1000)
+    if (diffSec < 60) return '啱啱'
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)} 分鐘前`
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} 小時前`
+    if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)} 日前`
+    return new Intl.DateTimeFormat('zh-HK', {
+      timeZone: 'Asia/Hong_Kong',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(d)
+  } catch {
+    return iso
+  }
+}
+
 type StatCard = {
   label: string
   value: number | string
@@ -60,6 +110,11 @@ export default function AdminPage() {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [statsError, setStatsError] = useState('')
   const [statsLoading, setStatsLoading] = useState(false)
+  const [feedback, setFeedback] = useState<FeedbackItem[]>([])
+  const [feedbackError, setFeedbackError] = useState('')
+  const [feedbackLoading, setFeedbackLoading] = useState(false)
+  const [feedbackFilter, setFeedbackFilter] = useState<'all' | 'new' | 'seen' | 'done' | 'wont'>('all')
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   const loadStats = useCallback(async () => {
     setStatsLoading(true)
@@ -81,6 +136,48 @@ export default function AdminPage() {
     }
   }, [])
 
+  const loadFeedback = useCallback(async () => {
+    setFeedbackLoading(true)
+    setFeedbackError('')
+    try {
+      const q = feedbackFilter === 'all' ? '' : `?status=${feedbackFilter}`
+      const res = await fetch(`/api/admin/feedback${q}`)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setFeedbackError(data?.error || '讀取意見失敗')
+        setFeedback([])
+        return
+      }
+      setFeedback((data.feedback || []) as FeedbackItem[])
+    } catch {
+      setFeedbackError('網絡錯誤')
+      setFeedback([])
+    } finally {
+      setFeedbackLoading(false)
+    }
+  }, [feedbackFilter])
+
+  const setFeedbackStatus = async (id: string, status: string) => {
+    setUpdatingId(id)
+    try {
+      const res = await fetch('/api/admin/feedback', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setFeedbackError(data?.error || '更新失敗')
+        return
+      }
+      await loadFeedback()
+    } catch {
+      setFeedbackError('網絡錯誤')
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
   useEffect(() => {
     fetch('/api/admin/me')
       .then((r) => r.json())
@@ -88,16 +185,27 @@ export default function AdminPage() {
         const ok = Boolean(d?.admin)
         setIsAdmin(ok)
         setChecking(false)
-        if (ok) void loadStats()
+        if (ok) {
+          void loadStats()
+          void loadFeedback()
+        }
       })
       .catch(() => setChecking(false))
-  }, [loadStats])
+  }, [loadStats, loadFeedback])
 
   useEffect(() => {
     if (!isAdmin) return
-    const id = window.setInterval(() => void loadStats(), 60_000)
+    const id = window.setInterval(() => {
+      void loadStats()
+      void loadFeedback()
+    }, 60_000)
     return () => window.clearInterval(id)
-  }, [isAdmin, loadStats])
+  }, [isAdmin, loadStats, loadFeedback])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    void loadFeedback()
+  }, [isAdmin, loadFeedback])
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -116,6 +224,7 @@ export default function AdminPage() {
       setIsAdmin(true)
       setPassword('')
       void loadStats()
+      void loadFeedback()
     } catch {
       setError('網絡錯誤')
     } finally {
@@ -127,6 +236,7 @@ export default function AdminPage() {
     await fetch('/api/admin/logout', { method: 'POST' })
     setIsAdmin(false)
     setStats(null)
+    setFeedback([])
   }
 
   if (checking) {
@@ -289,6 +399,104 @@ export default function AdminPage() {
             ))}
           </div>
         )}
+
+
+        <section className="mt-8">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="font-serif text-xl tracking-tight">用戶意見</h2>
+              <p className="text-xs text-muted mt-0.5">最新 100 條 · 值得改就改</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(['all', 'new', 'seen', 'done', 'wont'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setFeedbackFilter(s)}
+                  className={`text-[11px] px-2.5 py-1 rounded-full border transition ${
+                    feedbackFilter === s
+                      ? 'bg-accent text-white border-accent'
+                      : 'border-border bg-surface text-muted hover:bg-black/[0.03]'
+                  }`}
+                >
+                  {s === 'all' ? '全部' : STATUS_LABEL[s]}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => void loadFeedback()}
+                disabled={feedbackLoading}
+                className="text-sm px-2.5 py-1 rounded-xl border border-border bg-surface hover:bg-black/[0.03] disabled:opacity-50"
+              >
+                {feedbackLoading ? '…' : '刷新'}
+              </button>
+            </div>
+          </div>
+
+          {feedbackError ? (
+            <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {feedbackError}
+            </div>
+          ) : null}
+
+          {feedbackLoading && feedback.length === 0 ? (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-24 rounded-[20px] border border-border bg-surface skeleton-pulse" />
+              ))}
+            </div>
+          ) : feedback.length === 0 ? (
+            <div className="rounded-[20px] border border-dashed border-border bg-surface px-4 py-8 text-center text-sm text-muted">
+              暫時未有意見
+            </div>
+          ) : (
+            <ul className="space-y-2.5">
+              {feedback.map((f) => (
+                <li
+                  key={f.id}
+                  className="rounded-[20px] border border-border bg-surface p-4 shadow-soft"
+                >
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <span className="inline-flex items-center rounded-full bg-accent-soft px-2.5 py-0.5 text-[11px] font-medium text-accent">
+                      {CATEGORY_LABEL[f.category] || f.category}
+                    </span>
+                    <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
+                      {STATUS_LABEL[f.status] || f.status}
+                    </span>
+                    <span className="text-[11px] text-muted">{relativeTimeHk(f.created_at)}</span>
+                    {f.page ? (
+                      <span className="text-[11px] text-muted font-mono">{f.page}</span>
+                    ) : null}
+                  </div>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{f.body}</p>
+                  {f.contact ? (
+                    <p className="mt-2 text-[11px] text-muted break-all">聯絡：{f.contact}</p>
+                  ) : null}
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {(
+                      [
+                        { status: 'seen', label: '已睇' },
+                        { status: 'done', label: '搞掂' },
+                        { status: 'wont', label: '唔做' },
+                        { status: 'new', label: '重置' },
+                      ] as const
+                    ).map((b) => (
+                      <button
+                        key={b.status}
+                        type="button"
+                        disabled={updatingId === f.id || f.status === b.status}
+                        onClick={() => void setFeedbackStatus(f.id, b.status)}
+                        className="text-[11px] px-2.5 py-1 rounded-xl border border-border bg-[#fafaf9] hover:bg-accent-soft/60 disabled:opacity-40"
+                      >
+                        {b.label}
+                      </button>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         <p className="mt-6 text-[11px] text-muted leading-relaxed">
           入口保持低調：直接開 /admin、長按傾偈標題、或 Ctrl+Shift+A。一般用戶睇唔到。每分鐘自動刷新一次。

@@ -229,3 +229,21 @@ body {
 .thumb-cta {
   padding-bottom: 0.25rem;
 }
+
+/* Feedback FAB — above mobile bottom nav; desktop floats bottom-right */
+.feedback-fab {
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + 0.5rem);
+}
+@media (min-width: 768px) {
+  .feedback-fab {
+    bottom: 1.5rem;
+  }
+}
+.feedback-fab-sheet {
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + 4.5rem);
+}
+@media (min-width: 768px) {
+  .feedback-fab-sheet {
+    bottom: 6rem;
+  }
+}
