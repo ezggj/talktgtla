@@ -15,6 +15,8 @@ import {
   Timer,
   Trophy,
   Users,
+  Volume2,
+  VolumeX,
   X,
 } from 'lucide-react'
 import { AppShell } from '@/components/shell/app-shell'
@@ -43,6 +45,7 @@ import { ExerciseHowTo, ExerciseHowToHint } from '@/components/fitness/exercise-
 import {
   type WorkoutSession,
   type WorkoutSet,
+  type SetOutcome,
   loadActiveSession,
   loadPRs,
   loadSessions,
@@ -73,6 +76,13 @@ import { createClient } from '@/lib/supabase/client'
 import { buzzLight, notifyRestDone, flashDocumentTitle, armRestNotification } from '@/lib/fitness/haptic'
 import { buildOverloadTip } from '@/lib/fitness/overload-tip'
 import { InstallPrompt } from '@/components/pwa/install-prompt'
+import {
+  loadTrainSfxEnabled,
+  saveTrainSfxEnabled,
+  sfxLogSet,
+  sfxRestDone,
+  sfxRestTick,
+} from '@/lib/fitness/train-sfx'
 import {
   DEFAULT_WEEKLY_PPL,
   SCHEDULE_PRESETS,
@@ -176,6 +186,9 @@ export function TrainClient() {
   const restEndedFocus = useRef(false)
   const [restReadyNext, setRestReadyNext] = useState(false)
   const [overloadDismissedId, setOverloadDismissedId] = useState<string | null>(null)
+  const [sfxOn, setSfxOn] = useState(true)
+  const [restFullscreen, setRestFullscreen] = useState(true)
+  const [pendingOutcome, setPendingOutcome] = useState<SetOutcome>('ok')
 
   // Derived / secondary state — must stay above ready/authReady gate (React #310)
   const [todayDone, setTodayDone] = useState<WorkoutSession[]>([])
@@ -230,6 +243,7 @@ export function TrainClient() {
     setPrs(loadPRs())
     const a = loadActiveSession()
     setActive(a)
+    setSfxOn(loadTrainSfxEnabled())
     setReady(true)
   }, [])
 
@@ -381,6 +395,7 @@ export function TrainClient() {
     if (restLeft <= 0) {
       setRestRunning(false)
       setRestLeft(0)
+      sfxRestDone()
       void notifyRestDone()
       flashDocumentTitle('休息完 · 下一組')
       setRestReadyNext(true)
@@ -403,6 +418,7 @@ export function TrainClient() {
       }
       return
     }
+    if (restLeft <= 3 && restLeft > 0) sfxRestTick()
     const id = window.setTimeout(() => setRestLeft((v) => (v == null ? v : v - 1)), 1000)
     return () => window.clearTimeout(id)
   }, [restRunning, restLeft])
@@ -468,7 +484,7 @@ export function TrainClient() {
     pickExercise(exerciseId)
   }
 
-  const addSet = () => {
+  const addSet = (outcome: SetOutcome = pendingOutcome) => {
     if (!active || !selectedEx) return
     const ex = exerciseById(selectedEx)
     if (!ex) return
@@ -482,6 +498,7 @@ export function TrainClient() {
       reps,
       restSec,
       completedAt: new Date().toISOString(),
+      outcome,
     }
     const next = { ...active, sets: [...active.sets, row] }
     persistActive(next)
@@ -505,10 +522,25 @@ export function TrainClient() {
 
     setRestLeft(restSec)
     setRestRunning(true)
+    setRestFullscreen(true)
     restEndedFocus.current = false
     setRestReadyNext(false)
+    setPendingOutcome('ok')
     buzzLight()
+    sfxLogSet()
     void armRestNotification(restSec)
+  }
+
+  const cycleSetOutcome = (setId: string) => {
+    if (!active) return
+    const order: SetOutcome[] = ['ok', 'half', 'fail']
+    const nextSets = active.sets.map((s) => {
+      if (s.id !== setId) return s
+      const cur = s.outcome || 'ok'
+      const i = order.indexOf(cur)
+      return { ...s, outcome: order[(i + 1) % order.length] }
+    })
+    persistActive({ ...active, sets: nextSets })
   }
 
   const bumpWeight = (delta: number) => {
@@ -555,8 +587,10 @@ export function TrainClient() {
     window.setTimeout(() => setJustAdded(null), 500)
     setRestLeft(restSec)
     setRestRunning(true)
+    setRestFullscreen(true)
     setRestReadyNext(false)
     buzzLight()
+    sfxLogSet()
     void armRestNotification(restSec)
   }
 
@@ -653,7 +687,7 @@ export function TrainClient() {
           compact
           eyebrow="訓練"
           title="今日練咩？"
-          description="開波 → 搵動作 → 記組"
+          description="撳開波就得"
           trailing={
             active && !active.endedAt ? (
               <div className="shrink-0 rounded-2xl border border-border/80 bg-surface px-3 py-2 shadow-soft text-right">
@@ -996,6 +1030,13 @@ export function TrainClient() {
                             <span className="truncate">
                               {restLeft === 0 ? '休息完 · 下一組啦' : '組間休息'}
                             </span>
+                            <button
+                              type="button"
+                              onClick={() => setRestFullscreen(true)}
+                              className="ml-auto shrink-0 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-accent touch-manipulation"
+                            >
+                              放大
+                            </button>
                           </div>
                           <p className="text-[11px] text-muted mt-0.5 leading-relaxed">
                             {restLeft === 0
@@ -1331,31 +1372,74 @@ export function TrainClient() {
                           </div>
                         </div>
 
+                        <div className="mb-2.5 flex gap-1.5">
+                          {(
+                            [
+                              { id: 'ok' as const, label: '正常組' },
+                              { id: 'half' as const, label: '半組' },
+                              { id: 'fail' as const, label: '失敗組' },
+                            ] as const
+                          ).map((o) => (
+                            <button
+                              key={o.id}
+                              type="button"
+                              onClick={() => setPendingOutcome(o.id)}
+                              className={cn(
+                                'flex-1 rounded-2xl border py-2.5 text-[12px] font-semibold touch-manipulation min-h-[48px]',
+                                pendingOutcome === o.id
+                                  ? o.id === 'fail'
+                                    ? 'border-danger/40 bg-danger/10 text-danger'
+                                    : o.id === 'half'
+                                      ? 'border-warning/40 bg-warning/10 text-warning'
+                                      : 'border-accent bg-accent-soft text-accent'
+                                  : 'border-border text-muted hover:text-foreground'
+                              )}
+                            >
+                              {o.label}
+                            </button>
+                          ))}
+                        </div>
                         <div className="flex gap-2 mb-2">
-                          <motion.div className="flex-[1.6]" whileTap={reduce ? undefined : { scale: 0.98 }} transition={springSnappy}>
+                          <motion.div className="flex-[1.7]" whileTap={reduce ? undefined : { scale: 0.98 }} transition={springSnappy}>
                             <Button
                               size="xl"
                               className={cn(
-                                'w-full text-base gap-2 h-16 rounded-[18px] shadow-hover touch-manipulation',
+                                'w-full text-lg gap-2 h-[4.5rem] rounded-[20px] shadow-hover touch-manipulation',
                                 restReadyNext && 'rest-done-glow ring-2 ring-accent/25'
                               )}
-                              onClick={addSet}
+                              onClick={() => addSet()}
                             >
-                              <Plus className="h-6 w-6" />
+                              <Plus className="h-7 w-7" />
                               {restReadyNext ? '下一組 · ' : '記低 · '}
                               {weight}×{reps}
+                              {pendingOutcome === 'half' ? ' · 半' : pendingOutcome === 'fail' ? ' · 敗' : ''}
                             </Button>
                           </motion.div>
                           <Button
                             size="xl"
                             variant="secondary"
-                            className="flex-1 h-14 text-sm px-3"
+                            className="flex-1 h-[4.5rem] text-base px-3 rounded-[20px]"
                             disabled={!lastLoggedForSelected}
                             onClick={repeatLastSet}
                             title="同上組重量次數再記一組"
                           >
                             同上
                           </Button>
+                        </div>
+                        <div className="mb-2 flex items-center justify-between px-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = !sfxOn
+                              setSfxOn(next)
+                              saveTrainSfxEnabled(next)
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-[11px] text-muted touch-manipulation"
+                          >
+                            {sfxOn ? <Volume2 className="h-3.5 w-3.5 text-accent" /> : <VolumeX className="h-3.5 w-3.5" />}
+                            {sfxOn ? '音效開' : '音效關'}
+                          </button>
+                          <span className="text-[10px] text-muted">失敗／半組可之後喺列表改</span>
                         </div>
                         {nextPlanExercise && planQueue.length <= 1 && (
                           <button
@@ -1409,15 +1493,31 @@ export function TrainClient() {
                               <li
                                 key={s.id}
                                 className={cn(
-                                  'flex items-center justify-between rounded-xl bg-surface-muted border border-border px-3 py-2 text-sm',
-                                  justAdded === s.id && 'pr-burst ring-2 ring-accent/25'
+                                  'flex items-center justify-between rounded-xl bg-surface-muted border border-border px-3 py-2.5 text-sm gap-2',
+                                  justAdded === s.id && 'pr-burst ring-2 ring-accent/25',
+                                  s.outcome === 'fail' && 'border-danger/30 bg-danger/5',
+                                  s.outcome === 'half' && 'border-warning/30 bg-warning/5'
                                 )}
                               >
-                                <span className="text-muted tabular-nums w-8">#{s.setIndex}</span>
-                                <span className="font-medium tabular-nums">
+                                <span className="text-muted tabular-nums w-8 shrink-0">#{s.setIndex}</span>
+                                <span className="font-medium tabular-nums flex-1">
                                   {s.weightKg} kg × {s.reps}
                                 </span>
-                                <Check className="h-3.5 w-3.5 text-accent" />
+                                <button
+                                  type="button"
+                                  onClick={() => cycleSetOutcome(s.id)}
+                                  className={cn(
+                                    'shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold border touch-manipulation',
+                                    s.outcome === 'fail'
+                                      ? 'border-danger/40 text-danger'
+                                      : s.outcome === 'half'
+                                        ? 'border-warning/40 text-warning'
+                                        : 'border-accent/30 text-accent'
+                                  )}
+                                  title="撳一下切換：正常／半組／失敗"
+                                >
+                                  {s.outcome === 'fail' ? '失敗' : s.outcome === 'half' ? '半組' : '正常'}
+                                </button>
                               </li>
                             ))}
                           </ul>
@@ -1428,12 +1528,12 @@ export function TrainClient() {
 
                   <div className={`thumb-cta sticky z-20 -mx-1 px-1 pt-2 pb-1 bg-gradient-to-t from-background via-background to-transparent ${selectedEx ? 'above-nav-stack' : 'above-nav-gap'}`}>
                     <div className="flex gap-2">
-                      <Button variant="secondary" size="xl" className="flex-1 h-14" onClick={discardSession}>
+                      <Button variant="secondary" size="xl" className="flex-1 h-16 rounded-[20px] text-base" onClick={discardSession}>
                         放棄
                       </Button>
                       <Button
                         size="xl"
-                        className="flex-[1.6] h-14 text-base"
+                        className="flex-[1.6] h-16 text-lg rounded-[20px]"
                         disabled={active.sets.length === 0}
                         onClick={finishSession}
                       >
@@ -1458,10 +1558,10 @@ export function TrainClient() {
               className="space-y-6"
             >
               <p className="text-[11px] text-muted leading-relaxed px-0.5">
-                用詞統一：<span className="font-semibold text-foreground">開波</span>
-                ＝開始今日場；
+                <span className="font-semibold text-foreground">開波</span>
+                ＝今日場 · 
                 <span className="font-semibold text-foreground">課表</span>
-                ＝你跟住緊嘅一週安排；下面三欄分開睇。
+                ＝一週安排。示範腿日喺下面最醒目。
               </p>
 
               {/* —— 1. 跟住緊 —— */}
@@ -1729,6 +1829,7 @@ export function TrainClient() {
                                 size="sm"
                                 variant="secondary"
                                 onClick={() => {
+                                  if (!window.confirm(`刪除「${cp.name}」？唔可以復原。`)) return
                                   deleteCustomDayPlan(cp.id)
                                   setCustomPlans(loadCustomDayPlans())
                                 }}
@@ -1742,9 +1843,16 @@ export function TrainClient() {
                     </Stagger>
                   </div>
                 ) : (
-                  <p className="text-[11px] text-muted px-0.5 leading-relaxed">
-                    未有自訂——上面週模板撳「存」，或者用砌課表整一套。
-                  </p>
+                  <EmptyState
+                    compact
+                    emoji="📋"
+                    title="未有自訂課表"
+                    description="跟示範腿日，或者上面週模板撳「存」／砌一套。"
+                    actionLabel="睇週模板"
+                    onAction={() => {
+                      document.getElementById('plan-col-presets')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }}
+                  />
                 )}
               </section>
 
@@ -1810,9 +1918,16 @@ export function TrainClient() {
                   破個人最佳會即時彈 toast；完整清單永遠喺「歷史」呢度。
                 </p>
                 {Object.keys(prs).length === 0 ? (
-                  <p className="text-sm text-muted leading-relaxed">
-                    未有個人最佳——去今日開波記第一組，破紀錄就會喺度出現。
-                  </p>
+                  <EmptyState
+                    compact
+                    emoji="🏆"
+                    title="未有個人最佳"
+                    description="開波記第一組，破紀錄就會喺度出現。"
+                    actionLabel="去今日開波"
+                    onAction={() => setTab('today')}
+                    secondaryLabel="跟示範腿日"
+                    onSecondary={() => setTab('templates')}
+                  />
                 ) : (
                   <ul className="space-y-2">
                     {Object.entries(prs)
@@ -1931,16 +2046,133 @@ export function TrainClient() {
         )}
       </PageTransition>
 
+
+      {/* Fullscreen rest countdown */}
+      <AnimatePresence>
+        {restLeft != null && restFullscreen && (
+          <motion.div
+            key="rest-fs"
+            className="fixed inset-0 z-[70] flex flex-col bg-[#0c0f0e]/92 text-white backdrop-blur-md"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            role="dialog"
+            aria-label="組間休息倒數"
+          >
+            <div className="flex items-center justify-between px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-2">
+              <div className="text-sm font-medium text-white/80">
+                {restLeft === 0 ? '休息完 · 下一組' : '組間休息'}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !sfxOn
+                    setSfxOn(next)
+                    saveTrainSfxEnabled(next)
+                  }}
+                  className="rounded-full border border-white/20 bg-white/10 p-2.5 touch-manipulation"
+                  aria-label={sfxOn ? '關閉音效' : '開啟音效'}
+                >
+                  {sfxOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRestFullscreen(false)}
+                  className="rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium touch-manipulation"
+                >
+                  縮小
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-1 flex-col items-center justify-center px-6 pb-24">
+              <div
+                className={cn(
+                  'font-serif tabular-nums tracking-tight leading-none',
+                  restLeft === 0 ? 'text-6xl text-teal-300' : 'text-[7.5rem] sm:text-[9rem]'
+                )}
+              >
+                {restLeft === 0 ? '✓' : formatRest(restLeft)}
+              </div>
+              <p className="mt-4 text-center text-sm text-white/70 max-w-xs leading-relaxed">
+                {restLeft === 0
+                  ? '準備下一組——撳下面繼續記'
+                  : selectedEx
+                    ? `${exerciseById(selectedEx)?.nameZh || ''} · 休息完自動跳返記組`
+                    : '休息完自動跳返記組'}
+              </p>
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+                {[60, 90, 120].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => {
+                      setRestSec(s)
+                      setRestLeft(s)
+                      setRestRunning(true)
+                      void armRestNotification(s)
+                    }}
+                    className={cn(
+                      'min-h-12 rounded-full px-5 text-sm font-semibold border touch-manipulation',
+                      restSec === s ? 'border-teal-300 bg-teal-400/20 text-teal-100' : 'border-white/25 text-white/80'
+                    )}
+                  >
+                    {s}s
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRestLeft((v) => Math.max(0, (v ?? 0) + 15))
+                    setRestRunning(true)
+                  }}
+                  className="min-h-12 rounded-full border border-white/25 px-5 text-sm font-semibold text-white/80 touch-manipulation"
+                >
+                  +15
+                </button>
+              </div>
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRestRunning((v) => !v)}
+                  className="min-h-12 rounded-full border border-white/25 px-6 text-sm font-semibold touch-manipulation inline-flex items-center gap-2"
+                >
+                  {restRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  {restRunning ? '暫停' : '繼續'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRestLeft(null)
+                    setRestRunning(false)
+                    setRestFullscreen(false)
+                    setRestReadyNext(true)
+                    window.setTimeout(() => {
+                      loggerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                      weightRef.current?.focus()
+                      weightRef.current?.select()
+                    }, 50)
+                  }}
+                  className="min-h-12 rounded-full bg-teal-600 px-6 text-sm font-semibold touch-manipulation"
+                >
+                  跳過 · 下一組
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Exercise picker */}
       {active && selectedEx && tab === 'today' && (
         <div className="one-hand-sticky fixed above-nav-gap left-0 right-0 z-40 px-4 pointer-events-none sm:hidden md:hidden">
           <div className="mx-auto max-w-lg pointer-events-auto">
             <Button
               size="xl"
-              className="w-full h-14 rounded-[18px] shadow-hover text-base touch-manipulation"
-              onClick={addSet}
+              className="w-full h-16 rounded-[20px] shadow-hover text-lg touch-manipulation"
+              onClick={() => addSet()}
             >
-              <Plus className="h-5 w-5" />
+              <Plus className="h-6 w-6" />
               記低 · {weight}×{reps}
             </Button>
           </div>

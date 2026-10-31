@@ -1,5 +1,7 @@
 /** Local cache + guest mode. Logged-in users sync via lib/fitness/cloud.ts */
 
+export type SetOutcome = 'ok' | 'fail' | 'half'
+
 export type WorkoutSet = {
   id: string
   exerciseId: string
@@ -9,6 +11,8 @@ export type WorkoutSet = {
   reps: number
   restSec?: number
   completedAt: string
+  /** Local-first: 失敗組／半組 */
+  outcome?: SetOutcome
 }
 
 export type WorkoutSession = {
