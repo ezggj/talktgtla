@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ChevronDown, Cloud, Dumbbell, Flame, MessageCircle, Target, Trophy, Utensils } from 'lucide-react'
+import { ChevronDown, Cloud, Dumbbell, Flame, MessageCircle, Target, Trophy, Utensils, Settings } from 'lucide-react'
 import { AppShell } from '@/components/shell/app-shell'
 import { PageTransition } from '@/components/motion/page-transition'
 import { Stagger, StaggerItem } from '@/components/motion/stagger'
@@ -18,9 +18,6 @@ import { Badge } from '@/components/ui/badge'
 import { LoginCard } from '@/components/auth/login-card'
 import { SyncToast } from '@/components/ui/sync-toast'
 import { FeedbackSheet } from '@/components/feedback/feedback-sheet'
-import { ThemeToggleCard } from '@/components/shell/theme-toggle'
-import { FontScaleCard } from '@/components/shell/font-scale-card'
-import { InstallPrompt } from '@/components/pwa/install-prompt'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -299,10 +296,6 @@ export function MeClient() {
           </StaggerItem>
 
           <StaggerItem>
-            <InstallPrompt variant="card" />
-          </StaggerItem>
-
-          <StaggerItem>
             <HkGymEntryCard />
           </StaggerItem>
 
@@ -489,11 +482,21 @@ export function MeClient() {
           )}
 
           <StaggerItem>
-            <ThemeToggleCard />
-          </StaggerItem>
-
-          <StaggerItem>
-            <FontScaleCard />
+            <Link
+              href="/me/settings"
+              className="flex items-center gap-3 rounded-[20px] border border-accent/30 bg-accent-soft/40 px-4 py-4 shadow-soft hover:shadow-hover hover:border-accent/50 transition touch-manipulation"
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent text-white">
+                <Settings className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-base font-semibold text-foreground">設定</div>
+                <p className="mt-0.5 text-[12px] text-muted leading-relaxed">
+                  主題色 · 深淺 · 字體 · 通知 · 加主畫面 · 音效 · 凑局花名
+                </p>
+              </div>
+              <span className="text-accent text-sm font-medium shrink-0">去開 →</span>
+            </Link>
           </StaggerItem>
 
           <StaggerItem>
