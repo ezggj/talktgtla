@@ -3,49 +3,65 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fafaf9;
+  --foreground: #1a1a1a;
+  --surface: #ffffff;
+  --muted: #6b6b6b;
+  --accent: #0f766e;
+  --accent-soft: #ccfbf1;
+  --border: #e7e5e4;
+  --danger: #b91c1c;
+  --warning: #b45309;
+  --radius: 18px;
+  --shadow-soft: 0 1px 2px rgba(26, 26, 26, 0.04), 0 8px 24px rgba(26, 26, 26, 0.04);
+  --shadow-hover: 0 2px 4px rgba(26, 26, 26, 0.05), 0 12px 28px rgba(26, 26, 26, 0.08);
+  --nav-h: 4.75rem;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-border: var(--border);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-instrument), ui-serif, Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --shadow-soft: var(--shadow-soft);
+  --shadow-hover: var(--shadow-hover);
 }
 
-html.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+html {
+  color-scheme: light;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  line-height: 1.65;
   -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-@keyframes msg-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.font-serif {
+  font-family: var(--font-serif);
 }
 
-@keyframes reply-bar-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+.shadow-hover {
+  box-shadow: var(--shadow-hover);
 }
 
 .chat-messages {
@@ -54,74 +70,60 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-.chat-msg {
-  animation: msg-in 220ms ease-out both;
+@keyframes msg-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.chat-reply-bar {
-  animation: reply-bar-in 180ms ease-out both;
+@keyframes reply-bar-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes emoji-picker-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.emoji-picker {
-  animation: emoji-picker-in 160ms ease-out both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chat-messages {
-    scroll-behavior: auto;
-  }
-
-  .chat-msg,
-  .chat-reply-bar,
-  .emoji-picker {
-    animation: none;
-  }
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes welcome-in {
-  from {
-    opacity: 0;
-    transform: translateY(16px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -8px);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }
 
-.welcome-card {
-  animation: welcome-in 220ms ease-out both;
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
 }
 
-.achievement-toast {
-  animation: toast-in 200ms ease-out both;
+@keyframes pr-burst {
+  0% { transform: scale(0.8); opacity: 0; }
+  40% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
+
+.chat-msg { animation: msg-in 220ms ease-out both; }
+.chat-reply-bar { animation: reply-bar-in 180ms ease-out both; }
+.emoji-picker { animation: emoji-picker-in 160ms ease-out both; }
+.welcome-card { animation: welcome-in 220ms ease-out both; }
+.achievement-toast { animation: toast-in 200ms ease-out both; }
+.skeleton-pulse { animation: pulse-soft 1.4s ease-in-out infinite; }
+.pr-burst { animation: pr-burst 480ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .welcome-card,
-  .achievement-toast {
+  .chat-messages { scroll-behavior: auto; }
+  .chat-msg, .chat-reply-bar, .emoji-picker, .welcome-card, .achievement-toast, .skeleton-pulse, .pr-burst {
     animation: none;
   }
 }
+
+/* Hide scrollbar for slang chips etc. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }

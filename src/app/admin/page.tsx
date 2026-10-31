@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 /** Discreet admin login — not linked from the public chat UI. */
 export default function AdminLoginPage() {
@@ -45,40 +46,39 @@ export default function AdminLoginPage() {
 
   if (checking) {
     return (
-      <div className="min-h-dvh flex items-center justify-center bg-white dark:bg-zinc-900 text-sm text-zinc-500">
+      <div className="min-h-dvh flex items-center justify-center bg-background text-sm text-muted">
         …
       </div>
     )
   }
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 p-4">
+    <div className="min-h-dvh flex items-center justify-center bg-background p-4">
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 p-4 shadow-xl border border-zinc-200 dark:border-zinc-700"
+        className="w-full max-w-sm rounded-[20px] bg-surface p-6 shadow-hover border border-border"
       >
-        <h1 className="text-base font-semibold mb-3">管理員</h1>
+        <h1 className="font-serif text-2xl tracking-tight mb-4">管理員</h1>
         <input
           type="password"
           autoFocus
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="管理員密碼"
-          className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400/50 mb-2 bg-transparent"
+          className="w-full border border-border rounded-2xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/25 mb-2 bg-surface"
         />
-        {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
-        <div className="flex gap-2 justify-end">
-          <button
-            type="button"
-            onClick={() => router.push('/')}
-            className="text-sm px-3 py-1.5 rounded-lg text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+        {error && <p className="text-xs text-danger mb-2">{error}</p>}
+        <div className="flex gap-2 justify-end mt-2">
+          <Link
+            href="/"
+            className="text-sm px-3 py-1.5 rounded-xl text-muted hover:bg-black/[0.04]"
           >
             返回
-          </button>
+          </Link>
           <button
             type="submit"
             disabled={busy || !password}
-            className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+            className="text-sm px-3 py-1.5 rounded-xl bg-accent text-white hover:bg-[#0d6a63] disabled:opacity-50"
           >
             {busy ? '登入中…' : '登入'}
           </button>

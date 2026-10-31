@@ -22,6 +22,7 @@ import {
   sanitizeUsername,
 } from '@/lib/sanitize'
 import { applyTheme, resolveInitialTheme, type ThemeMode } from '@/lib/theme'
+import { AppShell } from '@/components/shell/app-shell'
 
 type Message = {
   id: number
@@ -182,8 +183,9 @@ export default function Chat() {
 
   useEffect(() => {
     const mode = resolveInitialTheme()
+    // Premium redesign: prefer calm light; keep stored preference
     setThemeMode(mode)
-    applyTheme(mode)
+    applyTheme(mode === 'dark' ? 'dark' : 'light')
     setShowWelcome(!isWelcomeDismissed())
     setUnlocked(loadUnlocked())
     setStats(loadStats())
@@ -653,14 +655,15 @@ export default function Chat() {
   }
 
   return (
-    <div className="flex flex-col h-dvh max-w-2xl mx-auto bg-white dark:bg-zinc-900 overflow-hidden">
-      <header className="px-3 py-2 border-b bg-zinc-100/90 dark:bg-zinc-800/90 backdrop-blur-sm shrink-0 z-10">
+    <AppShell flush>
+    <div className="flex flex-col h-[calc(100dvh-var(--nav-h)-var(--safe-bottom))] md:h-dvh max-w-2xl mx-auto bg-background overflow-hidden">
+      <header className="px-4 py-3.5 border-b border-border bg-surface/90 backdrop-blur-md shrink-0 z-10">
         <div className="relative flex items-center justify-center gap-2">
           <div className="absolute left-0 flex items-center gap-2">
             <button
               type="button"
               onClick={toggleTheme}
-              className="text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              className="text-[11px] text-muted hover:text-foreground transition-colors"
               aria-label={themeMode === 'dark' ? '轉日間模式' : '轉夜間模式'}
               title={themeMode === 'dark' ? '日間' : '夜間'}
             >
@@ -669,7 +672,7 @@ export default function Chat() {
             <button
               type="button"
               onClick={() => setShowBadges(true)}
-              className="text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              className="text-[11px] text-muted hover:text-foreground transition-colors"
               aria-label="徽章"
             >
               徽章{unlocked.size > 0 ? ` ${unlocked.size}` : ''}
@@ -677,7 +680,7 @@ export default function Chat() {
           </div>
           <div className="text-center">
             <h1
-              className="text-base font-bold tracking-tight leading-tight select-none"
+              className="font-serif text-xl tracking-tight leading-tight select-none text-foreground"
               onPointerDown={(e) => {
                 // Long-press title (~1.2s) opens discreet admin login
                 const target = e.currentTarget
@@ -698,7 +701,7 @@ export default function Chat() {
             >
               Talk tgt la
             </h1>
-            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 tabular-nums" aria-live="polite">
+            <p className="text-[11px] text-accent tabular-nums font-medium" aria-live="polite">
               {onlineCount == null
                 ? '…'
                 : onlineCount <= 0
@@ -712,14 +715,14 @@ export default function Chat() {
                 <button
                   type="button"
                   onClick={() => void loadBans()}
-                  className="text-[10px] text-amber-700 dark:text-amber-300"
+                  className="text-[11px] text-warning font-medium"
                 >
                   封鎖
                 </button>
                 <button
                   type="button"
                   onClick={() => void logoutAdmin()}
-                  className="text-[10px] text-zinc-500 underline"
+                  className="text-[11px] text-muted underline underline-offset-2"
                 >
                   登出
                 </button>
@@ -730,7 +733,7 @@ export default function Chat() {
       </header>
 
       {!isSupabaseConfigured && (
-        <div className="mx-4 mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
+        <div className="mx-4 mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           未設定 Supabase。請喺 Vercel 加環境變數
           <code className="mx-1">NEXT_PUBLIC_SUPABASE_URL</code>
           同
@@ -743,7 +746,7 @@ export default function Chat() {
         <div
           ref={listRef}
           onScroll={onListScroll}
-          className="chat-messages h-full overflow-y-auto p-4 space-y-3"
+          className="chat-messages h-full overflow-y-auto p-4 sm:p-5 space-y-3.5"
         >
           {messages.map((msg) => {
             const parent = msg.reply_to != null ? messagesById.get(msg.reply_to) : null
@@ -754,16 +757,16 @@ export default function Chat() {
                 <span
                   className={
                     msg.is_admin
-                      ? 'font-semibold text-amber-700 dark:text-amber-300'
+                      ? 'font-semibold text-warning'
                       : msg.username.includes('🤖')
-                        ? 'text-zinc-400'
-                        : 'text-zinc-500'
+                        ? 'text-muted/80'
+                        : 'text-muted'
                   }
                 >
                   {msg.username}
                 </span>
                 {msg.is_admin && (
-                  <span className="rounded px-1 py-px text-[9px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                  <span className="rounded-full px-1.5 py-px text-[9px] font-medium bg-amber-50 text-warning border border-amber-200">
                     管理
                   </span>
                 )}
@@ -773,22 +776,22 @@ export default function Chat() {
                   onClick={() => startReply(msg)}
                   className={`text-left rounded-2xl p-3 max-w-[85%] transition-all duration-150 ease-out active:scale-[0.98] ${
                     isReplying
-                      ? 'bg-blue-100 dark:bg-blue-950 ring-2 ring-blue-400/60'
+                      ? 'bg-accent-soft ring-2 ring-accent/35'
                       : msg.is_admin
-                        ? 'bg-amber-50 dark:bg-amber-950/40 border border-amber-200/70 dark:border-amber-800/60'
-                        : 'bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200/90 dark:hover:bg-zinc-700'
+                        ? 'bg-amber-50/80 border border-amber-200/80'
+                        : 'bg-surface border border-border shadow-soft hover:shadow-hover'
                   }`}
                 >
                   {parent && (
-                    <div className="mb-2 rounded-lg border-l-2 border-blue-400 bg-white/70 dark:bg-black/25 px-2 py-1 text-xs text-zinc-500 dark:text-zinc-400">
-                      <div className="font-medium text-zinc-600 dark:text-zinc-300">
+                    <div className="mb-2 rounded-xl border-l-2 border-accent bg-[#fafaf9] px-2.5 py-1.5 text-xs text-muted">
+                      <div className="font-medium text-foreground/80">
                         回覆 {parent.username}
                       </div>
                       <div className="truncate">{previewText(parent.content)}</div>
                     </div>
                   )}
                   {!parent && msg.reply_to != null && (
-                    <div className="mb-2 rounded-lg border-l-2 border-zinc-300 px-2 py-1 text-xs text-zinc-400">
+                    <div className="mb-2 rounded-xl border-l-2 border-border px-2.5 py-1.5 text-xs text-muted">
                       回覆一則訊息
                     </div>
                   )}
@@ -796,7 +799,7 @@ export default function Chat() {
                 </button>
                 <div className="flex items-center gap-2 mt-1 pl-0.5">
                   <span
-                    className="text-xs text-zinc-400"
+                    className="text-xs text-muted"
                     title={new Date(msg.created_at).toLocaleString('zh-HK')}
                   >
                     {nowMs
@@ -809,7 +812,7 @@ export default function Chat() {
                   <button
                     type="button"
                     onClick={() => startReply(msg)}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline active:opacity-70 transition-opacity"
+                    className="text-xs text-accent hover:underline active:opacity-70 transition-opacity font-medium"
                   >
                     回覆
                   </button>
@@ -818,7 +821,7 @@ export default function Chat() {
                       <button
                         type="button"
                         onClick={() => void deleteMessage(msg.id, false)}
-                        className="text-xs text-red-600 dark:text-red-400 hover:underline"
+                        className="text-xs text-danger hover:underline"
                       >
                         刪
                       </button>
@@ -826,7 +829,7 @@ export default function Chat() {
                         type="button"
                         disabled={banBusy}
                         onClick={() => void deleteMessage(msg.id, true)}
-                        className="text-xs text-red-700 dark:text-red-300 hover:underline disabled:opacity-40"
+                        className="text-xs text-danger hover:underline disabled:opacity-40"
                       >
                         刪+封
                       </button>
@@ -834,7 +837,7 @@ export default function Chat() {
                         type="button"
                         disabled={banBusy}
                         onClick={() => void banMessageIp(msg.id)}
-                        className="text-xs text-amber-700 dark:text-amber-300 hover:underline disabled:opacity-40"
+                        className="text-xs text-warning hover:underline disabled:opacity-40"
                       >
                         封 IP
                       </button>
@@ -851,7 +854,7 @@ export default function Chat() {
           <button
             type="button"
             onClick={() => scrollToLatest('smooth')}
-            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-zinc-900/90 dark:bg-zinc-100/90 text-white dark:text-zinc-900 text-xs px-3 py-1.5 shadow-lg backdrop-blur-sm active:scale-95 transition-transform"
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-foreground text-background text-xs px-3.5 py-1.5 shadow-hover backdrop-blur-sm active:scale-95 transition-transform"
           >
             最新訊息 ↓
           </button>
@@ -860,18 +863,18 @@ export default function Chat() {
 
       <form
         onSubmit={sendMessage}
-        className="p-3 border-t bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm shrink-0"
+        className="p-3 sm:p-4 border-t border-border bg-surface/95 backdrop-blur-md shrink-0"
       >
         {replyTarget && (
-          <div className="chat-reply-bar mb-2 flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/40 px-3 py-2">
-            <div className="flex-1 min-w-0 text-xs text-zinc-600 dark:text-zinc-300">
+          <div className="chat-reply-bar mb-2 flex items-start gap-2 rounded-2xl border border-accent/25 bg-accent-soft/60 px-3 py-2">
+            <div className="flex-1 min-w-0 text-xs text-foreground/80">
               <div className="font-medium">回覆 {replyTarget.username}</div>
               <div className="truncate">{previewText(replyTarget.content)}</div>
             </div>
             <button
               type="button"
               onClick={cancelReply}
-              className="shrink-0 text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 active:opacity-70 transition-colors"
+              className="shrink-0 text-xs text-muted hover:text-foreground active:opacity-70 transition-colors"
               aria-label="取消回覆"
             >
               ✕
@@ -894,7 +897,7 @@ export default function Chat() {
               value={username}
               maxLength={MAX_USERNAME_LENGTH}
               onChange={(e) => setUsername(e.target.value)}
-              className="flex-1 border rounded-lg px-3 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-400/50 transition"
+              className="flex-1 border border-border rounded-xl px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-accent/25 bg-surface transition"
             />
           )}
         </div>
@@ -906,7 +909,7 @@ export default function Chat() {
                 key={phrase}
                 type="button"
                 onClick={() => insertSlang(phrase)}
-                className="shrink-0 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 active:scale-95 transition-all"
+                className="shrink-0 rounded-full border border-border bg-[#fafaf9] px-2.5 py-1 text-xs text-foreground hover:bg-accent-soft active:scale-95 transition-all"
               >
                 {phrase}
               </button>
@@ -915,13 +918,13 @@ export default function Chat() {
         )}
 
         {showEmoji && (
-          <div className="emoji-picker mb-2 max-h-36 overflow-y-auto overscroll-contain flex flex-wrap gap-1 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 p-2">
+          <div className="emoji-picker mb-2 max-h-36 overflow-y-auto overscroll-contain flex flex-wrap gap-1 rounded-2xl border border-border bg-[#fafaf9] p-2">
             {EMOJIS.map((emoji, i) => (
               <button
                 key={`${emoji}-${i}`}
                 type="button"
                 onClick={() => insertEmoji(emoji)}
-                className="h-9 w-9 rounded-lg text-xl leading-none hover:bg-zinc-200/80 dark:hover:bg-zinc-700 active:scale-90 transition-transform"
+                className="h-9 w-9 rounded-xl text-xl leading-none hover:bg-accent-soft active:scale-90 transition-transform"
                 aria-label={`插入 ${emoji}`}
               >
                 {emoji}
@@ -939,8 +942,8 @@ export default function Chat() {
             }}
             className={`shrink-0 h-10 px-2.5 rounded-full border text-xs transition-all active:scale-95 ${
               showSlang
-                ? 'bg-blue-50 border-blue-300 dark:bg-blue-950 dark:border-blue-700'
-                : 'border-zinc-200 dark:border-zinc-700'
+                ? 'bg-accent-soft border-accent/40'
+                : 'border-border'
             }`}
             aria-label="潮語"
             aria-expanded={showSlang}
@@ -955,8 +958,8 @@ export default function Chat() {
             }}
             className={`shrink-0 h-10 w-10 rounded-full border text-lg flex items-center justify-center transition-all active:scale-95 ${
               showEmoji
-                ? 'bg-blue-50 border-blue-300 dark:bg-blue-950 dark:border-blue-700'
-                : 'border-zinc-200 dark:border-zinc-700'
+                ? 'bg-accent-soft border-accent/40'
+                : 'border-border'
             }`}
             aria-label="表情"
             aria-expanded={showEmoji}
@@ -976,12 +979,12 @@ export default function Chat() {
             onKeyDown={onComposerKeyDown}
             disabled={sending}
             enterKeyHint="send"
-            className="flex-1 border rounded-2xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-400/50 transition disabled:opacity-60 resize-none max-h-[120px] leading-relaxed"
+            className="flex-1 border border-border rounded-2xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-accent/25 bg-surface shadow-soft transition disabled:opacity-60 resize-none max-h-[120px] leading-relaxed"
           />
           <button
             type="submit"
             disabled={sending || !newMessage.trim()}
-            className="shrink-0 bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 h-10 text-sm"
+            className="shrink-0 bg-accent text-white px-4 py-2 rounded-full hover:bg-[#0d6a63] active:scale-95 transition-all disabled:opacity-50 h-10 text-sm shadow-soft"
           >
             {sending ? '…' : '送'}
           </button>
@@ -989,24 +992,24 @@ export default function Chat() {
         {sendError && (
           <p
             role="alert"
-            className="mt-2 rounded-lg border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/50 px-3 py-2 text-xs text-red-700 dark:text-red-300 text-center"
+            className="mt-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-danger text-center"
           >
             {sendError}
           </p>
         )}
       </form>
 
-      <footer className="px-3 py-1.5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/95 dark:bg-zinc-950/95 shrink-0">
+      <footer className="px-3 py-1.5 border-t border-border bg-[#fafaf9]/95 shrink-0">
         <button
           type="button"
           onClick={() => setShowTerms((v) => !v)}
-          className="w-full text-center text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+          className="w-full text-center text-[11px] text-muted hover:text-foreground transition-colors transition-colors"
           aria-expanded={showTerms}
         >
           免責聲明{showTerms ? ' · 收起' : ' · 詳情'}
         </button>
         {showTerms && (
-          <ul className="mt-2 list-disc pl-4 space-y-1 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400 marker:text-zinc-400">
+          <ul className="mt-2 list-disc pl-4 space-y-1 text-[11px] leading-relaxed text-muted marker:text-muted">
             <li>
               呢個係<strong className="font-medium">公開、可匿名</strong>嘅聊天室。你喺此發佈嘅所有言論、回覆同表情內容，均由你本人全權負責。
             </li>
@@ -1028,20 +1031,20 @@ export default function Chat() {
           <div
             role="dialog"
             aria-labelledby="welcome-title"
-            className="welcome-card w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 p-5 shadow-xl border border-zinc-200 dark:border-zinc-700"
+            className="welcome-card w-full max-w-sm rounded-[20px] bg-surface p-6 shadow-hover border border-border"
           >
-            <h2 id="welcome-title" className="text-base font-semibold mb-2">
+            <h2 id="welcome-title" className="font-serif text-2xl tracking-tight mb-2">
               Talk tgt la
             </h2>
-            <p className="text-sm text-zinc-600 dark:text-zinc-300 mb-4 leading-relaxed">
-              公開聊天室。Enter 傳送，自己負責言論。
+            <p className="text-sm text-muted mb-5 leading-relaxed">
+              香港人一齊傾偈。Enter 傳送；訓練同飲食喺下面導航。自己負責言論。
             </p>
             <button
               type="button"
               onClick={closeWelcome}
-              className="w-full rounded-full bg-blue-600 text-white py-2.5 text-sm font-medium hover:bg-blue-700 active:scale-[0.98] transition-all"
+              className="w-full rounded-full bg-accent text-white py-2.5 text-sm font-medium hover:bg-[#0d6a63] active:scale-[0.98] transition-all shadow-soft"
             >
-              開始
+              開始傾偈
             </button>
           </div>
         </div>
@@ -1052,7 +1055,7 @@ export default function Chat() {
         if (!a) return null
         return (
           <div
-            className="achievement-toast fixed top-16 left-1/2 z-[60] -translate-x-1/2 max-w-[90vw] rounded-2xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-3 shadow-xl"
+            className="achievement-toast fixed top-16 left-1/2 z-[60] -translate-x-1/2 max-w-[90vw] rounded-2xl bg-foreground text-background px-4 py-3 shadow-hover"
             role="status"
             aria-live="polite"
           >
@@ -1069,7 +1072,7 @@ export default function Chat() {
           <div
             role="dialog"
             aria-labelledby="badges-title"
-            className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 p-4 shadow-xl border border-zinc-200 dark:border-zinc-700 max-h-[80dvh] overflow-y-auto"
+            className="w-full max-w-sm rounded-[20px] bg-surface p-5 shadow-hover border border-border max-h-[80dvh] overflow-y-auto"
           >
             <div className="flex items-center justify-between mb-3">
               <h2 id="badges-title" className="text-base font-semibold">
@@ -1078,13 +1081,13 @@ export default function Chat() {
               <button
                 type="button"
                 onClick={() => setShowBadges(false)}
-                className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 text-sm px-2"
+                className="text-muted hover:text-foreground text-sm px-2"
                 aria-label="關閉"
               >
                 ✕
               </button>
             </div>
-            <p className="text-xs text-zinc-500 mb-3">
+            <p className="text-xs text-muted mb-3">
               只喺本機{stats ? ` · 已送 ${stats.messagesSent}` : ''}
             </p>
             <ul className="space-y-2">
@@ -1095,8 +1098,8 @@ export default function Chat() {
                     key={a.id}
                     className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 ${
                       got
-                        ? 'border-amber-300/80 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40'
-                        : 'border-zinc-200 dark:border-zinc-700 opacity-55'
+                        ? 'border-amber-200 bg-amber-50'
+                        : 'border-border opacity-55'
                     }`}
                   >
                     <span className="text-xl leading-none mt-0.5" aria-hidden>
@@ -1104,7 +1107,7 @@ export default function Chat() {
                     </span>
                     <div className="min-w-0">
                       <div className="text-sm font-medium">{a.title}</div>
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400">{a.description}</div>
+                      <div className="text-xs text-muted">{a.description}</div>
                     </div>
                   </li>
                 )
@@ -1117,26 +1120,26 @@ export default function Chat() {
 
       {showBanList && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 p-4 shadow-xl border border-zinc-200 dark:border-zinc-700 max-h-[80dvh] overflow-y-auto">
+          <div className="w-full max-w-sm rounded-[20px] bg-surface p-5 shadow-hover border border-border max-h-[80dvh] overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-semibold">封鎖名單</h2>
-              <button type="button" onClick={() => setShowBanList(false)} className="text-sm px-2 text-zinc-500" aria-label="關閉">✕</button>
+              <button type="button" onClick={() => setShowBanList(false)} className="text-sm px-2 text-muted" aria-label="關閉">✕</button>
             </div>
             {bannedIps.length === 0 ? (
-              <p className="text-sm text-zinc-500">而家冇封鎖任何 IP</p>
+              <p className="text-sm text-muted">而家冇封鎖任何 IP</p>
             ) : (
               <ul className="space-y-2">
                 {bannedIps.map((b) => (
-                  <li key={b.client_ip} className="flex items-center justify-between gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2">
+                  <li key={b.client_ip} className="flex items-center justify-between gap-2 rounded-2xl border border-border px-3 py-2">
                     <div className="min-w-0">
                       <div className="text-sm font-mono truncate">{b.client_ip}</div>
-                      {b.reason && <div className="text-[10px] text-zinc-500 truncate">{b.reason}</div>}
+                      {b.reason && <div className="text-[10px] text-muted truncate">{b.reason}</div>}
                     </div>
                     <button
                       type="button"
                       disabled={banBusy}
                       onClick={() => void unbanIp(b.client_ip)}
-                      className="shrink-0 text-xs text-blue-600 dark:text-blue-400 disabled:opacity-40"
+                      className="shrink-0 text-xs text-accent disabled:opacity-40"
                     >
                       解除
                     </button>
@@ -1152,7 +1155,7 @@ export default function Chat() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <form
             onSubmit={loginAdmin}
-            className="w-full max-w-sm rounded-2xl bg-white dark:bg-zinc-900 p-4 shadow-xl border border-zinc-200 dark:border-zinc-700"
+            className="w-full max-w-sm rounded-[20px] bg-surface p-5 shadow-hover border border-border"
           >
             <h2 className="text-base font-semibold mb-3">管理員</h2>
             <input
@@ -1161,7 +1164,7 @@ export default function Chat() {
               value={adminPassword}
               onChange={(e) => setAdminPassword(e.target.value)}
               placeholder="管理員密碼"
-              className="w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400/50 mb-2"
+              className="w-full border border-border rounded-2xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/25 mb-2 bg-surface"
             />
             {adminError && (
               <p className="text-xs text-red-600 mb-2">{adminError}</p>
@@ -1174,14 +1177,14 @@ export default function Chat() {
                   setAdminPassword('')
                   setAdminError('')
                 }}
-                className="text-sm px-3 py-1.5 rounded-lg text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className="text-sm px-3 py-1.5 rounded-xl text-muted hover:bg-black/[0.04]"
               >
                 取消
               </button>
               <button
                 type="submit"
                 disabled={adminBusy || !adminPassword}
-                className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                className="text-sm px-3 py-1.5 rounded-xl bg-accent text-white hover:bg-[#0d6a63] disabled:opacity-50"
               >
                 {adminBusy ? '登入中…' : '登入'}
               </button>
@@ -1190,5 +1193,7 @@ export default function Chat() {
         </div>
       )}
     </div>
+
+    </AppShell>
   )
 }
