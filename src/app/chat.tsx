@@ -301,22 +301,6 @@ export default function Chat() {
     return () => window.clearInterval(id)
   }, [])
 
-  // Hobby plan: client nudges ambient bots when room is quiet
-  useEffect(() => {
-    if (!isSupabaseConfigured) return
-    const tick = () => {
-      const humans = onlineCount
-      if (humans != null && humans >= 2) return
-      void fetch('/api/ambient/tick', { method: 'POST' })
-    }
-    const id = window.setInterval(tick, 55_000)
-    // first nudge after a short delay so presence can register
-    const first = window.setTimeout(tick, 8_000)
-    return () => {
-      window.clearInterval(id)
-      window.clearTimeout(first)
-    }
-  }, [onlineCount])
 
   useEffect(() => {
     if (!isSupabaseConfigured) return

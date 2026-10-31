@@ -42,6 +42,9 @@ export type AmbientResult = {
 }
 
 export async function runAmbientBots(): Promise<AmbientResult> {
+  // User asked: bots no longer speak in the chat room
+  return { ok: true, skipped: true, reason: 'bots_disabled' }
+
   const ctx = adminClient()
   if (!ctx) return { ok: false, error: 'not_configured' }
 
