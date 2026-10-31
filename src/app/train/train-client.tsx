@@ -14,6 +14,7 @@ import {
   Sparkles,
   Timer,
   Trophy,
+  Users,
   X,
 } from 'lucide-react'
 import { AppShell } from '@/components/shell/app-shell'
@@ -73,6 +74,7 @@ import {
   offlineQueueCount,
 } from '@/lib/fitness/offline-queue'
 import { LoginPromptBanner } from '@/components/auth/login-card'
+import { MeetupBoard } from '@/components/fitness/meetup-board'
 import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
@@ -105,7 +107,7 @@ function lastSetForExercise(sessions: WorkoutSession[], exerciseId: string): Wor
   return null
 }
 
-type Tab = 'today' | 'templates' | 'history'
+type Tab = 'today' | 'templates' | 'history' | 'meetup'
 
 export function TrainClient() {
   const reduce = useReducedMotion()
@@ -602,6 +604,7 @@ export function TrainClient() {
           {(
             [
               { id: 'today' as const, label: '今日', icon: Play },
+              { id: 'meetup' as const, label: '凑局', icon: Users },
               { id: 'templates' as const, label: '課表', icon: Sparkles },
               { id: 'history' as const, label: '歷史', icon: History },
             ] as const
@@ -753,9 +756,9 @@ export function TrainClient() {
                           </div>
                           <p className="text-[11px] text-muted mt-0.5 leading-relaxed">
                             {restLeft === 0
-                              ? '已自動跳去下一組——重量已 focus，改完撳「記低」／Enter。'
+                              ? '休息完自動跳下一組——重量格已 focus，改完撳「記低」或 Enter 即入帳。'
                               : restRunning
-                                ? '倒數完會自動跳下一組——想加就 +15'
+                                ? '倒數完自動跳下一組並 focus 重量——想加就 +15，唔使手動搵格'
                                 : '已暫停'}
                           </p>
                           <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -1206,6 +1209,18 @@ export function TrainClient() {
                   </StaggerItem>
                 ))}
               </Stagger>
+            </motion.div>
+          )}
+
+          {tab === 'meetup' && (
+            <motion.div
+              key="meetup"
+              initial={reduce ? false : tabPanel.initial}
+              animate={tabPanel.animate}
+              exit={reduce ? undefined : tabPanel.exit}
+              transition={springSoft}
+            >
+              <MeetupBoard />
             </motion.div>
           )}
 

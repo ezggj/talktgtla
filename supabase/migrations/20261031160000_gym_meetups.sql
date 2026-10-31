@@ -1,0 +1,2 @@
+-- Applied via Supabase MCP: gym_meetups, gym_meetup_joins, post_gym_meetup, join_gym_meetup
+-- See project etbgulbuzezrdoqvvamy migration history.
