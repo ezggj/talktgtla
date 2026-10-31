@@ -1,0 +1,1 @@
+-- Applied via Supabase MCP: eat_ai_daily_quota + peek/consume RPCs (HK day free AI limit)

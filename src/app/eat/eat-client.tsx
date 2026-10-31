@@ -36,6 +36,7 @@ import {
   scaleMacros,
 } from '@/lib/fitness/meals-demo'
 import { compressMealImage } from '@/lib/fitness/compress-image'
+import { getOrCreateEatGuestId } from '@/lib/fitness/eat-guest-id'
 import {
   type MealEntry,
   type MealMacros,
@@ -77,7 +78,7 @@ type Draft = {
   baseMacros: MealMacros
   portion: number
   estimated: boolean
-  source: 'ai' | 'mock'
+  source: 'ai' | 'mock' | 'manual'
   note?: string
 }
 
@@ -116,6 +117,7 @@ export function EatClient() {
   const [meals, setMeals] = useState<MealEntry[]>([])
   const [goals, setGoals] = useState({ proteinG: 150, kcal: 2200 })
   const [draft, setDraft] = useState<Draft | null>(null)
+  const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [period, setPeriod] = useState<PeriodKind>('day')
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()))
@@ -317,9 +319,13 @@ export function EatClient() {
             : null
         )
 
+        const guestId = getOrCreateEatGuestId()
         const res = await fetch('/api/eat/estimate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-ttl-guest-id': guestId,
+          },
           body: JSON.stringify({
             imageDataUrl: compressed.dataUrl,
             mediaType: compressed.mediaType,
@@ -332,10 +338,42 @@ export function EatClient() {
           note?: string
           error?: string
           code?: string
+          quota?: { remaining?: number; limit?: number }
+          limit?: number
+          remaining?: number
+        }
+
+        if (data.quota?.remaining != null) setQuotaRemaining(data.quota.remaining)
+        if (typeof data.remaining === 'number') setQuotaRemaining(data.remaining)
+
+        if (res.status === 429 && data.code === 'free_limit') {
+          setDraft((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  status: 'ready',
+                  name: '自己改碟餸',
+                  baseMacros: { kcal: 0, protein: 0, carbs: 0, fat: 0 },
+                  estimated: false,
+                  source: 'manual',
+                  note:
+                    data.error ||
+                    '今日免費 AI 額用晒，登入／聽日再試，或者而家自己改數字',
+                }
+              : null
+          )
+          setQuotaRemaining(0)
+          showToast(
+            data.error ||
+              '今日免費 AI 額用晒，登入／聽日再試，或者而家自己改數字'
+          )
+          return
         }
 
         if (!res.ok || !data.macros || !data.name) {
-          throw new Error(data.error || 'AI 估唔到')
+          const err = new Error(data.error || 'AI 估唔到') as Error & { code?: string }
+          err.code = data.code
+          throw err
         }
 
         setDraft((prev) =>
@@ -347,11 +385,15 @@ export function EatClient() {
                 baseMacros: data.macros!,
                 estimated: true,
                 source: 'ai',
-                note: data.note,
+                note: data.note
+                  ? `${data.note} · 數字可以改`
+                  : 'AI 估嘅 · 撳格可以直接改數字',
               }
             : null
         )
       } catch (e) {
+        const code = e && typeof e === 'object' && 'code' in e ? String((e as { code?: string }).code || '') : ''
+        const billingish = code === 'gateway_billing' || code === 'gateway_quota' || code === 'ai_failed'
         const est = mockEstimateFromFile(file.name || 'meal.jpg')
         setDraft((prev) =>
           prev
@@ -361,16 +403,18 @@ export function EatClient() {
                 name: est.name,
                 baseMacros: est.macros,
                 estimated: true,
-                source: 'mock',
-                note: 'AI 暫時唔得，用示範估算；你可以自己改',
+                source: billingish ? 'manual' : 'mock',
+                note: billingish
+                  ? 'AI 暫時唔得——下面數字可以自己改，改完再入日記'
+                  : '示範估算 · 撳格可以直接改數字',
               }
             : null
         )
-        showToast(
-          e instanceof Error
-            ? `AI 估唔到：${e.message} · 改用示範估算`
-            : 'AI 估唔到 · 改用示範估算'
-        )
+        const msg =
+          e instanceof Error && e.message
+            ? e.message
+            : 'AI 估唔到'
+        showToast(billingish ? `${msg}` : `${msg} · 可以自己改數字`)
       }
     })()
   }
@@ -413,7 +457,7 @@ export function EatClient() {
       macros: liveMacros,
       portion: draft.portion,
       estimated: draft.estimated,
-      source: draft.source,
+      source: draft.source === 'ai' ? 'ai' : draft.source === 'mock' ? 'mock' : 'manual',
       note: draft.note,
     }
     const next = [entry, ...meals]
@@ -779,7 +823,7 @@ export function EatClient() {
           <div className="relative">
             <CardTitle className="text-xl mb-1">影相估營養</CardTitle>
             <CardDesc className="mb-5">
-              影相最快 · AI 估卡路里／蛋白／碳水／脂肪。之後可以拖份量改；登入會入歷史。
+              每日免費 AI 估算 3 次 · 估完一定可以改數字。額用晒就自己改／聽日再試；登入可分開計額。
             </CardDesc>
             <div className="flex flex-col sm:flex-row gap-2">
               <Button size="lg" className="flex-1" onClick={() => cameraRef.current?.click()}>
@@ -796,6 +840,13 @@ export function EatClient() {
                 相簿
               </Button>
             </div>
+            {quotaRemaining != null && (
+              <p className="mt-3 text-[11px] text-muted">
+                {quotaRemaining > 0
+                  ? `今日仲剩 ${quotaRemaining} 次免費 AI`
+                  : '今日免費 AI 額用晒 · 可以自己改數字或者聽日再試'}
+              </p>
+            )}
             <input
               ref={cameraRef}
               type="file"
@@ -1011,7 +1062,9 @@ export function EatClient() {
                     ? 'AI 估緊…'
                     : draft.source === 'ai'
                       ? 'AI 估嘅 · 可以改'
-                      : '示範估算 · 可以改'}
+                      : draft.source === 'manual'
+                        ? '自己改數字'
+                        : '示範估算 · 可以改'}
                 </Badge>
               </div>
               <div className="p-5">
@@ -1032,7 +1085,7 @@ export function EatClient() {
                       onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                       className="font-serif text-xl h-12 mb-4 border-0 shadow-none px-0 focus:ring-0"
                     />
-                    <p className="text-[11px] text-muted mb-2">估出嚟嘅數字 · 撳格直接改</p>
+                    <p className="text-[11px] text-muted mb-2">卡路里／蛋白／碳水／脂肪 · 撳格直接改，入日記前隨時調</p>
                     <div className="grid grid-cols-2 gap-2 mb-4">
                       {(
                         [
@@ -1103,7 +1156,9 @@ export function EatClient() {
                       </p>
                     )}
                     <p className="text-[11px] text-muted text-center mt-3 leading-relaxed">
-                      估算啫，唔係實驗室數字。登入後會入雲端歷史，之後可以睇月計。
+                      {draft.source === 'manual'
+                        ? '今日免費 AI 額用晒或者 AI 暫時唔得都冇問題——自己改完數字再入日記就得。'
+                        : '估算啫，唔係實驗室數字。登入後會入雲端歷史，之後可以睇月計。'}
                     </p>
                   </>
                 )}

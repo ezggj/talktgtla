@@ -3,14 +3,24 @@ import { z } from 'zod'
 import { NextResponse } from 'next/server'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { clientIpFromRequest } from '@/lib/request-ip'
+import {
+  consumeEatAiQuota,
+  EAT_AI_FREE_DAILY_LIMIT,
+  peekEatAiQuota,
+  resolveEatAiSubject,
+} from '@/lib/fitness/eat-ai-quota'
 
 export const maxDuration = 60
 
 /**
  * Vision meal estimate via Vercel AI Gateway (`AI_GATEWAY_MODEL` or gemini flash).
- * NOTE (#2): Real AI still needs AI Gateway Credits — typically add a credit card /
- * customer verification on the Vercel team. Without billing, client falls back to mock
- * HK dish estimates. Codes: gateway_billing | gateway_quota.
+ *
+ * Free-tier path (#2): each person gets EAT_AI_FREE_DAILY_LIMIT (default 3) AI
+ * estimates per Asia/Hong_Kong day (auth user id, else guest cookie, else IP).
+ * Durable count in Supabase `eat_ai_daily_quota` via peek/consume RPCs.
+ * Over limit → code `free_limit` (client opens editable manual card).
+ * Gateway billing/quota failure → codes gateway_billing | gateway_quota;
+ * client falls back to gentle manual / demo editable card — paid Credits optional.
  */
 
 const DEFAULT_MODEL = 'google/gemini-2.5-flash'
@@ -63,12 +73,48 @@ export async function POST(req: Request) {
       { status: 429, headers: { 'Retry-After': String(burst.retryAfterSec) } }
     )
   }
-  const daily = checkRateLimit(`eat-est-day:${ip}`, { limit: 40, windowMs: 24 * 60 * 60_000 })
-  if (!daily.ok) {
+
+  const { subjectKey, kind } = await resolveEatAiSubject(req)
+  const freeLimit = EAT_AI_FREE_DAILY_LIMIT
+
+  // Durable free daily limit (preferred). Soft IP cap remains as abuse backstop.
+  const peeked = await peekEatAiQuota(subjectKey)
+  if (peeked && !peeked.ok) {
+    const tip =
+      kind === 'user'
+        ? `今日免費 AI 額用晒（${peeked.limit} 次），聽日再試或者而家自己改數字入日記`
+        : `今日免費 AI 額用晒（${peeked.limit} 次）。登入可分開計額，或者聽日再試／而家自己改數字`
     return NextResponse.json(
-      { error: '今日 AI 估算次數用晒，聽日再嚟或者用手改', retryAfterSec: daily.retryAfterSec, code: 'rate_limit' },
-      { status: 429, headers: { 'Retry-After': String(daily.retryAfterSec) } }
+      {
+        error: tip,
+        code: 'free_limit',
+        limit: peeked.limit,
+        used: peeked.used,
+        remaining: 0,
+        day: peeked.day,
+      },
+      { status: 429 }
     )
+  }
+
+  // Soft IP backstop if durable RPC unavailable
+  if (!peeked) {
+    const daily = checkRateLimit(`eat-est-day:${ip}`, {
+      limit: freeLimit * 4,
+      windowMs: 24 * 60 * 60_000,
+    })
+    if (!daily.ok) {
+      return NextResponse.json(
+        {
+          error: '今日免費 AI 額用晒，登入／聽日再試，或者而家自己改數字',
+          retryAfterSec: daily.retryAfterSec,
+          code: 'free_limit',
+          limit: freeLimit,
+          remaining: 0,
+        },
+        { status: 429, headers: { 'Retry-After': String(daily.retryAfterSec) } }
+      )
+    }
   }
 
   let body: Body
@@ -130,6 +176,13 @@ export async function POST(req: Request) {
       )
     }
 
+    // Only burn a free slot after a successful AI estimate
+    const consumed = await consumeEatAiQuota(subjectKey)
+    if (consumed && !consumed.ok) {
+      // Race: another request used the last slot — still return result once
+      // but surface remaining 0 for UI honesty on next call
+    }
+
     const macros = {
       kcal: clampMacro(output.kcal, 5000),
       protein: clampMacro(output.protein_g, 400),
@@ -141,6 +194,13 @@ export async function POST(req: Request) {
           : clampMacro(output.fiber_g, 120),
     }
 
+    const remaining =
+      consumed && consumed.ok
+        ? consumed.remaining
+        : peeked
+          ? Math.max(0, peeked.remaining - 1)
+          : undefined
+
     return NextResponse.json({
       source: 'ai' as const,
       name: (output.label_zh || '未知餐食').slice(0, 48),
@@ -148,22 +208,28 @@ export async function POST(req: Request) {
       confidence: Math.max(0, Math.min(1, output.confidence ?? 0.5)),
       note: (output.notes_zh || '').slice(0, 80),
       model,
+      quota: {
+        limit: freeLimit,
+        remaining,
+        used: consumed?.used,
+      },
     })
   } catch (e) {
     const message = e instanceof Error ? e.message : 'AI 估算失敗'
     console.error('[eat/estimate]', message)
     const lower = message.toLowerCase()
-    let userError = 'AI 暫時估唔到'
+    let userError = 'AI 暫時估唔到，你可以自己改數字入日記'
     let code = 'ai_failed'
     if (
       lower.includes('credit card') ||
       lower.includes('customer_verification') ||
-      lower.includes('add-credit-card')
+      lower.includes('add-credit-card') ||
+      lower.includes('billing')
     ) {
-      userError = 'AI Gateway 未開通（要喺 Vercel 加信用卡先有 Credits）'
+      userError = 'AI 暫時用示範／手動模式——撳格改卡路里同營養素就得'
       code = 'gateway_billing'
     } else if (lower.includes('insufficient_funds') || lower.includes('quota')) {
-      userError = 'AI Credits 用晒或者超咗預算'
+      userError = 'AI Credits／配額暫時唔夠——而家可以自己改數字入日記'
       code = 'gateway_quota'
     }
     return NextResponse.json(

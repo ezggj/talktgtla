@@ -43,16 +43,17 @@
 `/me` 五步表單（目標／經驗／日數／時長／器材）→ 規則引擎出一週 split → 「開波」帶動作入 `/train`。
 
 
-## 影相估營養（真 AI）
+## 影相估營養（免費限次 + 可改）
 
 - 路徑：`POST /api/eat/estimate`（Vercel AI Gateway + AI SDK `generateText` + vision）
 - 預設模型：`AI_GATEWAY_MODEL`（production 設咗 `google/gemini-2.5-flash`）
 - Production 用 **Vercel OIDC** 打 Gateway，唔使喺 client 暴露 key
-- 客戶端先壓縮相片再上傳；IP rate limit（burst + 日額）
-- 成功：`meals.source = 'ai'`；失敗會 toast 並 fallback 示範估算（`mock`）
-- UI 一律標「估算」，份量滑桿即時重算四大營養素
+- **免費限次（預設每日 3 次，`EAT_AI_FREE_DAILY_LIMIT`）**：按登入 user id／訪客 fingerprint／IP，計香港日曆日；持久化於 Supabase `eat_ai_daily_quota`（`peek_eat_ai_quota` / `consume_eat_ai_quota`）
+- 超出限次 → `code: free_limit`，前端開可改數字卡（唔逼 Gateway 收費）
+- 成功：`meals.source = 'ai'`；Gateway billing／失敗 → 溫和手動／示範卡，數字一律可改
+- UI：卡路里／蛋白／碳水／脂肪撳格即改；份量滑桿即時重算
 
-> **注意：** AI Gateway 免費 Credits 需要 team 已加有效信用卡（`customer_verification_required`）。未開通時影相會 toast 並 fallback 示範估算。
+> **AI Gateway note (#2)：** 優先走 **免費限次 + 用戶可改** 路徑；真 AI 有 Gateway Credits 就用，冇／billing 失敗就 fallback 手動編輯，唔阻擋核心 UX。加卡買 Credits 係可選加速，唔係必須。
 
 
 ## 環境變數
