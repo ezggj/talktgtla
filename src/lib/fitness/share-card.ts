@@ -20,6 +20,8 @@ export type MealSharePayload = {
   note?: string
 }
 
+const SITE = 'https://talktgtla.com'
+
 function roundRect(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -42,6 +44,57 @@ function formatDur(sec: number) {
   const m = Math.floor(sec / 60)
   const s = sec % 60
   return `${m}:${String(s).padStart(2, '0')}`
+}
+
+/** 貼地廣東話 caption — Threads / IG Story 用 */
+export function workoutShareCaption(payload: WorkoutSharePayload): string {
+  const day = payload.title?.trim() || '訓練'
+  const vol = Math.round(payload.volume).toLocaleString()
+  const focus = payload.topExercises[0]
+  const bits = [`今日${day}打完 ✅`, `${payload.sets} 組 · ${vol} 容量 · ${formatDur(payload.durationSec)}`]
+  if (focus) bits.push(`重點：${focus}`)
+  bits.push('Talk tgt la 記組')
+  bits.push(SITE)
+  return bits.join('\n')
+}
+
+export function mealShareCaption(payload: MealSharePayload): string {
+  const name = payload.name.trim() || '呢餐'
+  return [
+    `食咗：${name} 🍽`,
+    `${Math.round(payload.kcal)} kcal · 蛋白 ${Math.round(payload.protein)}g`,
+    'Talk tgt la 影餐估營養',
+    SITE,
+  ].join('\n')
+}
+
+export function threadsIntentUrl(caption: string): string {
+  return `https://www.threads.net/intent/post?text=${encodeURIComponent(caption)}`
+}
+
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.setAttribute('readonly', '')
+    ta.style.position = 'fixed'
+    ta.style.left = '-9999px'
+    document.body.appendChild(ta)
+    ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    return ok
+  } catch {
+    return false
+  }
 }
 
 export function drawWorkoutShareCard(payload: WorkoutSharePayload): HTMLCanvasElement {
@@ -191,30 +244,69 @@ async function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   })
 }
 
-export async function shareOrDownloadCanvas(
+export async function downloadCanvasPng(
   canvas: HTMLCanvasElement,
-  filename: string,
-  shareTitle: string
-): Promise<'shared' | 'downloaded'> {
+  filename: string
+): Promise<void> {
   const blob = await canvasToBlob(canvas)
-  const file = new File([blob], filename, { type: 'image/png' })
-
-  const nav = typeof navigator !== 'undefined' ? navigator : null
-  if (nav && typeof nav.share === 'function' && (!nav.canShare || nav.canShare({ files: [file] }))) {
-    try {
-      await nav.share({ files: [file], title: shareTitle, text: shareTitle })
-      return 'shared'
-    } catch (e) {
-      // user cancel → fall through only if not AbortError? still try download on other errors
-      if (e instanceof DOMException && e.name === 'AbortError') throw e
-    }
-  }
-
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)
+}
+
+export async function shareOrDownloadCanvas(
+  canvas: HTMLCanvasElement,
+  filename: string,
+  shareTitle: string,
+  shareText?: string
+): Promise<'shared' | 'downloaded'> {
+  const blob = await canvasToBlob(canvas)
+  const file = new File([blob], filename, { type: 'image/png' })
+  const text = shareText || shareTitle
+
+  const nav = typeof navigator !== 'undefined' ? navigator : null
+  if (nav && typeof nav.share === 'function' && (!nav.canShare || nav.canShare({ files: [file] }))) {
+    try {
+      await nav.share({ files: [file], title: shareTitle, text })
+      return 'shared'
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') throw e
+    }
+  }
+
+  await downloadCanvasPng(canvas, filename)
+  return 'downloaded'
+}
+
+/** IG：優先 Web Share 出圖+文案；唔得就下載 PNG + 複製 caption */
+export async function shareForInstagram(
+  canvas: HTMLCanvasElement,
+  filename: string,
+  caption: string,
+  title: string
+): Promise<'shared' | 'downloaded'> {
+  const blob = await canvasToBlob(canvas)
+  const file = new File([blob], filename, { type: 'image/png' })
+  await copyText(caption)
+
+  const nav = typeof navigator !== 'undefined' ? navigator : null
+  if (nav && typeof nav.share === 'function') {
+    try {
+      if (!nav.canShare || nav.canShare({ files: [file] })) {
+        await nav.share({ files: [file], title, text: caption })
+        return 'shared'
+      }
+      await nav.share({ title, text: caption })
+      await downloadCanvasPng(canvas, filename)
+      return 'downloaded'
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') throw e
+    }
+  }
+
+  await downloadCanvasPng(canvas, filename)
   return 'downloaded'
 }
