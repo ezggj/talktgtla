@@ -49,6 +49,8 @@ import {
   migrateLocalWorkouts,
   persistFinishedWorkout,
 } from '@/lib/fitness/cloud'
+import { markTrainedToday, syncDaysFromSessions } from '@/lib/fitness/streaks'
+import { analyzeWorkout, formatDelta, type WorkoutAnalysis } from '@/lib/fitness/analysis'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
 import { LoginPromptBanner } from '@/components/auth/login-card'
@@ -99,6 +101,8 @@ export function TrainClient() {
   const [restRunning, setRestRunning] = useState(false)
   const [prToast, setPrToast] = useState<string | null>(null)
   const [finishOpen, setFinishOpen] = useState(false)
+  const [lastFinished, setLastFinished] = useState<WorkoutSession | null>(null)
+  const [lastAnalysis, setLastAnalysis] = useState<WorkoutAnalysis | null>(null)
   const [justAdded, setJustAdded] = useState<string | null>(null)
 
   useEffect(() => {
@@ -122,6 +126,7 @@ export function TrainClient() {
         if (cancelled) return
         setSessions(remote)
         saveSessions(remote)
+        syncDaysFromSessions(remote)
         setCloudNote('訓練已同步雲端')
       } catch (e) {
         if (!cancelled) setCloudNote(e instanceof Error ? e.message : '訓練同步失敗')
@@ -272,16 +277,23 @@ export function TrainClient() {
 
   const finishSession = () => {
     if (!active) return
-    const ended: WorkoutSession = {
+    const endedAt = new Date().toISOString()
+    const draft: WorkoutSession = {
       ...active,
-      endedAt: new Date().toISOString(),
+      endedAt,
     }
+    const analysis = analyzeWorkout(draft, sessions)
+    const ended: WorkoutSession = { ...draft, analysis }
     const next = [ended, ...sessions]
     setSessions(next)
     saveSessions(next)
     persistActive(null)
+    setLastFinished(ended)
+    setLastAnalysis(analysis)
     setFinishOpen(true)
     setSelectedEx(null)
+    markTrainedToday(ended.endedAt)
+    syncDaysFromSessions(next)
     if (user) {
       void (async () => {
         try {
@@ -918,25 +930,81 @@ export function TrainClient() {
 
       {/* Finish modal */}
       <AnimatePresence>
-        {finishOpen && (
+        {finishOpen && lastAnalysis && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4"
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/35 p-0 sm:p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
             <motion.div
-              className="w-full max-w-sm rounded-[20px] bg-surface border border-border p-6 shadow-hover text-center"
-              initial={reduce ? false : { scale: 0.96, y: 12 }}
+              className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-t-[24px] sm:rounded-[20px] bg-surface border border-border p-6 shadow-hover"
+              initial={reduce ? false : { scale: 0.96, y: 16 }}
               animate={{ scale: 1, y: 0 }}
               transition={springSoft}
             >
-              <div className="text-3xl mb-2">🔥</div>
-              <h2 className="font-serif text-2xl mb-2">搞掂！</h2>
-              <p className="text-sm text-muted mb-5">
-                今日練完啦。歷史同 PR 已經更新——聽日繼續。
-              </p>
-              <Button className="w-full" onClick={() => setFinishOpen(false)}>
+              <div className="text-center mb-4">
+                <div className="text-3xl mb-2">🔥</div>
+                <h2 className="font-serif text-2xl mb-1">搞掂！</h2>
+                <p className="text-sm text-muted">今日練完啦。分析已跟住呢次 session 儲低。</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <div className="rounded-2xl border border-border bg-[#fafaf9] px-3 py-3 text-center">
+                  <div className="text-lg font-semibold tabular-nums">
+                    {lastAnalysis.volume.toLocaleString()}
+                  </div>
+                  <div className="text-[10px] text-muted">容量 kg×reps</div>
+                  {formatDelta(lastAnalysis.volumeDeltaPct) && (
+                    <div className="text-[11px] text-accent mt-0.5 font-medium">
+                      {formatDelta(lastAnalysis.volumeDeltaPct)}
+                      {lastAnalysis.compareLabel ? ` · ${lastAnalysis.compareLabel}` : ''}
+                    </div>
+                  )}
+                </div>
+                <div className="rounded-2xl border border-border bg-[#fafaf9] px-3 py-3 text-center">
+                  <div className="text-lg font-semibold tabular-nums">{lastAnalysis.sets}</div>
+                  <div className="text-[10px] text-muted">總組數</div>
+                </div>
+                <div className="rounded-2xl border border-border bg-[#fafaf9] px-3 py-3 text-center">
+                  <div className="text-lg font-semibold tabular-nums">
+                    {Math.floor(lastAnalysis.durationSec / 60)}:{String(lastAnalysis.durationSec % 60).padStart(2, '0')}
+                  </div>
+                  <div className="text-[10px] text-muted">時長</div>
+                  {formatDelta(lastAnalysis.durationDeltaPct) && (
+                    <div className="text-[11px] text-muted mt-0.5">
+                      {formatDelta(lastAnalysis.durationDeltaPct)} 時間
+                    </div>
+                  )}
+                </div>
+                <div className="rounded-2xl border border-border bg-[#fafaf9] px-3 py-3 text-center">
+                  <div className="text-lg font-semibold tabular-nums">{lastAnalysis.density}</div>
+                  <div className="text-[10px] text-muted">密度／分鐘</div>
+                </div>
+              </div>
+
+              <div className="rounded-[20px] border border-border bg-[#fafaf9] p-4 mb-5 text-left">
+                <div className="text-xs font-semibold text-accent mb-2">今日提示</div>
+                <ul className="space-y-2">
+                  {lastAnalysis.tips.map((tip, i) => (
+                    <li key={i} className="text-sm text-foreground/90 leading-relaxed flex gap-2">
+                      <span className="text-accent shrink-0">·</span>
+                      <span>{tip}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[10px] text-muted mt-3 leading-relaxed">
+                  提示只係一般訓練參考，唔係醫療建議。身體唔舒服就停低休息。
+                </p>
+              </div>
+
+              <Button
+                className="w-full"
+                onClick={() => {
+                  setFinishOpen(false)
+                  setLastFinished(null)
+                }}
+              >
                 收工
               </Button>
             </motion.div>

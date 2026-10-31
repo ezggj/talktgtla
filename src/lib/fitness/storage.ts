@@ -18,6 +18,8 @@ export type WorkoutSession = {
   note?: string
   sets: WorkoutSet[]
   templateId?: string
+  /** Post-workout analysis (local + cloud jsonb) */
+  analysis?: import('./analysis').WorkoutAnalysis
 }
 
 export type MealMacros = {

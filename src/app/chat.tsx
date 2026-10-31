@@ -23,6 +23,7 @@ import {
 } from '@/lib/sanitize'
 import { applyTheme, resolveInitialTheme, type ThemeMode } from '@/lib/theme'
 import { AppShell } from '@/components/shell/app-shell'
+import { trainedToday } from '@/lib/fitness/streaks'
 
 type Message = {
   id: number
@@ -106,6 +107,10 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [username, setUsername] = useState('')
+  const [showTrainedBadge, setShowTrainedBadge] = useState(false)
+  useEffect(() => {
+    setShowTrainedBadge(trainedToday())
+  }, [])
   const [isAnonymous, setIsAnonymous] = useState(true)
   const [replyToId, setReplyToId] = useState<number | null>(null)
   const [sending, setSending] = useState(false)
@@ -879,6 +884,13 @@ export default function Chat() {
             >
               ✕
             </button>
+          </div>
+        )}
+        {showTrainedBadge && (
+          <div className="mb-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft text-accent text-[11px] font-semibold px-3 py-1 border border-border">
+              💪 今日練咗
+            </span>
           </div>
         )}
         <div className="flex items-center gap-2 mb-2">

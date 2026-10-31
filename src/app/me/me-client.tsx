@@ -30,6 +30,7 @@ import {
   migrateLocalMeals,
 } from '@/lib/fitness/cloud'
 import { PlanGenerator } from '@/components/fitness/plan-generator'
+import { computeStreak, trainedToday } from '@/lib/fitness/streaks'
 
 export function MeClient() {
   const { ready: authReady, user, configured, signOut } = useUser()
@@ -38,10 +39,14 @@ export function MeClient() {
   const [saved, setSaved] = useState(false)
   const [ready, setReady] = useState(false)
   const [syncNote, setSyncNote] = useState<string | null>(null)
+  const [streak, setStreak] = useState(0)
+  const [didTrain, setDidTrain] = useState(false)
   const authError = search.get('auth') === 'error'
 
   useEffect(() => {
     setGoals(loadGoals())
+    setStreak(computeStreak(loadSessions()))
+    setDidTrain(trainedToday())
     setReady(true)
   }, [])
 
@@ -132,6 +137,21 @@ export function MeClient() {
               </div>
             </StaggerItem>
           )}
+
+          <StaggerItem>
+            <div className="grid grid-cols-2 gap-2">
+              <Card className="py-4">
+                <div className="text-[11px] text-muted mb-1">訓練連續</div>
+                <div className="text-2xl font-semibold tabular-nums text-accent">{streak}</div>
+                <div className="text-xs text-muted">日 streak</div>
+              </Card>
+              <Card className="py-4">
+                <div className="text-[11px] text-muted mb-1">今日</div>
+                <div className="text-lg font-semibold">{didTrain ? '練咗 ✓' : '未開波'}</div>
+                <div className="text-xs text-muted">{didTrain ? '傾偈會亮徽章' : '完成一次就點亮'}</div>
+              </Card>
+            </div>
+          </StaggerItem>
 
           <StaggerItem>
             <PlanGenerator userId={user?.id ?? null} />

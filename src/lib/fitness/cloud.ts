@@ -73,6 +73,7 @@ type WorkoutRow = {
   ended_at: string | null
   notes: string | null
   template_id: string | null
+  analysis: unknown | null
   workout_sets: Array<{
     id: string
     exercise_id: string | null
@@ -106,6 +107,7 @@ export function mapWorkoutRow(row: WorkoutRow): WorkoutSession {
     endedAt: row.ended_at ?? undefined,
     note: row.notes ?? undefined,
     templateId: row.template_id ?? undefined,
+    analysis: (row.analysis as WorkoutSession['analysis']) || undefined,
     sets,
   }
 }
@@ -117,7 +119,7 @@ export async function fetchWorkouts(
   const { data, error } = await supabase
     .from('workouts')
     .select(
-      `id, started_at, ended_at, notes, template_id,
+      `id, started_at, ended_at, notes, template_id, analysis,
        workout_sets (id, exercise_id, exercise_name, set_index, weight_kg, reps, duration_sec, rest_sec, completed_at)`
     )
     .order('started_at', { ascending: false })
@@ -139,6 +141,7 @@ export async function persistFinishedWorkout(
       ended_at: session.endedAt ?? new Date().toISOString(),
       notes: session.note ?? null,
       template_id: session.templateId ?? null,
+      analysis: session.analysis ?? null,
     },
     { onConflict: 'id' }
   )
