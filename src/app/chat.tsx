@@ -24,6 +24,7 @@ import {
 } from '@/lib/sanitize'
 import { applyTheme, resolveInitialTheme, type ThemeMode } from '@/lib/theme'
 import { AppShell } from '@/components/shell/app-shell'
+import { NewbieGuide } from '@/components/shell/newbie-guide'
 import { computeStreak, trainedToday } from '@/lib/fitness/streaks'
 import { getDailyTopic, topicStarterLine } from '@/lib/fitness/daily-topic'
 
@@ -784,25 +785,40 @@ export default function Chat() {
           )}
           {messagesLoaded && messages.length === 0 && (
             <div className="flex h-full min-h-[220px] items-center justify-center px-2">
-              <div className="welcome-card w-full max-w-sm rounded-[20px] border border-border/80 bg-surface px-6 py-10 text-center shadow-soft">
+              <div className="welcome-card w-full max-w-sm rounded-[20px] border border-border/80 bg-surface px-6 py-8 text-center shadow-soft">
                 <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-accent-soft text-accent text-lg" aria-hidden>
                   💬
                 </div>
                 <h3 className="font-serif text-lg tracking-tight">房暫時靜靜地</h3>
                 <p className="mt-2 text-sm text-muted leading-relaxed">
-                  機械人已停——淨係真人。第一句由你；或者用今日話題開波。
+                  機械人已停——淨係真人。唔知開波講咩？用今日話題就得。
                 </p>
-                <button
-                  type="button"
-                  className="mt-4 inline-flex items-center justify-center rounded-xl bg-accent-soft px-3.5 py-2 text-xs font-semibold text-accent hover:bg-[#b7f0e6] transition"
-                  onClick={() => {
-                    const line = topicStarterLine()
-                    setNewMessage(line)
-                    requestAnimationFrame(() => inputRef.current?.focus())
-                  }}
-                >
-                  用今日話題開波
-                </button>
+                {(() => {
+                  const topic = getDailyTopic()
+                  return (
+                    <div className="mt-4 rounded-2xl border border-border/80 bg-[#fafaf9] px-3.5 py-3 text-left">
+                      <div className="text-[10px] font-medium text-muted uppercase tracking-wide mb-1">今日話題</div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg leading-none" aria-hidden>{topic.emoji}</span>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-foreground">{topic.title}</div>
+                          <div className="text-[11px] text-muted mt-0.5 leading-relaxed">{topic.hint}</div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="mt-3 w-full inline-flex items-center justify-center rounded-xl bg-accent px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-[#0d6a63] transition"
+                        onClick={() => {
+                          const line = topicStarterLine(topic)
+                          setNewMessage(line)
+                          requestAnimationFrame(() => inputRef.current?.focus())
+                        }}
+                      >
+                        用呢個話題開波
+                      </button>
+                    </div>
+                  )
+                })()}
               </div>
             </div>
           )}
@@ -1099,29 +1115,7 @@ export default function Chat() {
         )}
       </footer>
 
-      {showWelcome && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
-          <div
-            role="dialog"
-            aria-labelledby="welcome-title"
-            className="welcome-card w-full max-w-sm rounded-[20px] bg-surface p-6 shadow-hover border border-border"
-          >
-            <h2 id="welcome-title" className="font-serif text-2xl tracking-tight mb-2">
-              Talk tgt la
-            </h2>
-            <p className="text-sm text-muted mb-5 leading-relaxed">
-              香港人一齊傾偈。Enter 就送；訓練同飲食喺下面 tabs。講咩自己負責。
-            </p>
-            <button
-              type="button"
-              onClick={closeWelcome}
-              className="w-full rounded-2xl bg-accent text-white py-3 text-sm font-medium hover:bg-[#0d6a63] active:scale-[0.98] transition-all shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2"
-            >
-              開始傾
-            </button>
-          </div>
-        </div>
-      )}
+      <NewbieGuide open={showWelcome} onClose={closeWelcome} />
 
       {achievementToast && (() => {
         const a = achievementById(achievementToast)

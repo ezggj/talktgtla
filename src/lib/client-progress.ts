@@ -1,6 +1,6 @@
 /** Client-only progress: welcome dismiss + lightweight achievements (localStorage). */
 
-export const WELCOME_KEY = 'talktgtla-welcome-dismissed'
+export const WELCOME_KEY = 'talktgtla-newbie-guide-v1'
 export const STATS_KEY = 'talktgtla-stats'
 export const ACHIEVEMENTS_KEY = 'talktgtla-achievements'
 

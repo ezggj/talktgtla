@@ -18,7 +18,7 @@ type Props = {
   compact?: boolean
 }
 
-function otpErrorMessage(raw: string): string {
+function authErrorMessage(raw: string, kind: 'otp' | 'verify' | 'oauth' = 'otp'): string {
   const lower = raw.toLowerCase()
   if (
     lower.includes('rate') ||
@@ -28,7 +28,31 @@ function otpErrorMessage(raw: string): string {
   ) {
     return '寄得太密喇——等大概一個鐘，或者改撳 Google。舊電郵入面如果有 6 位碼，可以直接填。'
   }
-  return raw
+  if (
+    lower.includes('invalid') &&
+    (lower.includes('otp') || lower.includes('token') || lower.includes('code') || kind === 'verify')
+  ) {
+    return '驗證碼唔啱或者過期喇——再寄一次，或者改試 Google。'
+  }
+  if (lower.includes('expired') || lower.includes('otp_expired')) {
+    return '驗證碼過期喇——撳「再寄一次」，或者改用 Google。'
+  }
+  if (lower.includes('network') || lower.includes('fetch') || lower.includes('failed to fetch')) {
+    return '網絡唔穩——檢查吓 Wi‑Fi／數據，陣間再試。'
+  }
+  if (lower.includes('provider') || lower.includes('not enabled')) {
+    return 'Google 登入仲未喺後台開好——試下用電郵啦。'
+  }
+  if (lower.includes('user not found') || lower.includes('signup')) {
+    return '呢個電郵開戶唔到——試下再寄一次，或者改用 Google。'
+  }
+  // Prefer Cantonese fallback over raw English SDK strings
+  if (kind === 'verify') return '驗證唔到——檢查吓 6 位碼，或者再寄一次／試 Google。'
+  if (kind === 'oauth') return 'Google 登入唔到——陣間再試，或者改用電郵。'
+  if (/^[a-z0-9_ .:/-]+$/i.test(raw.trim()) && raw.length < 120) {
+    return `登入唔到：${raw}。試下再寄一次，或者改用 Google。`
+  }
+  return raw || '登入唔到，陣間再試'
 }
 
 function providerNotEnabledMessage(_provider: 'google') {
@@ -75,7 +99,7 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
       setErr(
         lower.includes('provider') || lower.includes('not enabled')
           ? providerNotEnabledMessage(provider)
-          : raw
+          : authErrorMessage(raw, 'oauth')
       )
     }
   }
@@ -103,8 +127,8 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
       setMsg('登入連結（同 6 位碼）寄咗喇。撳電郵入面條 link，或者喺下面填碼。')
     } catch (e) {
       const raw = e instanceof Error ? e.message : '寄唔到，陣間再試'
-      setErr(otpErrorMessage(raw))
-      if (otpErrorMessage(raw).includes('寄得太密')) setPhase('sent')
+      setErr(authErrorMessage(raw, 'otp'))
+      if (authErrorMessage(raw, 'otp').includes('寄得太密')) setPhase('sent')
     } finally {
       setBusy(false)
     }
@@ -131,7 +155,7 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
       setPhase('idle')
     } catch (e) {
       setPhase('sent')
-      setErr(e instanceof Error ? e.message : '驗證唔到，試下再寄一次')
+      setErr(authErrorMessage(e instanceof Error ? e.message : '驗證唔到', 'verify'))
     } finally {
       setBusy(false)
     }
@@ -259,7 +283,15 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
           )}
         </div>
         {msg && <p className="text-xs text-accent leading-relaxed">{msg}</p>}
-        {err && <p className="text-xs text-red-600 leading-relaxed">{err}</p>}
+        {err && (
+          <div
+            role="alert"
+            className="rounded-2xl border border-red-200 bg-red-50 px-3.5 py-3 text-xs text-red-700 leading-relaxed"
+          >
+            <div className="font-semibold mb-0.5">登入唔到</div>
+            {err}
+          </div>
+        )}
       </div>
     </Card>
   )

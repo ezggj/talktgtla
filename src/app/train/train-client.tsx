@@ -50,6 +50,7 @@ import {
 } from '@/lib/fitness/storage'
 import { persistFinishedWorkout } from '@/lib/fitness/cloud'
 import { migrateLocalFitnessToCloud } from '@/lib/fitness/migrate'
+import { SyncToast } from '@/components/ui/sync-toast'
 import { volumeByDay } from '@/lib/fitness/plan-progress'
 import { GymNudgeCard } from '@/components/fitness/gym-nudge-card'
 import { ShareCardButton } from '@/components/fitness/share-card-button'
@@ -112,6 +113,7 @@ export function TrainClient() {
   const searchParams = useSearchParams()
   const [ready, setReady] = useState(false)
   const [cloudNote, setCloudNote] = useState<string | null>(null)
+  const [syncToast, setSyncToast] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('today')
   const [sessions, setSessions] = useState<WorkoutSession[]>([])
   const [active, setActive] = useState<WorkoutSession | null>(null)
@@ -166,6 +168,9 @@ export function TrainClient() {
           /* ignore */
         }
         setCloudNote(note)
+        if (result.workoutsUploaded > 0 || result.mealsUploaded > 0) {
+          setSyncToast(result.note)
+        }
       } catch (e) {
         if (!cancelled) setCloudNote(e instanceof Error ? e.message : '訓練 sync 唔到')
       }
@@ -587,7 +592,10 @@ export function TrainClient() {
           </div>
         )}
         {user && cloudNote && (
-          <p className="mb-4 text-[11px] text-muted">{cloudNote}</p>
+          <div className="mb-4 flex items-start gap-2 rounded-2xl border border-accent/25 bg-accent-soft px-3.5 py-2.5 text-[11px] text-accent">
+            <span className="font-semibold shrink-0">上雲</span>
+            <span className="leading-relaxed text-accent/90">{cloudNote}</span>
+          </div>
         )}
 
         <div className="mb-6 flex gap-1.5 p-1 rounded-2xl bg-[#f0efee] border border-border">
@@ -1537,6 +1545,7 @@ export function TrainClient() {
           </motion.div>
         )}
       </AnimatePresence>
+          <SyncToast message={syncToast} onDismiss={() => setSyncToast(null)} />
     </AppShell>
   )
 }

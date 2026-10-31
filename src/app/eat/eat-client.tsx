@@ -69,6 +69,7 @@ import {
   upsertMeal,
 } from '@/lib/fitness/cloud'
 import { migrateLocalFitnessToCloud } from '@/lib/fitness/migrate'
+import { SyncToast } from '@/components/ui/sync-toast'
 import { ShareCardButton } from '@/components/fitness/share-card-button'
 import {
   evaluateFitnessAchievements,
@@ -135,6 +136,7 @@ export function EatClient() {
   const [buckets, setBuckets] = useState<MealPeriodBucket[]>([])
   const [syncing, setSyncing] = useState(false)
   const [cloudNote, setCloudNote] = useState<string | null>(null)
+  const [syncToast, setSyncToast] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
   const range = useMemo(() => rangeForPeriod(period, anchor), [period, anchor])
@@ -185,6 +187,9 @@ export function EatClient() {
         if (cancelled) return
         setMeals(result.meals)
         setCloudNote(result.note)
+        if (result.workoutsUploaded > 0 || result.mealsUploaded > 0) {
+          setSyncToast(result.note)
+        }
       } catch (e) {
         if (!cancelled) setCloudNote(e instanceof Error ? e.message : 'sync 唔到')
       } finally {
@@ -1469,6 +1474,7 @@ export function EatClient() {
           </motion.div>
         )}
       </AnimatePresence>
+          <SyncToast message={syncToast} onDismiss={() => setSyncToast(null)} />
     </AppShell>
   )
 }

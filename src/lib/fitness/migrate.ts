@@ -106,8 +106,8 @@ export async function migrateLocalFitnessToCloud(
 
   const note =
     workoutsUploaded > 0 || mealsUploaded > 0
-      ? `本機已上雲：${workoutsUploaded} 次訓練、${mealsUploaded} 餐`
-      : '雲端資料已 sync'
+      ? `已將本機 ${workoutsUploaded} 次訓練、${mealsUploaded} 餐同步上雲——換機都睇到。`
+      : '雲端資料已 sync；之後新記嘅訓練／飲食都會自動上雲。'
 
   return {
     workoutsUploaded,

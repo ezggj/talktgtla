@@ -16,6 +16,7 @@ import { PageSkeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { LoginCard } from '@/components/auth/login-card'
+import { SyncToast } from '@/components/ui/sync-toast'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -50,6 +51,7 @@ export function MeClient() {
   const [saved, setSaved] = useState(false)
   const [ready, setReady] = useState(false)
   const [syncNote, setSyncNote] = useState<string | null>(null)
+  const [syncToast, setSyncToast] = useState<string | null>(null)
   const [streak, setStreak] = useState(0)
   const [didTrain, setDidTrain] = useState(false)
   const [weekDays, setWeekDays] = useState<WeekDay[]>([])
@@ -107,6 +109,9 @@ export function MeClient() {
         setWeekCount(w.trainedCount)
         setStreak(w.streak)
         setSyncNote(result.note)
+        if (result.workoutsUploaded > 0 || result.mealsUploaded > 0) {
+          setSyncToast(result.note)
+        }
       } catch (e) {
         if (!cancelled) {
           setSyncNote(e instanceof Error ? e.message : 'sync 唔到')
@@ -166,9 +171,12 @@ export function MeClient() {
 
           {syncNote && (
             <StaggerItem>
-              <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface px-4 py-3 text-xs text-muted">
-                <Cloud className="h-3.5 w-3.5 text-accent shrink-0" />
-                {syncNote}
+              <div className="flex items-start gap-2 rounded-2xl border border-accent/25 bg-accent-soft px-4 py-3 text-xs text-accent">
+                <Cloud className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-semibold">登入後自動上雲</div>
+                  <div className="mt-0.5 text-accent/90 leading-relaxed">{syncNote}</div>
+                </div>
               </div>
             </StaggerItem>
           )}
@@ -384,6 +392,7 @@ export function MeClient() {
           </StaggerItem>
         </Stagger>
       </PageTransition>
+      <SyncToast message={syncToast} onDismiss={() => setSyncToast(null)} />
     </AppShell>
   )
 }
