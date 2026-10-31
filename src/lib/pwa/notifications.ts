@@ -124,3 +124,35 @@ export async function cancelScheduledRestNotification() {
     /* ignore */
   }
 }
+
+/** Best-effort local notification at endAt. Tag lets a later ping replace the same one. */
+export async function scheduleLocalPing(opts: {
+  endAt: number
+  title: string
+  body: string
+  tag: string
+  url?: string
+}) {
+  try {
+    const reg = await navigator.serviceWorker?.ready
+    const sw = navigator.serviceWorker?.controller || reg?.active
+    sw?.postMessage({
+      type: 'SCHEDULE_PING',
+      endAt: opts.endAt,
+      title: opts.title,
+      body: opts.body,
+      tag: opts.tag,
+      url: opts.url || '/train',
+    })
+  } catch {
+    /* ignore */
+  }
+}
+
+export function cancelLocalPing(tag: string) {
+  try {
+    navigator.serviceWorker?.controller?.postMessage({ type: 'CANCEL_PING', tag })
+  } catch {
+    /* ignore */
+  }
+}

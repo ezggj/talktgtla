@@ -820,8 +820,8 @@ export default function Chat() {
             <div className="space-y-4 pt-2" aria-busy="true" aria-label="載入訊息中">
               {[0.92, 0.7, 0.84].map((w, i) => (
                 <div key={i} className="flex flex-col gap-1.5" style={{ maxWidth: `${w * 100}%` }}>
-                  <div className="h-2.5 w-16 rounded-full bg-[#f0efee] skeleton-pulse" />
-                  <div className="h-14 rounded-2xl bg-[#f0efee] skeleton-pulse border border-border/50" />
+                  <div className="h-2.5 w-16 rounded-full bg-surface-muted skeleton-pulse" />
+                  <div className="h-14 rounded-2xl bg-surface-muted skeleton-pulse border border-border/50" />
                 </div>
               ))}
             </div>
@@ -1059,7 +1059,7 @@ export default function Chat() {
               💪 今日練咗
             </span>
             {trainStreak > 1 && (
-              <span className="inline-flex items-center rounded-full bg-[#f0efee] text-muted text-[11px] font-medium px-2.5 py-1 border border-border">
+              <span className="inline-flex items-center rounded-full bg-surface-muted text-muted text-[11px] font-medium px-2.5 py-1 border border-border">
                 連續 {trainStreak} 日
               </span>
             )}

@@ -34,7 +34,15 @@ import {
   showAppNotification,
   requestNotificationPermissionCantonese,
   notificationPermission,
+  scheduleLocalPing,
+  cancelLocalPing,
 } from '@/lib/pwa/notifications'
+import {
+  loadMeetupReminders,
+  reminderFireAt,
+  removeMeetupReminder,
+  upsertMeetupReminder,
+} from '@/lib/fitness/meetup-reminders'
 import { buildMeetupOpener } from '@/lib/fitness/meetup-opener'
 import { copyText } from '@/lib/fitness/share-card'
 
@@ -93,6 +101,7 @@ export function MeetupBoard({ className }: { className?: string }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [reminded, setReminded] = useState<string[]>([])
   const [openerText, setOpenerText] = useState<string | null>(null)
   const [openerCopied, setOpenerCopied] = useState(false)
   const [checkin, setCheckin] = useState<GymCheckin | null>(null)
@@ -178,8 +187,51 @@ export function MeetupBoard({ className }: { className?: string }) {
 
   useEffect(() => {
     setHostName(loadMeetupDisplayName() || '')
+    setReminded(loadMeetupReminders().map((r) => r.id))
     void refresh()
   }, [refresh])
+
+  useEffect(() => {
+    const timers: number[] = []
+    for (const r of loadMeetupReminders()) {
+      const fire = reminderFireAt(r.slotAt)
+      if (fire == null) continue
+      const delay = fire - Date.now()
+      if (delay < -2 * 60 * 1000) {
+        removeMeetupReminder(r.id)
+        cancelLocalPing(`meetup-remind-${r.id}`)
+        continue
+      }
+      const wait = Math.max(0, delay)
+      void scheduleLocalPing({
+        endAt: Date.now() + wait,
+        title: '就快開波',
+        body: r.label,
+        tag: `meetup-remind-${r.id}`,
+        url: '/train',
+      })
+      timers.push(
+        window.setTimeout(() => {
+          setToast(`就快開波 · ${r.label}`)
+          window.setTimeout(() => setToast(null), 3200)
+          void showAppNotification({
+            title: '就快開波',
+            body: r.label,
+            tag: `meetup-remind-${r.id}`,
+            url: '/train',
+          })
+          removeMeetupReminder(r.id)
+          cancelLocalPing(`meetup-remind-${r.id}`)
+          setReminded(loadMeetupReminders().map((x) => x.id))
+        }, wait)
+      )
+    }
+    const left = loadMeetupReminders().map((r) => r.id)
+    if (left.length !== reminded.length) setReminded(left)
+    return () => {
+      timers.forEach((id) => window.clearTimeout(id))
+    }
+  }, [reminded])
 
   // Light poll while board open — notify if watched meetup join_count rises
   useEffect(() => {
@@ -377,6 +429,34 @@ export function MeetupBoard({ className }: { className?: string }) {
     }
   }
 
+  const toggleRemind = async (m: GymMeetup) => {
+    const tag = `meetup-remind-${m.id}`
+    if (reminded.includes(m.id)) {
+      removeMeetupReminder(m.id)
+      cancelLocalPing(tag)
+      setReminded(loadMeetupReminders().map((r) => r.id))
+      showToast('已取消提醒')
+      return
+    }
+    const slot = new Date(m.slot_at).getTime()
+    if (!Number.isFinite(slot) || slot < Date.now()) {
+      showToast('呢台過咗時間')
+      return
+    }
+    const perm = await requestNotificationPermissionCantonese()
+    upsertMeetupReminder({
+      id: m.id,
+      slotAt: m.slot_at,
+      label: `${m.area} · ${m.focus} · ${formatMeetupSlot(m.slot_at)}`,
+    })
+    setReminded(loadMeetupReminders().map((r) => r.id))
+    showToast(
+      perm === 'granted'
+        ? '開波前 15 分鐘會提你'
+        : '已記下。開住個頁，開波前 15 分鐘會提你'
+    )
+  }
+
   const renderMeetupList = (list: GymMeetup[]) => (
     <ul className="space-y-2.5">
       {list.map((m) => {
@@ -426,6 +506,13 @@ export function MeetupBoard({ className }: { className?: string }) {
                     >
                       入台
                     </Button>
+                    <button
+                      type="button"
+                      className="text-[11px] font-medium text-accent touch-manipulation"
+                      onClick={() => void toggleRemind(m)}
+                    >
+                      {reminded.includes(m.id) ? '已設提醒' : '開波前提醒'}
+                    </button>
                   </div>
                 </div>
               </Card>
