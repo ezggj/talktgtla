@@ -28,6 +28,14 @@ import { NewbieGuide } from '@/components/shell/newbie-guide'
 import { DisclaimerShort } from '@/components/legal/site-disclaimer'
 import { computeStreak, trainedToday } from '@/lib/fitness/streaks'
 import { getDailyTopic, topicStarterLine } from '@/lib/fitness/daily-topic'
+import {
+  blockUsername,
+  loadBlockedUsernames,
+  listBlockedUsers,
+  unblockUsername,
+} from '@/lib/chat/moderation'
+import { MessageModActions } from '@/components/chat/message-mod-actions'
+import { StarterChipsBar } from '@/components/chat/starter-chips-bar'
 
 type Message = {
   id: number
@@ -116,6 +124,7 @@ export default function Chat() {
   useEffect(() => {
     setShowTrainedBadge(trainedToday())
     setTrainStreak(computeStreak())
+    setBlockedNames(loadBlockedUsernames())
   }, [])
   const [isAnonymous, setIsAnonymous] = useState(true)
   const [replyToId, setReplyToId] = useState<number | null>(null)
@@ -145,6 +154,8 @@ export default function Chat() {
     { client_ip: string; reason: string | null; created_at: string; source_message_id: number | null }[]
   >([])
   const [banBusy, setBanBusy] = useState(false)
+  const [blockedNames, setBlockedNames] = useState<Set<string>>(() => new Set())
+  const [showBlockedUsers, setShowBlockedUsers] = useState(false)
   const clientFpRef = useRef<string>('')
   const toastTimerRef = useRef<number | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -571,7 +582,9 @@ export default function Chat() {
   const deleteMessage = async (id: number, banIp = false) => {
     if (!isAdmin) return
     const ok = window.confirm(
-      banIp ? '刪除訊息並封鎖呢個 IP？' : '確定刪除呢條訊息？'
+      banIp
+        ? '刪除呢條訊息，同時封鎖對方 IP？\n\n封鎖後呢個 IP 暫時唔可以再發言。假封鎖請小心。'
+        : '確定刪除呢條訊息？\n\n刪除後傾偈室其他人唔會再見到。'
     )
     if (!ok) return
     const res = await fetch('/api/admin/messages', {
@@ -595,7 +608,12 @@ export default function Chat() {
 
   const banMessageIp = async (id: number) => {
     if (!isAdmin) return
-    if (!window.confirm('封鎖呢條訊息嘅 IP？（唔刪訊息）')) return
+    if (
+      !window.confirm(
+        '只封鎖呢條訊息嘅 IP（唔刪訊息）？\n\n封鎖後呢個 IP 暫時唔可以再發言；訊息會留低畀人睇。'
+      )
+    )
+      return
     setBanBusy(true)
     try {
       const res = await fetch('/api/admin/bans', {
@@ -735,7 +753,7 @@ export default function Chat() {
                   onClick={() => void loadBans()}
                   className="text-[11px] text-warning font-medium"
                 >
-                  封鎖
+                  IP 封鎖名單
                 </button>
                 <button
                   type="button"
@@ -847,7 +865,9 @@ export default function Chat() {
               </div>
             </div>
           )}
-          {messages.map((msg) => {
+          {messages
+            .filter((msg) => !blockedNames.has(msg.username.trim().toLowerCase()))
+            .map((msg) => {
             const parent = msg.reply_to != null ? messagesById.get(msg.reply_to) : null
             const isReplying = replyToId === msg.id
             return (
@@ -915,30 +935,43 @@ export default function Chat() {
                   >
                     回覆
                   </button>
+                  {!msg.is_admin && (
+                    <MessageModActions
+                      messageId={msg.id}
+                      username={msg.username}
+                      content={msg.content}
+                      onBlocked={(name) => {
+                        setBlockedNames(blockUsername(name))
+                      }}
+                    />
+                  )}
                   {isAdmin && (
                     <>
                       <button
                         type="button"
                         onClick={() => void deleteMessage(msg.id, false)}
                         className="text-xs text-danger hover:underline"
+                        title="只刪除訊息"
                       >
-                        刪
+                        刪除訊息
                       </button>
                       <button
                         type="button"
                         disabled={banBusy}
                         onClick={() => void deleteMessage(msg.id, true)}
                         className="text-xs text-danger hover:underline disabled:opacity-40"
+                        title="刪除訊息並封鎖 IP"
                       >
-                        刪+封
+                        刪除並封鎖 IP
                       </button>
                       <button
                         type="button"
                         disabled={banBusy}
                         onClick={() => void banMessageIp(msg.id)}
                         className="text-xs text-warning hover:underline disabled:opacity-40"
+                        title="只封鎖 IP，保留訊息"
                       >
-                        封 IP
+                        只封鎖 IP
                       </button>
                     </>
                   )}
@@ -1013,6 +1046,13 @@ export default function Chat() {
             />
           )}
         </div>
+
+        <StarterChipsBar
+          onPick={(line) => {
+            setNewMessage((prev) => (prev ? `${prev} ${line}` : line))
+            requestAnimationFrame(() => inputRef.current?.focus())
+          }}
+        />
 
         {showSlang && (
           <div className="mb-2 flex gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -1187,7 +1227,39 @@ export default function Chat() {
       )}
 
 
-      {showBanList && (
+            {showBlockedUsers && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-3">
+          <div className="w-full max-w-sm rounded-[20px] border border-border bg-surface p-4 shadow-hover max-h-[70vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold">你封鎖咗嘅花名</h2>
+              <button type="button" onClick={() => setShowBlockedUsers(false)} className="text-sm px-2 text-muted" aria-label="關閉">✕</button>
+            </div>
+            <p className="text-[11px] text-muted mb-3 leading-relaxed">
+              只影響你部機——封鎖後唔會見到佢哋訊息。解除隨時得。
+            </p>
+            {listBlockedUsers().length === 0 ? (
+              <p className="text-sm text-muted">而家未有封鎖任何人</p>
+            ) : (
+              <ul className="space-y-2">
+                {listBlockedUsers().map((b) => (
+                  <li key={b.username} className="flex items-center justify-between gap-2 rounded-xl border border-border px-3 py-2">
+                    <span className="text-sm font-medium truncate">{b.username}</span>
+                    <button
+                      type="button"
+                      className="text-xs text-accent font-medium shrink-0"
+                      onClick={() => setBlockedNames(unblockUsername(b.username))}
+                    >
+                      解除封鎖
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
+{showBanList && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-[20px] bg-surface p-5 shadow-hover border border-border max-h-[80dvh] overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
