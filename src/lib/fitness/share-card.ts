@@ -20,6 +20,18 @@ export type MealSharePayload = {
   note?: string
 }
 
+export type NutritionWeekSharePayload = {
+  title: string
+  dateLabel: string
+  avgProtein: number
+  goal: number
+  pct: number
+  daysLogged: number
+  daysHit: number
+  lines: string[]
+  vibe?: string
+}
+
 const SITE = 'https://talktgtla.com'
 
 function roundRect(
@@ -66,6 +78,19 @@ export function mealShareCaption(payload: MealSharePayload): string {
     'Talk tgt la 影餐估營養',
     SITE,
   ].join('\n')
+}
+
+export function nutritionWeekShareCaption(payload: NutritionWeekSharePayload): string {
+  const bits = [
+    `呢個星期飲食週報 🍽`,
+    payload.title,
+    `平均蛋白 ${Math.round(payload.avgProtein)}g（目標 ${payload.goal}g · ${payload.pct}%）`,
+    `有記 ${payload.daysLogged} 日 · 到標 ${payload.daysHit} 日`,
+  ]
+  if (payload.lines[0]) bits.push(payload.lines[0])
+  bits.push('Talk tgt la 飲食')
+  bits.push(SITE)
+  return bits.join('\n')
 }
 
 export function threadsIntentUrl(caption: string): string {
@@ -234,6 +259,76 @@ export function drawMealShareCard(payload: MealSharePayload): HTMLCanvasElement 
   ctx.fillStyle = '#9A9A9A'
   ctx.font = '400 26px system-ui, sans-serif'
   ctx.fillText('talktgtla.com', 112, H - 120)
+
+  return canvas
+}
+
+export function drawNutritionWeekShareCard(payload: NutritionWeekSharePayload): HTMLCanvasElement {
+  const W = 1080
+  const H = 1350
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = H
+  const ctx = canvas.getContext('2d')!
+  const g = ctx.createLinearGradient(0, 0, W, H)
+  g.addColorStop(0, '#0F766E')
+  g.addColorStop(0.45, '#134e4a')
+  g.addColorStop(1, '#FEF3C7')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, W, H)
+
+  ctx.fillStyle = 'rgba(255,255,255,0.94)'
+  roundRect(ctx, 64, 120, W - 128, H - 240, 48)
+  ctx.fill()
+
+  ctx.fillStyle = '#0F766E'
+  ctx.font = '600 34px system-ui, "PingFang HK", "Noto Sans TC", sans-serif'
+  ctx.fillText('Talk tgt la · 飲食週報', 112, 220)
+
+  ctx.fillStyle = '#1A1A1A'
+  ctx.font = '700 64px Georgia, "Fraunces", serif'
+  const title = payload.title.length > 12 ? payload.title.slice(0, 12) + '…' : payload.title
+  ctx.fillText(title, 112, 310)
+
+  ctx.fillStyle = '#6B6B6B'
+  ctx.font = '400 30px system-ui, "PingFang HK", sans-serif'
+  ctx.fillText(payload.dateLabel, 112, 370)
+
+  const stats = [
+    { label: '平均蛋白', value: `${Math.round(payload.avgProtein)}g` },
+    { label: '目標達成', value: `${payload.pct}%` },
+    { label: '到標日', value: `${payload.daysHit}/${payload.daysLogged || 0}` },
+  ]
+  stats.forEach((s, i) => {
+    const x = 112 + i * 300
+    ctx.fillStyle = '#F0EFEE'
+    roundRect(ctx, x, 430, 260, 180, 28)
+    ctx.fill()
+    ctx.fillStyle = '#1A1A1A'
+    ctx.font = '700 48px system-ui, sans-serif'
+    ctx.fillText(s.value, x + 24, 530)
+    ctx.fillStyle = '#6B6B6B'
+    ctx.font = '500 26px system-ui, "PingFang HK", sans-serif'
+    ctx.fillText(s.label, x + 24, 580)
+  })
+
+  ctx.fillStyle = '#1A1A1A'
+  ctx.font = '600 34px system-ui, "PingFang HK", sans-serif'
+  ctx.fillText('口語總結', 112, 700)
+  ctx.font = '400 30px system-ui, "PingFang HK", sans-serif'
+  ctx.fillStyle = '#3D3D3D'
+  payload.lines.slice(0, 4).forEach((line, i) => {
+    const t = line.length > 28 ? line.slice(0, 28) + '…' : line
+    ctx.fillText(`· ${t}`, 112, 760 + i * 56)
+  })
+
+  ctx.fillStyle = '#0F766E'
+  ctx.font = '500 28px system-ui, "PingFang HK", sans-serif'
+  ctx.fillText(`目標每日 ${payload.goal}g 蛋白`, 112, 1080)
+
+  ctx.fillStyle = '#9A9A9A'
+  ctx.font = '400 26px system-ui, sans-serif'
+  ctx.fillText('talktgtla.com', 112, H - 160)
 
   return canvas
 }

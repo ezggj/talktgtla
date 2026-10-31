@@ -6,13 +6,16 @@ import { Button } from '@/components/ui/button'
 import {
   copyText,
   drawMealShareCard,
+  drawNutritionWeekShareCard,
   drawWorkoutShareCard,
   mealShareCaption,
+  nutritionWeekShareCaption,
   shareForInstagram,
   shareOrDownloadCanvas,
   threadsIntentUrl,
   workoutShareCaption,
   type MealSharePayload,
+  type NutritionWeekSharePayload,
   type WorkoutSharePayload,
 } from '@/lib/fitness/share-card'
 import { cn } from '@/lib/utils'
@@ -34,29 +37,44 @@ type Props =
       size?: 'sm' | 'default' | 'lg' | 'xl'
       label?: string
     }
+  | {
+      kind: 'nutrition-week'
+      payload: NutritionWeekSharePayload
+      className?: string
+      variant?: 'default' | 'secondary' | 'soft' | 'ghost'
+      size?: 'sm' | 'default' | 'lg' | 'xl'
+      label?: string
+    }
 
 function buildCanvas(props: Props) {
-  return props.kind === 'workout'
-    ? drawWorkoutShareCard(props.payload)
-    : drawMealShareCard(props.payload)
+  if (props.kind === 'workout') return drawWorkoutShareCard(props.payload)
+  if (props.kind === 'meal') return drawMealShareCard(props.payload)
+  return drawNutritionWeekShareCard(props.payload)
 }
 
 function buildCaption(props: Props) {
-  return props.kind === 'workout'
-    ? workoutShareCaption(props.payload)
-    : mealShareCaption(props.payload)
+  if (props.kind === 'workout') return workoutShareCaption(props.payload)
+  if (props.kind === 'meal') return mealShareCaption(props.payload)
+  return nutritionWeekShareCaption(props.payload)
 }
 
 function buildMeta(props: Props) {
-  const filename =
-    props.kind === 'workout'
-      ? `talktgtla-workout-${Date.now()}.png`
-      : `talktgtla-meal-${Date.now()}.png`
-  const title =
-    props.kind === 'workout'
-      ? `Talk tgt la · ${props.payload.title || '訓練'}`
-      : `Talk tgt la · ${props.payload.name}`
-  return { filename, title }
+  if (props.kind === 'workout') {
+    return {
+      filename: `talktgtla-workout-${Date.now()}.png`,
+      title: `Talk tgt la · ${props.payload.title || '訓練'}`,
+    }
+  }
+  if (props.kind === 'meal') {
+    return {
+      filename: `talktgtla-meal-${Date.now()}.png`,
+      title: `Talk tgt la · ${props.payload.name}`,
+    }
+  }
+  return {
+    filename: `talktgtla-nutrition-week-${Date.now()}.png`,
+    title: `Talk tgt la · 飲食週報`,
+  }
 }
 
 export function ShareCardButton(props: Props) {
@@ -73,7 +91,6 @@ export function ShareCardButton(props: Props) {
     setBusy('threads')
     try {
       const caption = buildCaption(props)
-      // 先出圖（下載／分享），再開 Threads 貼文 intent
       const canvas = buildCanvas(props)
       const { filename, title } = buildMeta(props)
       await shareOrDownloadCanvas(canvas, filename, title, caption)

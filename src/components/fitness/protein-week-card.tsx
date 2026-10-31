@@ -3,9 +3,18 @@
 import { Card, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ProgressBar } from '@/components/ui/progress'
+import { ShareCardButton } from '@/components/fitness/share-card-button'
 import { buildProteinWeekSummary } from '@/lib/fitness/weekly-summary'
 import type { MealEntry } from '@/lib/fitness/storage'
 import { cn } from '@/lib/utils'
+
+function weekDateLabel() {
+  const end = new Date()
+  const start = new Date(end.getTime() - 6 * 86400000)
+  const fmt = (d: Date) =>
+    d.toLocaleDateString('zh-HK', { month: 'numeric', day: 'numeric' })
+  return `${fmt(start)} – ${fmt(end)}`
+}
 
 export function ProteinWeekCard({
   meals,
@@ -67,6 +76,27 @@ export function ProteinWeekCard({
             <span>{s.pct}%</span>
           </div>
           <ProgressBar value={s.avgProtein} max={Math.max(1, s.goal)} tone="protein" height="md" />
+        </div>
+      )}
+      {s.daysLogged > 0 && (
+        <div className="relative mt-3">
+          <ShareCardButton
+            kind="nutrition-week"
+            label="出飲食週報圖"
+            size="sm"
+            variant="soft"
+            payload={{
+              title: s.title,
+              dateLabel: weekDateLabel(),
+              avgProtein: s.avgProtein,
+              goal: s.goal,
+              pct: s.pct,
+              daysLogged: s.daysLogged,
+              daysHit: s.daysHit,
+              lines: s.lines,
+              vibe: s.vibe,
+            }}
+          />
         </div>
       )}
       {empty && onLogMeal && (
