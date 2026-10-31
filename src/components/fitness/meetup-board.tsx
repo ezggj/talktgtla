@@ -100,11 +100,6 @@ export function MeetupBoard({ className }: { className?: string }) {
   const gyms = useMemo(() => featuredMeetupGyms(), [])
   const hotBranches = useMemo(() => popularMeetupBranches(12), [])
   const [hostName, setHostName] = useState('')
-  useEffect(() => {
-    setCheckin(loadGymCheckin())
-    const pref = loadPrefArea()
-    if (pref) setCheckinArea(pref)
-  }, [])
   const [gymId, setGymId] = useState(gyms[0]?.id || '247-fitness')
   const selectedGym = gyms.find((g) => g.id === gymId) || gyms[0]
   const [area, setArea] = useState(selectedGym?.areas[0] || '旺角')
@@ -112,6 +107,12 @@ export function MeetupBoard({ className }: { className?: string }) {
   const [slotAt, setSlotAt] = useState(() => meetupSlotPresets()[0]?.iso || '')
   const [note, setNote] = useState('')
   const presets = useMemo(() => meetupSlotPresets(), [meetups.length, composer])
+
+  useEffect(() => {
+    setCheckin(loadGymCheckin())
+    const pref = loadPrefArea()
+    if (pref) setCheckinArea(pref)
+  }, [])
 
   const areaCounts = useMemo(() => meetupAreaCounts(meetups), [meetups])
   const countByArea = useMemo(() => {
@@ -452,6 +453,115 @@ export function MeetupBoard({ className }: { className?: string }) {
               {composer ? '收埋' : '開台'}
             </Button>
           </div>
+        </div>
+
+
+        {/* 自願報到：本地 4 小時 + 可一掣開「報到」台俾人睇 */}
+        <div className="mt-3 rounded-2xl border border-accent/25 bg-accent-soft/30 px-3.5 py-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold text-accent tracking-wide">自願報到</div>
+              {checkin ? (
+                <p className="mt-1 text-[12px] text-foreground leading-relaxed">
+                  你喺 <strong className="font-semibold">{checkin.gymName} · {checkin.area}</strong>
+                  ——大約仲有 {checkinMinutesLeft(checkin)} 分鐘。
+                </p>
+              ) : (
+                <p className="mt-1 text-[12px] text-muted leading-relaxed">
+                  喺會所？報到之後人哋知邊度有人；4 小時自動散。
+                </p>
+              )}
+            </div>
+            {checkin ? (
+              <button
+                type="button"
+                className="shrink-0 text-[11px] font-semibold text-muted touch-manipulation"
+                onClick={() => {
+                  clearGymCheckin()
+                  setCheckin(null)
+                  showToast('已取消報到')
+                }}
+              >
+                取消
+              </button>
+            ) : null}
+          </div>
+          {!checkin && (
+            <div className="mt-2.5 flex flex-col gap-2 sm:flex-row sm:items-end">
+              <label className="flex-1 text-[10px] text-muted">
+                分店（247 先）
+                <select
+                  className="mt-1 w-full rounded-xl border border-border bg-surface px-2.5 py-2 text-xs"
+                  value={checkinArea || (hotBranches[0] || '')}
+                  onChange={(e) => setCheckinArea(e.target.value)}
+                >
+                  {(hotBranches.length ? hotBranches : ['旺角', '銅鑼灣', '觀塘']).map((a) => (
+                    <option key={a} value={a}>{a}</option>
+                  ))}
+                </select>
+              </label>
+              <Button
+                type="button"
+                size="sm"
+                disabled={checkinBusy}
+                className="shrink-0"
+                onClick={() => {
+                  void (async () => {
+                    const name = (hostName.trim() || loadMeetupDisplayName() || '街坊').slice(0, 20)
+                    const areaPick = checkinArea || hotBranches[0] || '旺角'
+                    const gym = gyms.find((g) => g.id === '247-fitness') || gyms[0]
+                    if (!gym) return
+                    setCheckinBusy(true)
+                    setError(null)
+                    try {
+                      const saved = saveGymCheckin({
+                        gymId: gym.id,
+                        gymName: gym.nameZh,
+                        area: areaPick,
+                        displayName: name,
+                      })
+                      setCheckin(saved)
+                      saveMeetupDisplayName(name)
+                      savePrefArea(areaPick)
+                      setHostName(name)
+                      // Also open a short 「報到」台 so others can see
+                      const slot = new Date()
+                      slot.setMinutes(slot.getMinutes() + 30)
+                      const res = await fetch('/api/meetups', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          hostName: name,
+                          gymId: gym.id,
+                          gymName: gym.nameZh,
+                          area: areaPick,
+                          slotAt: slot.toISOString(),
+                          focus: '報到',
+                          note: '自願報到 · 而家喺度',
+                          guestId: getMeetupGuestId(),
+                          userId: user?.id || undefined,
+                        }),
+                      })
+                      if (res.ok) {
+                        showToast(`已報到 · ${gym.nameZh} ${areaPick}`)
+                        setFilterArea(areaPick)
+                        await refresh()
+                      } else {
+                        showToast(`本機已報到 · ${areaPick}（開台稍後再試）`)
+                      }
+                    } catch {
+                      showToast('報到唔到，陣間再試')
+                    } finally {
+                      setCheckinBusy(false)
+                    }
+                  })()
+                }}
+              >
+                {checkinBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MapPin className="h-3.5 w-3.5" />}
+                我喺度
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* 現場感：分店 chips */}

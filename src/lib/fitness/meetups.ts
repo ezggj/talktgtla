@@ -12,6 +12,7 @@ export const MEETUP_FOCUSES = [
   '核心',
   '全身',
   '有氧',
+  '報到',
 ] as const
 
 export type MeetupFocus = (typeof MEETUP_FOCUSES)[number]
