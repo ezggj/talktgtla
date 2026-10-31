@@ -106,3 +106,6 @@ export function volumeByDay(
   }
   return out
 }
+
+/** Re-export day pickers used by train UI */
+export { mondayIndex, pickTodayOrNextDay, planStartHref } from './plan-store'

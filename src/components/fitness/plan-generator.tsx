@@ -26,10 +26,17 @@ import { ExerciseHowTo } from '@/components/fitness/exercise-howto'
 import { loadSessions } from '@/lib/fitness/storage'
 import { computePlanWeekProgress } from '@/lib/fitness/plan-progress'
 import {
+  loadLocalGeneratedPlan,
+  saveLocalGeneratedPlan,
+} from '@/lib/fitness/saved-plans'
+import {
   evaluateFitnessAchievements,
   unlockFitnessAchievements,
   loadFitnessUnlocked,
 } from '@/lib/fitness/achievements'
+import { WeeklyPresets } from '@/components/fitness/weekly-presets'
+import { CustomPlanBuilder } from '@/components/fitness/custom-plan-builder'
+import { setFollowingPlan, hydrateActivePlanFromCloud, loadActivePlan } from '@/lib/fitness/plan-store'
 
 type Props = {
   userId: string | null
@@ -49,32 +56,68 @@ export function PlanGenerator({ userId }: Props) {
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    if (!userId) {
-      setLoaded(true)
-      return
-    }
     let cancelled = false
     ;(async () => {
       try {
-        const supabase = createClient()
-        const { data } = await supabase
-          .from('workout_plans')
-          .select('id, plan, inputs')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-        if (cancelled) return
-        if (data?.plan) {
-          setPlan(data.plan as GeneratedPlan)
-          setPlanId(data.id)
-          const inp = data.inputs as Partial<PlanInputs>
+        const activeFirst = loadActivePlan()
+        if (activeFirst?.plan?.days?.length) {
+          setPlan(activeFirst.plan)
+          setPlanId(activeFirst.cloudId ?? activeFirst.id)
+          const inp = (activeFirst.inputs || {}) as Partial<PlanInputs>
           if (inp.goal) setGoal(inp.goal)
           if (inp.experience) setExperience(inp.experience)
           if (inp.daysPerWeek) setDays(inp.daysPerWeek)
           if (inp.sessionMinutes) setMinutes(inp.sessionMinutes)
           if (inp.equipment) setEquipment(inp.equipment)
           if (inp.notes) setNotes(inp.notes)
+          if (!cancelled) setLoaded(true)
+          return
+        }
+        if (userId) {
+          const supabase = createClient()
+          const { data } = await supabase
+            .from('workout_plans')
+            .select('id, plan, inputs')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+          if (cancelled) return
+          if (data?.plan) {
+            setPlan(data.plan as GeneratedPlan)
+            setPlanId(data.id)
+            const inp = data.inputs as Partial<PlanInputs>
+            if (inp.goal) setGoal(inp.goal)
+            if (inp.experience) setExperience(inp.experience)
+            if (inp.daysPerWeek) setDays(inp.daysPerWeek)
+            if (inp.sessionMinutes) setMinutes(inp.sessionMinutes)
+            if (inp.equipment) setEquipment(inp.equipment)
+            if (inp.notes) setNotes(inp.notes)
+            saveLocalGeneratedPlan(data.plan as GeneratedPlan, data.inputs as Partial<PlanInputs>)
+            return
+          }
+        }
+        const active = loadActivePlan()
+        const local = active?.plan
+          ? { plan: active.plan, inputs: active.inputs as Partial<PlanInputs> | undefined }
+          : loadLocalGeneratedPlan()
+        if (cancelled) return
+        if (local?.plan) {
+          setPlan(local.plan)
+          if (active?.cloudId || active?.id) setPlanId(active.cloudId ?? active.id)
+          const inp = local.inputs || {}
+          if (inp.goal) setGoal(inp.goal)
+          if (inp.experience) setExperience(inp.experience)
+          if (inp.daysPerWeek) setDays(inp.daysPerWeek)
+          if (inp.sessionMinutes) setMinutes(inp.sessionMinutes)
+          if (inp.equipment) setEquipment(inp.equipment)
+          if (inp.notes) setNotes(inp.notes)
+        } else if (userId) {
+          const supabase = createClient()
+          const hydrated = await hydrateActivePlanFromCloud(supabase, userId)
+          if (cancelled || !hydrated?.plan) return
+          setPlan(hydrated.plan)
+          setPlanId(hydrated.cloudId ?? hydrated.id)
         }
       } finally {
         if (!cancelled) setLoaded(true)
@@ -99,7 +142,9 @@ export function PlanGenerator({ userId }: Props) {
       }
       const generated = generatePlan(inputs)
       setPlan(generated)
+      saveLocalGeneratedPlan(generated, inputs)
 
+      let cloudId: string | undefined
       if (userId) {
         const supabase = createClient()
         const { data, error } = await supabase
@@ -113,8 +158,15 @@ export function PlanGenerator({ userId }: Props) {
           .select('id')
           .single()
         if (error) throw error
+        cloudId = data.id
         setPlanId(data.id)
       }
+      const meta = setFollowingPlan(generated, {
+        source: 'generator',
+        inputs,
+        cloudId,
+      })
+      if (!cloudId) setPlanId(meta.id)
     } catch (e) {
       setErr(e instanceof Error ? e.message : '出唔到課表，試多次')
     } finally {
@@ -140,8 +192,8 @@ export function PlanGenerator({ userId }: Props) {
             <Badge tone="accent">課表</Badge>
             <CardTitle className="mt-2 text-xl">一星期點練？</CardTitle>
             <CardDesc className="mt-2">
-              講你目標同器材，即刻出一套課表。撳「一掣開波」就入訓練頁開始記組。
-              {!userId && '（登入先會存上雲）'}
+              現成一週模板、自訂，或者填目標出課表。跟住之後訓練頁有進度同「開始今日」。
+              {!userId ? '（訪客存本機；登入可上雲）' : ''}
             </CardDesc>
           </div>
           <Sparkles className="h-5 w-5 text-accent shrink-0" />
@@ -204,9 +256,9 @@ export function PlanGenerator({ userId }: Props) {
             <div>
               <div className="font-serif text-lg">{plan.title}</div>
               <p className="text-xs text-muted mt-1 leading-relaxed">{plan.summary}</p>
-              {planId && (
-                <p className="text-[10px] text-muted mt-1">已存上雲 · {planId.slice(0, 8)}</p>
-              )}
+              <p className="text-[10px] text-muted mt-1">
+                {planId ? `已存上雲 · ${planId.slice(0, 8)}` : '已存呢部機——換機請登入上雲'}
+              </p>
             </div>
             {plan.days.map((d) => {
               const qs = d.exercises.map((e) => e.exerciseId).join(',')

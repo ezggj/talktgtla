@@ -1,6 +1,7 @@
 /** 一週口語總結 — spoken Cantonese card copy. */
 
 import type { MealEntry, WorkoutSession } from './storage'
+import { dayKeyFromIso } from './storage'
 import { weekConsistency } from './streaks'
 
 function volumeOf(s: WorkoutSession) {
@@ -31,11 +32,11 @@ export function buildWeeklySummary(
   const weekMeals = meals.filter((m) => new Date(m.createdAt).getTime() >= weekAgo)
   const w = weekConsistency(sessions)
   const vol = weekSessions.reduce((a, s) => a + volumeOf(s), 0)
-  const daysWithMeal = new Set(weekMeals.map((m) => m.createdAt.slice(0, 10)))
+  const daysWithMeal = new Set(weekMeals.map((m) => dayKeyFromIso(m.createdAt)))
   const proteinByDay = new Map<string, number>()
   const kcalByDay = new Map<string, number>()
   for (const m of weekMeals) {
-    const d = m.createdAt.slice(0, 10)
+    const d = dayKeyFromIso(m.createdAt)
     proteinByDay.set(d, (proteinByDay.get(d) || 0) + m.macros.protein)
     kcalByDay.set(d, (kcalByDay.get(d) || 0) + m.macros.kcal)
   }
@@ -124,7 +125,7 @@ export function buildProteinWeekSummary(
   const weekMeals = meals.filter((m) => new Date(m.createdAt).getTime() >= weekAgo)
   const proteinByDay = new Map<string, number>()
   for (const m of weekMeals) {
-    const d = m.createdAt.slice(0, 10)
+    const d = dayKeyFromIso(m.createdAt)
     proteinByDay.set(d, (proteinByDay.get(d) || 0) + m.macros.protein)
   }
   const days = [...proteinByDay.entries()]

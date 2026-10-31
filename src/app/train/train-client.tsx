@@ -72,6 +72,23 @@ import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
 import { buzzLight, notifyRestDone, flashDocumentTitle } from '@/lib/fitness/haptic'
 import {
+  DEFAULT_WEEKLY_PPL,
+  SCHEDULE_PRESETS,
+  applySchedulePreset,
+  getTodayPlanHint,
+  loadCustomDayPlans,
+  loadWeeklySchedule,
+  saveWeeklySchedule,
+  saveTemplateAsCustom,
+  deleteCustomDayPlan,
+  type CustomDayPlan,
+  type TodayPlanHint,
+} from '@/lib/fitness/saved-plans'
+import { ActivePlanPanel } from '@/components/fitness/active-plan-panel'
+import { WeeklyPresets } from '@/components/fitness/weekly-presets'
+import { CustomPlanBuilder } from '@/components/fitness/custom-plan-builder'
+import { hydrateActivePlanFromCloud } from '@/lib/fitness/plan-store'
+import {
   enqueueWorkout,
   flushOfflineQueue,
   offlineQueueCount,
@@ -140,6 +157,12 @@ export function TrainClient() {
   const [lastAnalysis, setLastAnalysis] = useState<WorkoutAnalysis | null>(null)
   const [justAdded, setJustAdded] = useState<string | null>(null)
   const [planQueue, setPlanQueue] = useState<string[]>([])
+  const [todayHint, setTodayHint] = useState<TodayPlanHint | null>(null)
+  const [customPlans, setCustomPlans] = useState<CustomDayPlan[]>([])
+  const [weekSlots, setWeekSlots] = useState(DEFAULT_WEEKLY_PPL)
+  const [weekProgress, setWeekProgress] = useState<WeeklySlotProgress[]>([])
+  const [savedToast, setSavedToast] = useState<string | null>(null)
+  const [planRefreshKey, setPlanRefreshKey] = useState(0)
   const [achToast, setAchToast] = useState<string | null>(null)
   const weightRef = useRef<HTMLInputElement>(null)
   const repsRef = useRef<HTMLInputElement>(null)
@@ -180,6 +203,23 @@ export function TrainClient() {
         }
       } catch (e) {
         if (!cancelled) setCloudNote(e instanceof Error ? e.message : '訓練 sync 唔到')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [authReady, user])
+
+  useEffect(() => {
+    if (!authReady || !user) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const supabase = createClient()
+        await hydrateActivePlanFromCloud(supabase, user.id)
+        if (!cancelled) setPlanRefreshKey((n) => n + 1)
+      } catch {
+        /* ignore */
       }
     })()
     return () => {
@@ -281,10 +321,10 @@ export function TrainClient() {
           }
           restEndedFocus.current = false
         }, 80)
-        // Dismiss rest card shortly so logger is front-and-centre (下一組)
+        // Keep「休息完」可見耐啲，再收卡——banner 仍喺記組區
         window.setTimeout(() => {
           setRestLeft(null)
-        }, 1400)
+        }, 2800)
       }
       return
     }
@@ -526,6 +566,10 @@ export function TrainClient() {
 
   useEffect(() => {
     if (!ready) return
+    setTodayHint(getTodayPlanHint(sessions))
+    setCustomPlans(loadCustomDayPlans())
+    setWeekSlots(loadWeeklySchedule())
+    setWeekProgress(computeWeeklySlotProgress(sessions))
     setTodayDone(sessions.filter((s) => s.endedAt && isSameDay(s.startedAt)))
     const w = weekConsistency(sessions)
     setWeekDays(w.days)
@@ -681,6 +725,16 @@ export function TrainClient() {
                       onStartTemplate={(id, ids) => startSession(id, ids)}
                     />
                   </StaggerItem>
+                  <StaggerItem>
+                    <ActivePlanPanel
+                      compact
+                      refreshKey={planRefreshKey}
+                      onStartDay={(title, ids) => {
+                        if (active && !window.confirm('而家練緊，改用呢個課表？')) return
+                        startSession(`plan:${title}`, ids)
+                      }}
+                    />
+                  </StaggerItem>
                   {Object.keys(prs).length > 0 && (
                     <StaggerItem>
                       <Card className="py-4">
@@ -715,6 +769,101 @@ export function TrainClient() {
                               </li>
                             ))}
                         </ul>
+                      </Card>
+                    </StaggerItem>
+                  )}
+                  {todayHint && (
+                    <StaggerItem>
+                      <Card
+                        className={
+                          todayHint.doneToday
+                            ? 'py-4 border-border'
+                            : 'py-4 border-accent/35 bg-gradient-to-br from-accent-soft/70 via-surface to-surface ring-1 ring-accent/20'
+                        }
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-semibold tracking-wide text-accent mb-0.5">
+                              今日課表 · 一掣開波
+                            </p>
+                            <CardTitle className="text-lg leading-snug">
+                              {todayHint.slot.templateId
+                                ? `星期${todayHint.slot.nameZh} · ${todayHint.slot.label}`
+                                : `星期${todayHint.slot.nameZh} · 休息日`}
+                            </CardTitle>
+                          </div>
+                          <Badge tone={todayHint.doneToday ? 'muted' : 'accent'}>
+                            {todayHint.doneToday
+                              ? '今日✓'
+                              : `${todayHint.weekDone}/${todayHint.weekTotal} 週`}
+                          </Badge>
+                        </div>
+                        <CardDesc className="mb-3">{todayHint.nextLabel}</CardDesc>
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                          {weekSlots.map((s) => (
+                            <span
+                              key={s.dayIndex}
+                              className={
+                                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ' +
+                                (s.dayIndex === todayHint.slot.dayIndex
+                                  ? 'bg-accent text-white border-accent'
+                                  : s.templateId
+                                    ? 'bg-accent-soft/50 text-accent border-accent/20'
+                                    : 'bg-[#fafaf9] text-muted border-border')
+                              }
+                              title={s.label}
+                            >
+                              {s.nameZh}
+                            </span>
+                          ))}
+                        </div>
+                        {todayHint.template && !todayHint.doneToday && (
+                          <Button
+                            size="lg"
+                            className="w-full touch-manipulation"
+                            onClick={() =>
+                              startSession(
+                                todayHint.template!.id,
+                                todayHint.template!.exerciseIds
+                              )
+                            }
+                          >
+                            <Play className="h-4 w-4" />
+                            開今日 · {todayHint.template.name}
+                          </Button>
+                        )}
+                        {todayHint.doneToday && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="w-full"
+                            onClick={() => setTab('templates')}
+                          >
+                            睇成週課表／進度
+                          </Button>
+                        )}
+                        {!todayHint.template && !todayHint.doneToday && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => {
+                                const t = TEMPLATES.find((x) => x.id === 'fullbody')
+                                if (t) startSession(t.id, t.exerciseIds)
+                              }}
+                            >
+                              輕全身開波
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="flex-1"
+                              onClick={() => setTab('templates')}
+                            >
+                              改週課表
+                            </Button>
+                          </div>
+                        )}
                       </Card>
                     </StaggerItem>
                   )}
@@ -1022,22 +1171,22 @@ export function TrainClient() {
                     className={cn(restReadyNext && 'ring-2 ring-accent/30 rest-done-glow')}
                   >
                     {restReadyNext && (
-                      <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-accent-soft/80 border border-accent/20 px-3 py-2">
+                      <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl bg-accent text-white px-3.5 py-3 shadow-soft rest-done-glow">
                         <div className="min-w-0">
-                          <div className="text-xs font-semibold text-accent">
+                          <div className="text-sm font-semibold tracking-tight">
                             休息完 · 下一組準備好
                             {selectedEx
                               ? ` · 第 ${(active?.sets.filter((s) => s.exerciseId === selectedEx).length || 0) + 1} 組`
                               : ''}
                           </div>
-                          <p className="text-[10px] text-muted mt-0.5">
-                            已自動跳嚟——重量／次數沿用上組，撳「記低」就得。
+                          <p className="text-[11px] text-white/85 mt-0.5 leading-snug">
+                            重量／次數沿用上組——撳下面大掣「下一組」或 Enter 即入帳。
                           </p>
                         </div>
                         <button
                           type="button"
                           onClick={() => setRestReadyNext(false)}
-                          className="shrink-0 text-[10px] text-muted hover:text-foreground touch-manipulation px-1"
+                          className="shrink-0 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-medium touch-manipulation"
                         >
                           知喇
                         </button>
@@ -1150,7 +1299,7 @@ export function TrainClient() {
                               <button
                                 type="button"
                                 onClick={() => bumpWeight(-2.5)}
-                                className="h-14 w-12 rounded-2xl border border-border/90 bg-[#fafaf9] text-xl font-medium hover:bg-accent-soft active:scale-95 transition"
+                                className="h-16 w-14 rounded-2xl border border-border/90 bg-[#fafaf9] text-2xl font-medium hover:bg-accent-soft active:scale-95 transition touch-manipulation"
                               >
                                 −
                               </button>
@@ -1170,13 +1319,13 @@ export function TrainClient() {
                                     /* default tab ok */
                                   }
                                 }}
-                                className="text-center text-xl font-semibold tabular-nums h-14 px-1"
+                                className="text-center text-2xl font-semibold tabular-nums h-16 px-1"
                                 aria-label="重量公斤"
                               />
                               <button
                                 type="button"
                                 onClick={() => bumpWeight(2.5)}
-                                className="h-14 w-12 rounded-2xl border border-border/90 bg-[#fafaf9] text-xl font-medium hover:bg-accent-soft active:scale-95 transition"
+                                className="h-16 w-14 rounded-2xl border border-border/90 bg-[#fafaf9] text-2xl font-medium hover:bg-accent-soft active:scale-95 transition touch-manipulation"
                               >
                                 +
                               </button>
@@ -1201,7 +1350,7 @@ export function TrainClient() {
                               <button
                                 type="button"
                                 onClick={() => setReps((r) => Math.max(1, r - 1))}
-                                className="h-14 w-12 rounded-2xl border border-border/90 bg-[#fafaf9] text-xl font-medium hover:bg-accent-soft active:scale-95 transition"
+                                className="h-16 w-14 rounded-2xl border border-border/90 bg-[#fafaf9] text-2xl font-medium hover:bg-accent-soft active:scale-95 transition touch-manipulation"
                               >
                                 −
                               </button>
@@ -1218,13 +1367,13 @@ export function TrainClient() {
                                     addSet()
                                   }
                                 }}
-                                className="text-center text-xl font-semibold tabular-nums h-14 px-1"
+                                className="text-center text-2xl font-semibold tabular-nums h-16 px-1"
                                 aria-label="次數"
                               />
                               <button
                                 type="button"
                                 onClick={() => setReps((r) => r + 1)}
-                                className="h-14 w-12 rounded-2xl border border-border/90 bg-[#fafaf9] text-xl font-medium hover:bg-accent-soft active:scale-95 transition"
+                                className="h-16 w-14 rounded-2xl border border-border/90 bg-[#fafaf9] text-2xl font-medium hover:bg-accent-soft active:scale-95 transition touch-manipulation"
                               >
                                 +
                               </button>
@@ -1236,7 +1385,7 @@ export function TrainClient() {
                                   type="button"
                                   onClick={() => setReps(n)}
                                   className={cn(
-                                    'flex-1 rounded-xl py-1.5 text-[11px] font-medium transition tabular-nums',
+                                    'flex-1 rounded-xl py-2.5 text-xs font-semibold transition tabular-nums touch-manipulation min-h-[44px]',
                                     reps === n
                                       ? 'bg-accent-soft text-accent'
                                       : 'text-muted hover:bg-accent-soft hover:text-accent'
@@ -1373,11 +1522,197 @@ export function TrainClient() {
               animate={tabPanel.animate}
               exit={reduce ? undefined : tabPanel.exit}
               transition={springSoft}
+              className="space-y-4"
             >
+              <ActivePlanPanel
+                refreshKey={planRefreshKey}
+                onStartDay={(title, ids) => {
+                  if (active && !window.confirm('而家練緊，改用呢個課表？')) return
+                  startSession(`plan:${title}`, ids)
+                }}
+              />
+
+              <div className="space-y-2">
+                <p className="text-xs text-muted px-0.5">完整週計劃（組數＋進度）· 撳一下跟住</p>
+                <WeeklyPresets
+                  userId={user?.id ?? null}
+                  onApplied={() => setPlanRefreshKey((n) => n + 1)}
+                />
+              </div>
+
+              <CustomPlanBuilder
+                userId={user?.id ?? null}
+                onSaved={() => setPlanRefreshKey((n) => n + 1)}
+              />
+
+              <Card className="py-4 border-accent/25 bg-accent-soft/25">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div>
+                    <p className="text-[11px] font-semibold text-accent tracking-wide mb-0.5">
+                      簡易週循環 · 進度
+                    </p>
+                    <CardTitle className="text-lg">跟住轉，唔使每日諗練咩</CardTitle>
+                  </div>
+                  {todayHint && (
+                    <Badge tone="accent">
+                      {todayHint.weekDone}/{todayHint.weekTotal} 日
+                    </Badge>
+                  )}
+                </div>
+                <CardDesc className="mb-3">
+                  預設推拉腿週；下面可換新手三堂／腿日加強／忙碌兩日。撳日子一掣開嗰日課表。
+                </CardDesc>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {SCHEDULE_PRESETS.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        const next = applySchedulePreset(p.id)
+                        setWeekSlots(next)
+                        setTodayHint(getTodayPlanHint(sessions))
+                        setSavedToast(`已套用「${p.name}」`)
+                        window.setTimeout(() => setSavedToast(null), 2200)
+                      }}
+                      className={cn(
+                        'rounded-full px-2.5 py-1 text-[10px] font-semibold border touch-manipulation',
+                        p.newbie
+                          ? 'border-accent/30 bg-accent text-white'
+                          : 'border-border bg-surface text-muted hover:text-foreground'
+                      )}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = DEFAULT_WEEKLY_PPL.map((s) => ({ ...s }))
+                      saveWeeklySchedule(next)
+                      setWeekSlots(next)
+                      setTodayHint(getTodayPlanHint(sessions))
+                    }}
+                    className="rounded-full px-2.5 py-1 text-[10px] font-medium border border-dashed border-border text-muted"
+                  >
+                    重置
+                  </button>
+                </div>
+                <div className="grid grid-cols-7 gap-1.5 mb-3">
+                  {(weekProgress.length
+                    ? weekProgress
+                    : weekSlots.map((slot) => ({
+                        slot,
+                        done: false,
+                        isToday: todayHint?.slot.dayIndex === slot.dayIndex,
+                      }))
+                  ).map(({ slot: s, done: slotDone, isToday }) => {
+                    const tpl = s.templateId
+                      ? TEMPLATES.find((t) => t.id === s.templateId)
+                      : null
+                    return (
+                      <button
+                        key={s.dayIndex}
+                        type="button"
+                        disabled={!tpl}
+                        onClick={() => {
+                          if (!tpl) return
+                          if (active && !window.confirm('而家練緊，改用呢個課表？')) return
+                          startSession(tpl.id, tpl.exerciseIds)
+                        }}
+                        className={cn(
+                          'rounded-xl border px-1 py-2 text-center touch-manipulation transition',
+                          isToday
+                            ? 'border-accent bg-accent text-white'
+                            : slotDone
+                              ? 'border-accent/30 bg-accent-soft text-accent'
+                              : 'border-border bg-surface text-muted',
+                          !tpl && 'opacity-60'
+                        )}
+                        title={s.label}
+                      >
+                        <div className="text-[10px] font-semibold">{s.nameZh}</div>
+                        <div className="text-[9px] mt-0.5 leading-tight line-clamp-2">
+                          {slotDone ? '✓ ' : ''}
+                          {s.label}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+                {todayHint?.template && !todayHint.doneToday && (
+                  <Button
+                    className="w-full"
+                    onClick={() =>
+                      startSession(
+                        todayHint.template!.id,
+                        todayHint.template!.exerciseIds
+                      )
+                    }
+                  >
+                    <Play className="h-4 w-4" />
+                    開今日 · {todayHint.template.name}
+                  </Button>
+                )}
+              </Card>
+
+              {customPlans.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-2 px-0.5">
+                    <p className="text-xs font-medium text-muted">我存低嘅課表</p>
+                    <Badge tone="muted">{customPlans.length}</Badge>
+                  </div>
+                  <Stagger className="grid gap-3 sm:grid-cols-2">
+                    {customPlans.map((cp) => (
+                      <StaggerItem key={cp.id}>
+                        <Card className="h-full flex flex-col border-accent/20">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge tone="accent">{cp.badge || '自訂'}</Badge>
+                            <CardTitle className="text-lg">{cp.name}</CardTitle>
+                          </div>
+                          {cp.desc && (
+                            <CardDesc className="mt-1 mb-3 flex-1">{cp.desc}</CardDesc>
+                          )}
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {cp.exerciseIds.slice(0, 4).map((id) => (
+                              <Badge key={id} tone="muted">
+                                {exerciseById(id)?.nameZh || id}
+                              </Badge>
+                            ))}
+                          </div>
+                          <div className="flex gap-2 mt-auto">
+                            <Button
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => {
+                                if (active && !window.confirm('而家練緊，改用呢個課表？'))
+                                  return
+                                startSession(`custom:${cp.id}`, cp.exerciseIds)
+                              }}
+                            >
+                              用呢個開波
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                deleteCustomDayPlan(cp.id)
+                                setCustomPlans(loadCustomDayPlans())
+                              }}
+                            >
+                              刪
+                            </Button>
+                          </div>
+                        </Card>
+                      </StaggerItem>
+                    ))}
+                  </Stagger>
+                </div>
+              )}
+
               <Stagger className="grid gap-3 sm:grid-cols-2">
                 <div className="sm:col-span-2 mb-1">
                   <p className="text-xs text-muted leading-relaxed">
-                    推拉腿（PPL）＝推日／拉日／腿日輪流。新手可先用「新手腿日」——入面有 RDL、保加利亞，撳動作就睇點做。
+                    推拉腿（PPL）＝推日／拉日／腿日輪流。新手可先用「新手腿日」——入面有 RDL、保加利亞，撳動作就睇點做。鍾意就「存做我嘅課表」。
                   </p>
                 </div>
                 {TEMPLATES.map((t) => (
@@ -1406,20 +1741,40 @@ export function TrainClient() {
                           <Badge tone="muted">+{t.exerciseIds.length - 4}</Badge>
                         )}
                       </div>
-                      <Button
-                        size="sm"
-                        variant="soft"
-                        onClick={() => {
-                          if (active && !window.confirm('而家練緊，改用呢個課表？')) return
-                          startSession(t.id, t.exerciseIds)
-                        }}
-                      >
-                        用呢個開波
-                      </Button>
+                      <div className="flex gap-2 mt-auto">
+                        <Button
+                          size="sm"
+                          variant="soft"
+                          className="flex-1"
+                          onClick={() => {
+                            if (active && !window.confirm('而家練緊，改用呢個課表？')) return
+                            startSession(t.id, t.exerciseIds)
+                          }}
+                        >
+                          用呢個開波
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            saveTemplateAsCustom(t)
+                            setCustomPlans(loadCustomDayPlans())
+                            setSavedToast(`已存「${t.name}」`)
+                            window.setTimeout(() => setSavedToast(null), 2200)
+                          }}
+                        >
+                          存
+                        </Button>
+                      </div>
                     </Card>
                   </StaggerItem>
                 ))}
               </Stagger>
+              {savedToast && (
+                <div className="above-nav-gap fixed left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#0f766e] text-white text-sm px-4 py-2 shadow-lg">
+                  {savedToast}
+                </div>
+              )}
             </motion.div>
           )}
 

@@ -1,6 +1,7 @@
 /** Fitness + chat-adjacent achievements (localStorage). */
 
 import type { MealEntry, WorkoutSession, PRMap } from './storage'
+import { dayKeyFromIso } from './storage'
 import { computeStreak, weekConsistency } from './streaks'
 
 export const FITNESS_ACH_KEY = 'talktgtla-fitness-achievements-v1'
@@ -137,7 +138,7 @@ export function evaluateFitnessAchievements(input: {
   if (input.proteinGoal && input.proteinGoal > 0) {
     const byDay = new Map<string, number>()
     for (const m of input.meals) {
-      const k = m.createdAt.slice(0, 10)
+      const k = dayKeyFromIso(m.createdAt)
       byDay.set(k, (byDay.get(k) || 0) + m.macros.protein)
     }
     const hit = [...byDay.values()].some((p) => p >= input.proteinGoal!)
