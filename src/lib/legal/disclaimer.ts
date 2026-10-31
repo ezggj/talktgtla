@@ -88,6 +88,3 @@ export const DISCLAIMER_SECTIONS: DisclaimerSection[] = [
     ],
   },
 ]
-
-export const DISCLAIMER_FOOTNOTE =
-  '以上係產品使用說明同免責文案，唔構成法律意見。如需正式法律審核，請咨詢律師。'

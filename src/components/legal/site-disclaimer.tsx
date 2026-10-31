@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import {
-  DISCLAIMER_FOOTNOTE,
   DISCLAIMER_PATH,
   DISCLAIMER_SECTIONS,
   DISCLAIMER_SHORT_BULLETS,
@@ -70,9 +69,6 @@ export function DisclaimerFull() {
           </ul>
         </section>
       ))}
-      <p className="text-[11px] text-muted border-t border-border pt-4 leading-relaxed">
-        {DISCLAIMER_FOOTNOTE}
-      </p>
     </article>
   )
 }
