@@ -508,7 +508,7 @@ export default function Chat() {
       if (!res.ok) {
         setNewMessage(draft)
         setReplyToId(reply_to)
-        setSendError(data.error || '傳送失敗，請再試一次')
+        setSendError(data.error || '送唔出去，再試多次啦')
         return
       }
       // Don't wait on Realtime — append returned row immediately (dedupe by id)
@@ -528,7 +528,7 @@ export default function Chat() {
     } catch {
       setNewMessage(draft)
       setReplyToId(reply_to)
-      setSendError('網絡錯誤，請再試一次')
+      setSendError('網絡唔得，再試多次啦')
     } finally {
       setSending(false)
       inputRef.current?.focus()
@@ -712,8 +712,8 @@ export default function Chat() {
               {onlineCount == null
                 ? '…'
                 : onlineCount <= 0
-                  ? '0 人在線'
-                  : `${onlineCount} 人在線`}
+                  ? '而家冇人'
+                  : `${onlineCount} 人喺度`}
             </p>
           </div>
           <div className="absolute right-0 flex items-center gap-2">
@@ -741,11 +741,11 @@ export default function Chat() {
 
       {!isSupabaseConfigured && (
         <div className="mx-4 mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          未設定 Supabase。請喺 Vercel 加環境變數
+          傾偈後台未開好。要喺 Vercel 加
           <code className="mx-1">NEXT_PUBLIC_SUPABASE_URL</code>
           同
           <code className="mx-1">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>
-          ，跟住照 README 建 messages 表。
+          ，再照 README 起 messages 表。
         </div>
       )}
 
@@ -799,7 +799,7 @@ export default function Chat() {
                   )}
                   {!parent && msg.reply_to != null && (
                     <div className="mb-2 rounded-xl border-l-2 border-border px-2.5 py-1.5 text-xs text-muted">
-                      回覆一則訊息
+                      回覆緊上一句
                     </div>
                   )}
                   <div className="leading-relaxed break-words whitespace-pre-wrap">{msg.content}</div>
@@ -898,7 +898,7 @@ export default function Chat() {
                 連續 {trainStreak} 日
               </span>
             )}
-            <span className="text-[10px] text-muted">發言可加「今日爆機」感覺～</span>
+            <span className="text-[10px] text-muted">發言可以帶「今日爆機」感覺～</span>
           </div>
         )}
         <div className="flex items-center gap-2 mb-2">
@@ -913,7 +913,7 @@ export default function Chat() {
           {!isAnonymous && (
             <input
               type="text"
-              placeholder="暱稱"
+              placeholder="花名"
               value={username}
               maxLength={MAX_USERNAME_LENGTH}
               onChange={(e) => setUsername(e.target.value)}
@@ -1057,14 +1057,14 @@ export default function Chat() {
               Talk tgt la
             </h2>
             <p className="text-sm text-muted mb-5 leading-relaxed">
-              香港人一齊傾偈。Enter 傳送；訓練同飲食喺下面導航。自己負責言論。
+              香港人一齊傾偈。Enter 就送；訓練同飲食喺下面。講咩自己負責。
             </p>
             <button
               type="button"
               onClick={closeWelcome}
               className="w-full rounded-full bg-accent text-white py-2.5 text-sm font-medium hover:bg-[#0d6a63] active:scale-[0.98] transition-all shadow-soft"
             >
-              開始傾偈
+              開始傾
             </button>
           </div>
         </div>

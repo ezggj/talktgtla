@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { createClient } from '@/lib/supabase/client'
 import { authRedirectTo } from '@/lib/auth/use-user'
-import type { User } from '@supabase/supabase-js'
+import type { Provider, User } from '@supabase/supabase-js'
 
 type Props = {
   user: User | null
@@ -26,9 +26,15 @@ function otpErrorMessage(raw: string): string {
     lower.includes('429') ||
     lower.includes('email rate limit')
   ) {
-    return '寄信太密，等約 1 小時或者改用 Google 登入。若已有舊電郵入面 6 位碼，可以直接輸入。'
+    return '寄得太密喇——等大概一個鐘，或者改撳 Google／Apple。舊電郵入面如果有 6 位碼，可以直接填。'
   }
   return raw
+}
+
+function providerNotEnabledMessage(provider: 'google' | 'apple') {
+  return provider === 'google'
+    ? 'Google 登入仲未喺後台開好——試下 Apple，或者用電郵啦。'
+    : 'Apple 登入仲未喺後台開好——試下 Google，或者用電郵啦。'
 }
 
 export function LoginCard({ user, configured, onSignOut, compact }: Props) {
@@ -36,35 +42,41 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
   const [otp, setOtp] = useState('')
   const [phase, setPhase] = useState<'idle' | 'sent'>('idle')
   const [busy, setBusy] = useState(false)
-  const [googleBusy, setGoogleBusy] = useState(false)
+  const [oauthBusy, setOauthBusy] = useState<'google' | 'apple' | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  const signInWithGoogle = async () => {
+  const signInWithOAuth = async (provider: 'google' | 'apple') => {
     setErr(null)
     setMsg(null)
-    setGoogleBusy(true)
+    setOauthBusy(provider)
     try {
       const supabase = createClient()
+      const options: {
+        redirectTo: string
+        queryParams?: Record<string, string>
+      } = {
+        redirectTo: authRedirectTo(),
+      }
+      if (provider === 'google') {
+        options.queryParams = {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
+      }
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: authRedirectTo(),
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
+        provider: provider as Provider,
+        options,
       })
       if (error) throw error
-      // Browser will redirect to Google; keep spinner until unload.
+      // Browser redirects; keep spinner until unload.
     } catch (e) {
-      setGoogleBusy(false)
-      const raw = e instanceof Error ? e.message : 'Google 登入失敗'
+      setOauthBusy(null)
+      const raw = e instanceof Error ? e.message : `${provider === 'google' ? 'Google' : 'Apple'} 登入唔到`
+      const lower = raw.toLowerCase()
       setErr(
-        raw.toLowerCase().includes('provider') ||
-          raw.toLowerCase().includes('not enabled')
-          ? 'Google 登入尚未喺後台開啟，請用電郵或者稍後再試。'
+        lower.includes('provider') || lower.includes('not enabled')
+          ? providerNotEnabledMessage(provider)
           : raw
       )
     }
@@ -75,7 +87,7 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
     setMsg(null)
     const trimmed = email.trim().toLowerCase()
     if (!trimmed || !trimmed.includes('@')) {
-      setErr('請輸入有效電郵')
+      setErr('電郵寫錯咗喎')
       return
     }
     setBusy(true)
@@ -90,12 +102,11 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
       })
       if (error) throw error
       setPhase('sent')
-      setMsg('已寄出登入連結（同 6 位碼）。撳電郵入面條 link，或者喺下面輸入碼。')
+      setMsg('登入連結（同 6 位碼）寄咗喇。撳電郵入面條 link，或者喺下面填碼。')
     } catch (e) {
-      const raw = e instanceof Error ? e.message : '寄唔到，稍後再試'
+      const raw = e instanceof Error ? e.message : '寄唔到，陣間再試'
       setErr(otpErrorMessage(raw))
-      // Still show OTP field so they can use an old code if they have one.
-      if (otpErrorMessage(raw).includes('寄信太密')) setPhase('sent')
+      if (otpErrorMessage(raw).includes('寄得太密')) setPhase('sent')
     } finally {
       setBusy(false)
     }
@@ -106,7 +117,7 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
     const trimmed = email.trim().toLowerCase()
     const token = otp.trim()
     if (!trimmed || token.length < 6) {
-      setErr('請輸入電郵同 6 位碼')
+      setErr('電郵同 6 位碼都要填吓')
       return
     }
     setBusy(true)
@@ -118,22 +129,24 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
         type: 'email',
       })
       if (error) throw error
-      setMsg('登入成功')
+      setMsg('入到喇')
       setPhase('idle')
     } catch (e) {
       setPhase('sent')
-      setErr(e instanceof Error ? e.message : '驗證失敗，試下再寄一次')
+      setErr(e instanceof Error ? e.message : '驗證唔到，試下再寄一次')
     } finally {
       setBusy(false)
     }
   }
 
+  const oauthLocked = busy || oauthBusy != null
+
   if (!configured) {
     return (
       <Card>
-        <Badge tone="muted">未設定</Badge>
-        <CardTitle className="mt-2 text-xl">登入未就緒</CardTitle>
-        <CardDesc className="mt-2">Supabase 環境變數未設定。</CardDesc>
+        <Badge tone="muted">未開好</Badge>
+        <CardTitle className="mt-2 text-xl">登入仲未開得</CardTitle>
+        <CardDesc className="mt-2">後台未設定好，陣間再嚟啦。</CardDesc>
       </Card>
     )
   }
@@ -144,9 +157,9 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <Badge tone="accent">已登入</Badge>
-            <CardTitle className="mt-2 text-xl">雲端同步開緊</CardTitle>
+            <CardTitle className="mt-2 text-xl">資料跟住你走</CardTitle>
             <CardDesc className="mt-2 break-all">{user.email}</CardDesc>
-            <p className="mt-2 text-xs text-muted">訓練同飲食會跟住你跨裝置；本機仲有 cache。</p>
+            <p className="mt-2 text-xs text-muted">訓練同飲食會 sync 上雲，換機都睇到；手機都有本地 cache。</p>
           </div>
           <Button
             variant="secondary"
@@ -167,26 +180,42 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--accent-soft),_transparent_60%)] pointer-events-none" />
       <div className="relative space-y-4">
         <div>
-          <Badge tone="accent">會員</Badge>
-          <CardTitle className="mt-2 text-xl">登入同步</CardTitle>
+          <Badge tone="accent">登入</Badge>
+          <CardTitle className="mt-2 text-xl">登入先完整用</CardTitle>
           <CardDesc className="mt-2">
-            建議用 Google 一掣登入。訪客可以繼續試訓練／飲食，登入先會上雲同睇齊歷史匯總。
+            一掣 Google 或者 Apple 最爽。訪客都可以試訓練／飲食；登入先會上雲同睇齊日週月統計。
           </CardDesc>
         </div>
 
-        <Button
-          className="w-full"
-          size="lg"
-          onClick={() => void signInWithGoogle()}
-          disabled={busy || googleBusy}
-        >
-          {googleBusy ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <GoogleGlyph />
-          )}
-          用 Google 登入
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button
+            className="w-full"
+            size="lg"
+            onClick={() => void signInWithOAuth('google')}
+            disabled={oauthLocked}
+          >
+            {oauthBusy === 'google' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <GoogleGlyph />
+            )}
+            用 Google 登入
+          </Button>
+          <Button
+            className="w-full !bg-[#111111] !text-white hover:!bg-black border-transparent"
+            size="lg"
+            variant="secondary"
+            onClick={() => void signInWithOAuth('apple')}
+            disabled={oauthLocked}
+          >
+            {oauthBusy === 'apple' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <AppleGlyph />
+            )}
+            用 Apple 登入
+          </Button>
+        </div>
 
         <div className="flex items-center gap-3 text-[11px] text-muted">
           <div className="h-px flex-1 bg-border" />
@@ -203,19 +232,19 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
             placeholder="you@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            disabled={busy || googleBusy}
+            disabled={oauthLocked}
           />
         </label>
         {phase === 'sent' && (
           <label className="block text-xs text-muted">
-            6 位驗證碼（如果電郵有顯示）
+            6 位驗證碼（電郵有顯示就填）
             <Input
               inputMode="numeric"
               className="mt-1.5 tracking-widest"
               placeholder="123456"
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
-              disabled={busy || googleBusy}
+              disabled={oauthLocked}
             />
           </label>
         )}
@@ -224,7 +253,7 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
             variant="secondary"
             className="flex-1"
             onClick={() => void sendLink()}
-            disabled={busy || googleBusy}
+            disabled={oauthLocked}
           >
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -238,15 +267,18 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
               variant="secondary"
               className="flex-1"
               onClick={() => void verifyCode()}
-              disabled={busy || googleBusy}
+              disabled={oauthLocked}
             >
               <LogIn className="h-4 w-4" />
-              輸入碼登入
+              填碼登入
             </Button>
           )}
         </div>
         {msg && <p className="text-xs text-accent leading-relaxed">{msg}</p>}
         {err && <p className="text-xs text-red-600 leading-relaxed">{err}</p>}
+        <p className="text-[10px] text-muted leading-relaxed">
+          Apple 登入要喺 Supabase 開 Apple provider，並喺 Apple Developer 整 Services ID 同 key；未開好會顯示提示。
+        </p>
       </div>
     </Card>
   )
@@ -275,12 +307,20 @@ function GoogleGlyph() {
   )
 }
 
+function AppleGlyph() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden fill="currentColor">
+      <path d="M16.365 12.66c-.015-1.612.906-2.387 1.004-2.45-.548-1.01-1.4-1.15-1.7-1.164-1.292-.092-2.244.76-2.823.76-.58 0-1.477-.74-2.43-.72-1.25.018-2.404.727-3.046 1.847-1.302 2.26-.333 5.605.935 7.438.62.9 1.36 1.91 2.33 1.874.935-.037 1.29-.605 2.42-.605 1.13 0 1.45.605 2.44.586.996-.017 1.63-.91 2.24-1.812.71-1.038.998-2.042.998-2.094-.024-.01-1.94-.744-1.962-2.66zm-1.84-6.85c.516-.624.864-1.49.769-2.354-.743.03-1.644.495-2.176 1.12-.478.55-.897 1.43-.784 2.275.828.064 1.675-.42 2.19-1.041z" />
+    </svg>
+  )
+}
+
 /** Slim prompt for train/eat when guest. */
 export function LoginPromptBanner({ href = '/me' }: { href?: string }) {
   return (
     <div className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm shadow-soft flex items-center justify-between gap-3">
       <p className="text-muted text-xs sm:text-sm leading-relaxed">
-        而家係本機模式。登入之後訓練／飲食會上雲，飲食仲可以睇日／週／月匯總。
+        而家係本機模式。登入之後訓練／飲食會上雲，仲可以睇日／週／月總計。
       </p>
       <Link
         href={href}

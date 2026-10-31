@@ -30,7 +30,7 @@
   --color-danger: var(--danger);
   --color-warning: var(--warning);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-instrument), ui-serif, Georgia, serif;
+  --font-serif: var(--font-fraunces), ui-serif, Georgia, "Songti TC", "Noto Serif TC", serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --radius-xl: 16px;
   --radius-2xl: 20px;
@@ -54,6 +54,11 @@ body {
 
 .font-serif {
   font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 50, "WONK" 0, "opsz" 36;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  font-weight: 500;
 }
 
 .shadow-soft {

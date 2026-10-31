@@ -69,11 +69,11 @@ export function MeClient() {
         const w = await migrateLocalWorkouts(supabase, user.id, loadSessions())
         const m = await migrateLocalMeals(supabase, user.id, loadMeals())
         if (!cancelled && (w > 0 || m > 0)) {
-          setSyncNote(`已上載本機資料：${w} 次訓練、${m} 餐`)
+          setSyncNote(`本機資料已上雲：${w} 次訓練、${m} 餐`)
         }
       } catch (e) {
         if (!cancelled) {
-          setSyncNote(e instanceof Error ? e.message : '同步失敗')
+          setSyncNote(e instanceof Error ? e.message : 'sync 唔到')
         }
       }
     })()
@@ -112,15 +112,15 @@ export function MeClient() {
       <PageTransition className="max-w-lg mx-auto">
         <header className="mb-8">
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted mb-2">我</p>
-          <h1 className="font-serif text-3xl sm:text-4xl tracking-tight">你嘅空間</h1>
+          <h1 className="font-serif text-3xl sm:text-4xl tracking-tight">呢度係你嘅</h1>
           <p className="mt-2 text-sm text-muted">
-            登入之後訓練同飲食上雲；飲食可以隨時翻睇日／週／月蛋白同卡路里。
+            登入之後訓練同飲食會上雲；飲食隨時可以翻睇日／週／月蛋白同卡路里。
           </p>
         </header>
 
         {authError && (
           <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-            登入連結失效或者 redirect 未設定。請喺「我」再寄一次，或者用 6 位碼。
+            登入連結失效或者跳轉未設好。返嚟「我」再寄一次，或者填 6 位碼；又或者試 Google／Apple。
           </div>
         )}
 
@@ -141,14 +141,14 @@ export function MeClient() {
           <StaggerItem>
             <div className="grid grid-cols-2 gap-2">
               <Card className="py-4">
-                <div className="text-[11px] text-muted mb-1">訓練連續</div>
+                <div className="text-[11px] text-muted mb-1">連練</div>
                 <div className="text-2xl font-semibold tabular-nums text-accent">{streak}</div>
-                <div className="text-xs text-muted">日 streak</div>
+                <div className="text-xs text-muted">日</div>
               </Card>
               <Card className="py-4">
                 <div className="text-[11px] text-muted mb-1">今日</div>
                 <div className="text-lg font-semibold">{didTrain ? '練咗 ✓' : '未開波'}</div>
-                <div className="text-xs text-muted">{didTrain ? '傾偈會亮徽章' : '完成一次就點亮'}</div>
+                <div className="text-xs text-muted">{didTrain ? '傾偈會亮住徽章' : '練完一次就亮'}</div>
               </Card>
             </div>
           </StaggerItem>
@@ -161,7 +161,7 @@ export function MeClient() {
             <Card>
               <div className="flex items-center gap-2 mb-4">
                 <Target className="h-4 w-4 text-accent" />
-                <CardTitle className="text-xl">今日目標</CardTitle>
+                <CardTitle className="text-xl">今日想食幾多</CardTitle>
                 {user && <Badge tone="muted">雲端</Badge>}
               </div>
               <div className="space-y-3">
@@ -188,7 +188,7 @@ export function MeClient() {
                   />
                 </label>
                 <Button onClick={() => void persist()} className="w-full">
-                  {saved ? '已儲存 ✓' : '儲存目標'}
+                  {saved ? '存好喇 ✓' : '儲低目標'}
                 </Button>
               </div>
             </Card>
@@ -223,7 +223,7 @@ export function MeClient() {
 
           <StaggerItem>
             <CardDesc className="text-center text-[11px] px-2">
-              Talk tgt la · 你嘅訓練同飲食資料只得你睇到。
+              Talk tgt la · 你嘅訓練同飲食，淨得你睇到。
             </CardDesc>
           </StaggerItem>
         </Stagger>

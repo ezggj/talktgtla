@@ -128,9 +128,9 @@ export function TrainClient() {
         setSessions(remote)
         saveSessions(remote)
         syncDaysFromSessions(remote)
-        setCloudNote('訓練已同步雲端')
+        setCloudNote('訓練已 sync 上雲')
       } catch (e) {
-        if (!cancelled) setCloudNote(e instanceof Error ? e.message : '訓練同步失敗')
+        if (!cancelled) setCloudNote(e instanceof Error ? e.message : '訓練 sync 唔到')
       }
     })()
     return () => {
@@ -302,14 +302,14 @@ export function TrainClient() {
           await persistFinishedWorkout(supabase, user.id, ended)
           setCloudNote('呢次訓練已上雲')
         } catch (e) {
-          setCloudNote(e instanceof Error ? e.message : '上雲失敗，本機已保存')
+          setCloudNote(e instanceof Error ? e.message : '上雲唔到，不過本機已存低')
         }
       })()
     }
   }
 
   const discardSession = () => {
-    if (!window.confirm('放棄呢次訓練？組數唔會保存。')) return
+    if (!window.confirm('放棄呢次訓練？組數唔會留低。')) return
     persistActive(null)
     setSelectedEx(null)
     setRestRunning(false)
@@ -391,14 +391,14 @@ export function TrainClient() {
               今日爆機未？
             </h1>
             <p className="mt-2 text-sm text-muted max-w-sm">
-              一掣加組、自動帶入上次重量——比填表快。
+              一掣加組、自動帶入上次重量——唔使慢慢填表。
             </p>
           </div>
           {active && !active.endedAt && (
             <div className="shrink-0 rounded-2xl border border-border bg-surface px-3.5 py-2.5 shadow-soft text-right">
               <div className="flex items-center gap-1.5 text-[10px] text-muted justify-end">
                 <Clock className="h-3 w-3" />
-                進行中
+                練緊
               </div>
               <div className="font-semibold tabular-nums text-lg text-accent leading-tight">
                 {formatDuration(elapsed)}
@@ -464,11 +464,11 @@ export function TrainClient() {
                       <div className="relative">
                         <CardTitle>未開波？</CardTitle>
                         <CardDesc className="mt-2 mb-5">
-                          撳下面開始今日訓練。組間休息、上一組重量會自動跟住你。
+                          撳下面開今日場。組間休息、上一組重量會自動跟住你。
                         </CardDesc>
                         <Button size="lg" className="w-full sm:w-auto" onClick={() => startSession()}>
                           <Play className="h-4 w-4" />
-                          開始今日訓練
+                          開波
                         </Button>
                       </div>
                     </Card>
@@ -478,7 +478,7 @@ export function TrainClient() {
                       <Card className="py-4">
                         <div className="text-[11px] text-muted mb-1">今日完成</div>
                         <div className="text-2xl font-semibold tabular-nums">{todayDone.length}</div>
-                        <div className="text-xs text-muted">次 session</div>
+                        <div className="text-xs text-muted">次</div>
                       </Card>
                       <Card className="py-4">
                         <div className="text-[11px] text-muted mb-1">近 7 日容量</div>
@@ -492,7 +492,7 @@ export function TrainClient() {
                   <StaggerItem>
                     <Card>
                       <div className="flex items-center justify-between mb-3">
-                        <CardTitle className="text-lg">本週節奏</CardTitle>
+                        <CardTitle className="text-lg">呢個星期</CardTitle>
                         <Badge tone="muted">容量</Badge>
                       </div>
                       <Sparkline values={sparkline} labels={sparkLabels} />
@@ -667,7 +667,7 @@ export function TrainClient() {
                         onClick={() => setPickerOpen(true)}
                         className="w-full rounded-[20px] border border-dashed border-border py-10 text-sm text-muted hover:border-accent/40 hover:text-accent hover:bg-accent-soft/40 transition"
                       >
-                        揀一個動作開始記組
+                        揀個動作開始記
                       </button>
                     )}
                   </Card>
@@ -676,7 +676,7 @@ export function TrainClient() {
                   {setsByExercise.length > 0 && (
                     <Card className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">呢次組數</CardTitle>
+                        <CardTitle className="text-lg">呢場組數</CardTitle>
                         <Badge tone="accent">
                           {active.sets.length} 組 · {Math.round(volumeOf(active.sets)).toLocaleString()} 容量
                         </Badge>
@@ -755,7 +755,7 @@ export function TrainClient() {
                         size="sm"
                         variant="soft"
                         onClick={() => {
-                          if (active && !window.confirm('已有進行中訓練，改用呢個課表？')) return
+                          if (active && !window.confirm('而家練緊，改用呢個課表？')) return
                           startSession(t.id, t.exerciseIds)
                         }}
                       >
@@ -808,7 +808,7 @@ export function TrainClient() {
                 <Card className="text-center py-12">
                   <History className="h-8 w-8 text-muted mx-auto mb-3 opacity-50" />
                   <CardTitle className="text-lg mb-1">仲未有歷史</CardTitle>
-                  <CardDesc>完成第一次訓練之後，日曆同容量會喺度慢慢長出來。</CardDesc>
+                  <CardDesc>練完第一次之後，日曆同容量會喺度慢慢長出來。</CardDesc>
                 </Card>
               ) : (
                 <Stagger className="space-y-3">
@@ -958,7 +958,7 @@ export function TrainClient() {
               <div className="text-center mb-4">
                 <div className="text-3xl mb-2">🔥</div>
                 <h2 className="font-serif text-2xl mb-1">搞掂！</h2>
-                <p className="text-sm text-muted">今日練完啦。分析已跟住呢次 session 儲低。</p>
+                <p className="text-sm text-muted">今日練完啦。分析已跟住呢場儲低。</p>
               </div>
 
               <div className="grid grid-cols-2 gap-2 mb-4">
@@ -996,7 +996,7 @@ export function TrainClient() {
               </div>
 
               <div className="rounded-[20px] border border-border bg-[#fafaf9] p-4 mb-5 text-left">
-                <div className="text-xs font-semibold text-accent mb-2">今日提示</div>
+                <div className="text-xs font-semibold text-accent mb-2">今日建議</div>
                 <ul className="space-y-2">
                   {lastAnalysis.tips.map((tip, i) => (
                     <li key={i} className="text-sm text-foreground/90 leading-relaxed flex gap-2">

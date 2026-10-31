@@ -29,31 +29,31 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'first_message',
     title: '第一句話',
-    description: '喺聊天室傳送咗第一則訊息',
+    description: '喺傾偈室送出第一句',
     emoji: '👋',
   },
   {
     id: 'ten_messages',
     title: '傾咗 10 句',
-    description: '一共傳送咗 10 則訊息',
+    description: '一共傾咗十句',
     emoji: '💬',
   },
   {
     id: 'first_reply',
     title: '回覆達人',
-    description: '第一次回覆咗人哋嘅訊息',
+    description: '第一次覆咗人',
     emoji: '↩️',
   },
   {
     id: 'slang_user',
     title: '潮語達人',
-    description: '用過潮語快速掣',
+    description: '用過潮語快掣',
     emoji: '🗣️',
   },
   {
     id: 'emoji_user',
     title: '表情達人',
-    description: '用過表情符號掣',
+    description: '用過表情掣',
     emoji: '😊',
   },
 ]

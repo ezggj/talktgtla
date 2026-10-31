@@ -139,9 +139,9 @@ export function EatClient() {
         if (cancelled) return
         setMeals(remote)
         saveMeals(remote)
-        setCloudNote('已同步雲端飲食歷史')
+        setCloudNote('飲食歷史已 sync 上雲')
       } catch (e) {
-        if (!cancelled) setCloudNote(e instanceof Error ? e.message : '同步失敗')
+        if (!cancelled) setCloudNote(e instanceof Error ? e.message : 'sync 唔到')
       } finally {
         if (!cancelled) setSyncing(false)
       }
@@ -287,7 +287,7 @@ export function EatClient() {
       file,
       fileName: file.name,
       status: 'estimating',
-      name: 'AI 認緊碟餸…',
+      name: '認緊碟餸…',
       baseMacros: { kcal: 0, protein: 0, carbs: 0, fat: 0 },
       portion: 1,
       estimated: true,
@@ -326,7 +326,7 @@ export function EatClient() {
         }
 
         if (!res.ok || !data.macros || !data.name) {
-          throw new Error(data.error || 'AI 估算失敗')
+          throw new Error(data.error || 'AI 估唔到')
         }
 
         setDraft((prev) =>
@@ -353,14 +353,14 @@ export function EatClient() {
                 baseMacros: est.macros,
                 estimated: true,
                 source: 'mock',
-                note: 'AI 暫時唔得，用示範估算；可人手改',
+                note: 'AI 暫時唔得，用示範估算；你可以自己改',
               }
             : null
         )
         showToast(
           e instanceof Error
-            ? `AI 估唔到：${e.message} · 已改用示範估算`
-            : 'AI 估唔到 · 已改用示範估算'
+            ? `AI 估唔到：${e.message} · 改用示範估算`
+            : 'AI 估唔到 · 改用示範估算'
         )
       }
     })()
@@ -390,7 +390,7 @@ export function EatClient() {
         })
       }
     } catch (e) {
-      setCloudNote(e instanceof Error ? e.message : '雲端儲存失敗')
+      setCloudNote(e instanceof Error ? e.message : '存雲端唔到')
     }
   }
 
@@ -479,7 +479,7 @@ export function EatClient() {
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted mb-2">飲食</p>
           <h1 className="font-serif text-3xl sm:text-4xl tracking-tight">影低呢餐</h1>
           <p className="mt-2 text-sm text-muted max-w-md">
-            卡路里、蛋白、碳水、脂肪一齊估。登入之後歷史永久保存，隨時翻睇日／週／月總計。
+            卡路里、蛋白、碳水、脂肪一齊估。登入之後歷史會留低，隨時翻睇日／週／月總計。
           </p>
         </header>
 
@@ -492,7 +492,7 @@ export function EatClient() {
         {user && (
           <div className="mb-4 flex items-center gap-2 text-[11px] text-muted">
             <Cloud className={cn('h-3.5 w-3.5 text-accent', syncing && 'animate-pulse')} />
-            {syncing ? '同步緊…' : cloudNote || '雲端飲食已開啟'}
+            {syncing ? 'sync 緊…' : cloudNote || '飲食已上雲'}
           </div>
         )}
 
@@ -532,7 +532,7 @@ export function EatClient() {
             </button>
             <div className="text-center">
               <div className="text-sm font-medium">{range.label}</div>
-              <div className="text-[11px] text-muted">{periodMeals.length} 餐入帳</div>
+              <div className="text-[11px] text-muted">{periodMeals.length} 餐</div>
             </div>
             <button
               type="button"
@@ -560,7 +560,7 @@ export function EatClient() {
           </div>
           {period === 'month' && buckets.length > 1 && (
             <p className="mt-3 text-[11px] text-muted text-center">
-              本月按日拆開共 {buckets.length} 日有記錄 · SQL date_trunc 匯總
+              本月有記錄嘅日子：{buckets.length} 日
             </p>
           )}
         </Card>
@@ -605,7 +605,7 @@ export function EatClient() {
         {(period === 'month' || period === 'week') && (
           <Card className="mb-6">
             <CardTitle className="text-lg mb-1">飲食日曆</CardTitle>
-            <CardDesc className="mb-4">色越深＝當日蛋白越多。撳日子跳去日計。</CardDesc>
+            <CardDesc className="mb-4">色越深＝當日蛋白越多。撳日子就跳去嗰日。</CardDesc>
             <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] text-muted mb-1">
               {['日', '一', '二', '三', '四', '五', '六'].map((d) => (
                 <div key={d}>{d}</div>
@@ -649,7 +649,7 @@ export function EatClient() {
           <div className="relative">
             <CardTitle className="text-xl mb-1">影相估營養</CardTitle>
             <CardDesc className="mb-5">
-              相機優先 · AI 估 kcal／蛋白／碳水／脂肪。之後可拖份量；登入會永久入歷史。
+              影相最快 · AI 估卡路里／蛋白／碳水／脂肪。之後可以拖份量改；登入會入歷史。
             </CardDesc>
             <div className="flex flex-col sm:flex-row gap-2">
               <Button size="lg" className="flex-1" onClick={() => cameraRef.current?.click()}>
@@ -708,7 +708,7 @@ export function EatClient() {
         {/* History list for selected period */}
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-serif text-xl">
-            {period === 'day' ? '當日時間線' : period === 'week' ? '本週餐單' : '本月餐單'}
+            {period === 'day' ? '今日食咗咩' : period === 'week' ? '呢個星期' : '呢個月'}
           </h2>
           <span className="text-xs text-muted">{periodMeals.length} 餐</span>
         </div>
@@ -718,7 +718,7 @@ export function EatClient() {
             <Utensils className="h-8 w-8 text-muted mx-auto mb-3 opacity-45" />
             <CardTitle className="text-lg mb-1">呢段時間未有記錄</CardTitle>
             <CardDesc className="max-w-xs mx-auto">
-              影低一餐或者撳「香港常見」。登入之後，成個星期嘅餐都可以留低，之後翻睇月計。
+              影低一餐，或者撳下面「香港常見」。登入之後成個星期都可以留低，之後翻睇月計。
             </CardDesc>
           </Card>
         ) : (
@@ -846,10 +846,10 @@ export function EatClient() {
                 </button>
                 <Badge className="absolute bottom-3 left-3" tone="accent">
                   {draft.status === 'estimating'
-                    ? 'AI 估算中…'
+                    ? 'AI 估緊…'
                     : draft.source === 'ai'
-                      ? 'AI 估算 · 可改'
-                      : '示範估算 · 可改'}
+                      ? 'AI 估嘅 · 可以改'
+                      : '示範估算 · 可以改'}
                 </Badge>
               </div>
               <div className="p-5">
@@ -861,7 +861,7 @@ export function EatClient() {
                         <div key={i} className="h-16 rounded-2xl bg-border/70 skeleton-pulse" />
                       ))}
                     </div>
-                    <p className="text-xs text-muted text-center pt-2">認緊碟餸…稍等</p>
+                    <p className="text-xs text-muted text-center pt-2">認緊碟餸…等陣</p>
                   </div>
                 ) : (
                   <>
@@ -915,7 +915,7 @@ export function EatClient() {
                       </p>
                     )}
                     <p className="text-[11px] text-muted text-center mt-3 leading-relaxed">
-                      估算僅供參考，唔係實驗室數字。登入後會入雲端歷史，之後可以睇月計。
+                      估算啫，唔係實驗室數字。登入後會入雲端歷史，之後可以睇月計。
                     </p>
                   </>
                 )}

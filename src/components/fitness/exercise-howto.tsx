@@ -50,7 +50,7 @@ export function ExerciseHowTo({
       >
         <span className="inline-flex items-center gap-1.5">
           <Lightbulb className={cn(variant === 'panel' ? 'h-3.5 w-3.5' : 'h-3 w-3')} />
-          {open ? '收起做法' : '點做'}
+          {open ? '收埋' : '點做'}
           {guide && variant === 'panel' && (
             <span className="text-muted font-normal text-xs">· {guide.nameZh}</span>
           )}
@@ -101,7 +101,7 @@ export function ExerciseHowTo({
                 </a>
               ) : (
                 <p className="mt-3 text-[10px] text-muted leading-relaxed">
-                  未有示範片：保持核心、控制速度、痛就停。之後可以自己加備註。
+                  未有示範片：核心收實、控制速度、痛就停。之後可以自己加備註。
                 </p>
               )}
               {!guide && (

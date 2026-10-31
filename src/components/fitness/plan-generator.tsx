@@ -109,7 +109,7 @@ export function PlanGenerator({ userId }: Props) {
         setPlanId(data.id)
       }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : '生成失敗')
+      setErr(e instanceof Error ? e.message : '出唔到課表，試多次')
     } finally {
       setBusy(false)
     }
@@ -130,11 +130,11 @@ export function PlanGenerator({ userId }: Props) {
       <div className="relative space-y-4">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <Badge tone="accent">課表生成</Badge>
-            <CardTitle className="mt-2 text-xl">一週點練？</CardTitle>
+            <Badge tone="accent">課表</Badge>
+            <CardTitle className="mt-2 text-xl">一星期點練？</CardTitle>
             <CardDesc className="mt-2">
-              講你目標同器材，即刻出廣東話課表。之後一掣開波入訓練。
-              {!userId && '（登入先會存雲端）'}
+              講你目標同器材，即刻出一套課表。之後一掣開波入訓練。
+              {!userId && '（登入先會存上雲）'}
             </CardDesc>
           </div>
           <Sparkles className="h-5 w-5 text-accent shrink-0" />
@@ -176,7 +176,7 @@ export function PlanGenerator({ userId }: Props) {
           />
         </Field>
         <label className="block text-xs text-muted">
-          傷患／備註（可選）
+          傷患／備註（唔填都得）
           <Input
             className="mt-1.5"
             placeholder="例如：右膝唔好深蹲太深"
@@ -187,7 +187,7 @@ export function PlanGenerator({ userId }: Props) {
 
         <Button className="w-full" onClick={() => void run()} disabled={busy}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {plan ? '重新生成課表' : '生成我嘅課表'}
+          {plan ? '重新出一套' : '出我嘅課表'}
         </Button>
         {err && <p className="text-xs text-red-600">{err}</p>}
 
@@ -197,7 +197,7 @@ export function PlanGenerator({ userId }: Props) {
               <div className="font-serif text-lg">{plan.title}</div>
               <p className="text-xs text-muted mt-1 leading-relaxed">{plan.summary}</p>
               {planId && (
-                <p className="text-[10px] text-muted mt-1">已存雲端 · {planId.slice(0, 8)}</p>
+                <p className="text-[10px] text-muted mt-1">已存上雲 · {planId.slice(0, 8)}</p>
               )}
             </div>
             {plan.days.map((d) => {

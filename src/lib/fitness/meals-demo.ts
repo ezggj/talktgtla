@@ -13,7 +13,7 @@ export const HK_DISH_ESTIMATES: {
   },
   {
     name: '雞胸便當',
-    hint: '健身友好 · 配菜視乎',
+    hint: '健身友善 · 配菜睇情況',
     macros: { kcal: 420, protein: 48, carbs: 35, fat: 10, fiber: 6 },
   },
   {

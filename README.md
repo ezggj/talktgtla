@@ -15,7 +15,7 @@
 
 ## Auth 同雲端
 
-- Supabase Auth：**Google OAuth（建議）**＋電郵 magic link／6 位碼（次選）
+- Supabase Auth：**Google／Apple OAuth（建議）**＋電郵 magic link／6 位碼（次選）
 - 登入後：訓練、飲食、目標、課表上雲；RLS 只得自己
 - 訪客仍可用本機 localStorage；登入會遷移本機資料
 - `authRedirectTo()` 永遠用 `https://talktgtla.com`（`NEXT_PUBLIC_SITE_URL`），避免電郵／OAuth 跳去 localhost
@@ -30,6 +30,19 @@
    `https://etbgulbuzezrdoqvvamy.supabase.co/auth/v1/callback`
 3. Supabase Dashboard → Authentication → Providers → **Google** → Enable，貼上 Client ID + Client Secret（secret 只放 dashboard，**唔好**寫入 Next.js env）
 4. 儲存後喺 `/me` 撳「用 Google 登入」試
+
+### 開 Apple 登入
+
+UI 已有「用 Apple 登入」（`signInWithOAuth({ provider: 'apple' })`，`redirectTo` 同 Google）。
+
+後台要自己開（唔開掣會提示）：
+
+1. [Apple Developer](https://developer.apple.com/) → Certificates, Identifiers & Profiles
+2. 整 **Services ID**（Sign in with Apple），domains／return URL 用 Supabase callback：
+   `https://etbgulbuzezrdoqvvamy.supabase.co/auth/v1/callback`
+3. 整 **Key**（Sign in with Apple），下載 `.p8`，記低 Key ID + Team ID
+4. Supabase Dashboard → Authentication → Providers → **Apple** → Enable，填 Services ID、Secret Key（`.p8`）、Key ID、Team ID
+5. `/me` 撳「用 Apple 登入」試
 
 ## 飲食匯總
 
@@ -60,7 +73,7 @@
 
 ## 設計
 
-Linear + Stripe + Apple：`#FAFAF9`、accent `#0F766E`、Instrument Serif、Geist、Framer Motion。
+Linear + Stripe + Apple：`#FAFAF9`、accent `#0F766E`、**Fraunces**（標題）、Geist（內文）、Framer Motion。文案用口語香港廣東話。
 
 ## 開發
 

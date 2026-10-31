@@ -124,18 +124,18 @@ const GOAL_LABEL: Record<PlanGoal, string> = {
   hypertrophy: '增肌',
   fatloss: '減脂',
   conditioning: '體能',
-  general: '一般健康',
+  general: '打底健康',
 }
 
 const EXP_LABEL: Record<PlanExperience, string> = {
   beginner: '新手',
-  intermediate: '中階',
-  advanced: '進階',
+  intermediate: '練過一陣',
+  advanced: '老手',
 }
 
 const EQ_LABEL: Record<PlanEquipment, string> = {
   gym: '健身房',
-  dumbbell: '宿舍啞鈴',
+  dumbbell: '屋企啞鈴',
   bodyweight: '徒手',
 }
 
@@ -185,20 +185,20 @@ export function generatePlan(inputs: PlanInputs): GeneratedPlan {
 }
 
 export const GOAL_OPTIONS: { id: PlanGoal; label: string; hint: string }[] = [
-  { id: 'hypertrophy', label: '增肌', hint: '組數足、8–12 下' },
-  { id: 'fatloss', label: '減脂', hint: '少休息、多反復' },
+  { id: 'hypertrophy', label: '增肌', hint: '組數夠、8–12 下' },
+  { id: 'fatloss', label: '減脂', hint: '少休息、多次數' },
   { id: 'conditioning', label: '體能', hint: '輕快節奏' },
-  { id: 'general', label: '一般健康', hint: '均衡好堅持' },
+  { id: 'general', label: '打底健康', hint: '均衡、好堅持' },
 ]
 
 export const EXP_OPTIONS: { id: PlanExperience; label: string }[] = [
   { id: 'beginner', label: '新手' },
-  { id: 'intermediate', label: '中階' },
-  { id: 'advanced', label: '進階' },
+  { id: 'intermediate', label: '練過一陣' },
+  { id: 'advanced', label: '老手' },
 ]
 
 export const EQ_OPTIONS: { id: PlanEquipment; label: string; hint: string }[] = [
   { id: 'gym', label: '健身房', hint: '器械齊' },
-  { id: 'dumbbell', label: '宿舍啞鈴', hint: '有限空間' },
+  { id: 'dumbbell', label: '屋企啞鈴', hint: '地方唔大' },
   { id: 'bodyweight', label: '徒手', hint: '唔使器械' },
 ]

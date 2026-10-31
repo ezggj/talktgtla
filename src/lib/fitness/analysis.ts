@@ -90,9 +90,9 @@ export function analyzeWorkout(
   const week = recentWeek(history, current)
   const comparePool = sameTpl.length ? sameTpl : week
   const compareLabel = sameTpl.length
-    ? '對上同一課表'
+    ? '對上同一套課表'
     : week.length
-      ? '近 7 日平均'
+      ? '近七日平均'
       : null
 
   let prevVolume: number | null = null
@@ -114,27 +114,27 @@ export function analyzeWorkout(
   const finishedBefore = history.filter((s) => s.endedAt && s.id !== current.id).length
 
   if (finishedBefore === 0) {
-    tips.push('第一次記低訓練——做得好。慢慢建立節奏就得，唔使一次練到盡。')
+    tips.push('第一次記低訓練，做得好。慢慢建立節奏就得，唔使一次練到盡。')
   }
 
   if (volumeDeltaPct != null && volumeDeltaPct >= 20) {
-    tips.push('今日容量高過上次唔少，聽日留心瞓覺同蛋白攝取，畀身體追得上。')
+    tips.push('今日容量高過上次唔少——聽日記得瞓夠同食夠蛋白，畀身體追得上。')
   } else if (volumeDeltaPct != null && volumeDeltaPct <= -20) {
-    tips.push('容量輕過上次——可能係恢復日或者狀態一般，咁樣都得，聽朝再睇感覺。')
+    tips.push('容量輕過上次——可能係恢復日或者狀態一般，咁都得，聽朝再睇感覺。')
   }
 
   if (dur >= 75 * 60 || sets >= 20) {
-    tips.push('練咗好耐／組數好多，下次組間可以再緊湊啲，或者拆開上下午兩短 session。')
+    tips.push('練得好耐／組數好多，下次組間可以再緊湊啲，或者拆開上下午兩短場。')
   } else if (dur > 0 && dur <= 35 * 60 && volume > 0 && density > 80) {
-    tips.push('時間唔長但密度夠——效率正，keep 住呢種節奏。')
+    tips.push('時間唔長但密度夠——效率正，keep 住呢個節奏。')
   }
 
   if (restAvg != null && restAvg <= 60 && volumeDeltaPct != null && volumeDeltaPct >= 0) {
-    tips.push('休息偏短仲頂到容量——今日強度感不錯，記得拉一拉同補水。')
+    tips.push('休息偏短仲頂到容量——今日強度唔錯，記得拉一拉同補水。')
   }
 
   if (weightsFlat(history, current)) {
-    tips.push('有啲動作重量企咗一陣，下星期可以試 +2.5kg，或者同一重量多做 1 次。')
+    tips.push('有啲動作重量企咗一陣——下星期可以試 +2.5kg，或者同一重量多做一下。')
   }
 
   if (sets > 0 && sets < 6 && finishedBefore > 0) {

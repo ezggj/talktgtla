@@ -34,17 +34,17 @@ function normalizeWhitespace(input: string): string {
 
 export function sanitizeUsername(raw: unknown): SanitizeResult {
   if (typeof raw !== 'string') {
-    return { ok: false, error: '暱稱唔啱格式' }
+    return { ok: false, error: '花名唔啱格式' }
   }
   let s = raw.normalize('NFKC').replace(/\0/g, '')
   if (looksDangerous(s) || /<[^>]*>/.test(s)) {
-    return { ok: false, error: '暱稱唔可以有奇怪嘅字元' }
+    return { ok: false, error: '花名唔好有奇怪字元' }
   }
   s = stripHtml(s)
   s = s.replace(/\s+/g, ' ').trim()
-  if (!s) return { ok: false, error: '請寫個暱稱，或者揀匿名' }
+  if (!s) return { ok: false, error: '寫個花名，或者揀匿名' }
   if (s.length > MAX_USERNAME_LENGTH) {
-    return { ok: false, error: `暱稱太長喇，最多 ${MAX_USERNAME_LENGTH} 個字` }
+    return { ok: false, error: `花名太長喇，最多 ${MAX_USERNAME_LENGTH} 個字` }
   }
   return { ok: true, value: s }
 }
