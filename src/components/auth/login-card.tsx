@@ -178,12 +178,6 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
         </div>
         {msg && <p className="text-xs text-accent leading-relaxed">{msg}</p>}
         {err && <p className="text-xs text-red-600 leading-relaxed">{err}</p>}
-        {!compact && (
-          <p className="text-[11px] text-muted">
-            管理員請用 <Link href="/admin" className="underline">/admin</Link>
-            ，同會員登入分開。
-          </p>
-        )}
       </div>
     </Card>
   )

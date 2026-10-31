@@ -223,7 +223,7 @@ export function MeClient() {
 
           <StaggerItem>
             <CardDesc className="text-center text-[11px] px-2">
-              Talk tgt la · 會員 Auth 同管理員 /admin 分開。資料 RLS 鎖死只得你睇到。
+              Talk tgt la · 你嘅訓練同飲食資料只得你睇到。
             </CardDesc>
           </StaggerItem>
         </Stagger>
