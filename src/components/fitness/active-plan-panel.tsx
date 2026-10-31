@@ -78,13 +78,23 @@ export function ActivePlanPanel({ onStartDay, refreshKey = 0, compact, className
   }
 
   return (
-    <Card className={cn('relative overflow-hidden border-accent/25 bg-accent-soft/20', className)}>
+    <Card
+      className={cn(
+        'relative overflow-hidden border-accent/25 bg-accent-soft/20',
+        compact && 'py-3.5',
+        className
+      )}
+    >
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--accent-soft),_transparent_55%)] pointer-events-none" />
-      <div className="relative space-y-3">
+      <div className={cn('relative', compact ? 'space-y-2.5' : 'space-y-3')}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <Badge tone="accent">跟住緊</Badge>
-            <CardTitle className="mt-2 text-lg leading-snug truncate">{meta.plan.title}</CardTitle>
+            <p className="text-[10px] font-semibold tracking-wide text-accent">
+              今日做咩 · 跟住緊
+            </p>
+            <CardTitle className={cn('leading-snug truncate', compact ? 'mt-0.5 text-lg' : 'mt-2 text-lg')}>
+              {meta.plan.title}
+            </CardTitle>
             {!compact && (
               <CardDesc className="mt-1.5 line-clamp-2">{meta.plan.summary}</CardDesc>
             )}
@@ -94,12 +104,23 @@ export function ActivePlanPanel({ onStartDay, refreshKey = 0, compact, className
           </Badge>
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        {startDay && exerciseIds.length > 0 && (
+          <Button size={compact ? 'lg' : 'default'} className={cn('w-full', compact && 'h-12 text-base')} onClick={start}>
+            <Play className="h-4 w-4" />
+            {progress.doneCount >= progress.total
+              ? '再練一堂'
+              : isTodaySlot
+                ? `開波 · 今日 ${startDay.focus}`
+                : `開波 · ${startDay.nameZh} ${startDay.focus}`}
+          </Button>
+        )}
+
+        <div className="flex flex-wrap gap-1">
           {progress.days.map((d) => (
             <span
               key={`${d.day.dayIndex}-${d.day.focus}`}
               className={cn(
-                'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium border',
+                'inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-medium border',
                 d.done
                   ? 'bg-accent-soft text-accent border-accent/25'
                   : d.isToday
@@ -110,21 +131,10 @@ export function ActivePlanPanel({ onStartDay, refreshKey = 0, compact, className
             >
               {d.done ? <Check className="h-3 w-3" /> : null}
               {d.day.nameZh.replace('星期', '')}
-              <span className="opacity-70">·{d.day.focus}</span>
+              {!compact && <span className="opacity-70">·{d.day.focus}</span>}
             </span>
           ))}
         </div>
-
-        {startDay && exerciseIds.length > 0 && (
-          <Button className="w-full" onClick={start}>
-            <Play className="h-4 w-4" />
-            {progress.doneCount >= progress.total
-              ? '再練一堂'
-              : isTodaySlot
-                ? `開波 · 今日 ${startDay.focus}`
-                : `開波 · ${startDay.nameZh} ${startDay.focus}`}
-          </Button>
-        )}
 
         {!compact && (
           <ul className="space-y-1.5 pt-1 border-t border-border/80">

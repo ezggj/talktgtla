@@ -816,27 +816,14 @@ export function EatClient() {
     <AppShell>
       <PageTransition className="max-w-2xl mx-auto">
         <PageHeader
-          className="mb-6"
+          compact
           eyebrow="飲食"
           title="影低呢餐"
-          description="四條入數路：影相 AI、港式快加、會所蛋白、手動。登入之後歷史會留低，可睇日／週／月。"
+          description="影相 · 港式快加 · 會所蛋白 · 手動"
         />
 
-        {!user && (
-          <div className="mb-5">
-            <LoginPromptBanner />
-          </div>
-        )}
-
-        {user && (
-          <div className="mb-4 flex items-center gap-2 text-[11px] text-muted">
-            <Cloud className={cn('h-3.5 w-3.5 text-accent', syncing && 'animate-pulse')} />
-            {syncing ? 'sync 緊…' : cloudNote || '飲食已上雲'}
-          </div>
-        )}
-
-        {/* Four entry paths */}
-        <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {/* Four entry paths — 第一屏主入口 */}
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {(
             [
               {
@@ -895,6 +882,18 @@ export function EatClient() {
             </button>
           ))}
         </div>
+
+        {!user && (
+          <div className="mb-3">
+            <LoginPromptBanner />
+          </div>
+        )}
+        {user && (
+          <div className="mb-3 flex items-center gap-2 text-[11px] text-muted">
+            <Cloud className={cn('h-3.5 w-3.5 text-accent', syncing && 'animate-pulse')} />
+            {syncing ? 'sync 緊…' : cloudNote || '飲食已上雲'}
+          </div>
+        )}
 
         {/* Period switcher */}
         <div className="mb-3 flex items-center gap-2 min-w-0">

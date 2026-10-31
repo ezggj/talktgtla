@@ -151,6 +151,7 @@ export function MeClient() {
     <AppShell>
       <PageTransition className="max-w-lg mx-auto">
         <PageHeader
+          compact
           eyebrow="我"
           title={user ? '跟住你走' : '試玩中'}
           description={
@@ -166,7 +167,7 @@ export function MeClient() {
           </div>
         )}
 
-        <Stagger className="space-y-5">
+        <Stagger className="space-y-4">
           <StaggerItem>
             <LoginCard user={user} configured={configured} onSignOut={signOut} />
           </StaggerItem>
