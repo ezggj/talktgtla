@@ -124,6 +124,7 @@ import { MeetupBoard } from '@/components/fitness/meetup-board'
 import { buildTrainCoachBlurb } from '@/lib/fitness/weekly-summary'
 import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { PlateHint } from '@/components/fitness/plate-hint'
 
 function formatDuration(sec: number) {
   const h = Math.floor(sec / 3600)
@@ -1474,18 +1475,25 @@ export function TrainClient() {
                               </button>
                             </div>
                             <div className="mt-2 flex gap-1">
-                              {[-5, -2.5, 2.5, 5].map((d) => (
+                              {(
+                                exerciseById(selectedEx)?.equipment === '槓鈴'
+                                  ? ([-5, -2.5, -1.25, 1.25, 2.5, 5] as const)
+                                  : ([-5, -2.5, 2.5, 5] as const)
+                              ).map((d) => (
                                 <button
                                   key={d}
                                   type="button"
                                   onClick={() => bumpWeight(d)}
-                                  className="flex-1 rounded-xl py-1.5 text-[11px] font-medium text-accent hover:bg-accent-soft transition tabular-nums"
+                                  className="flex-1 rounded-xl py-1.5 text-[11px] font-medium text-accent hover:bg-accent-soft transition tabular-nums touch-manipulation"
                                 >
                                   {d > 0 ? '+' : ''}
                                   {d}
                                 </button>
                               ))}
                             </div>
+                            {exerciseById(selectedEx)?.equipment === '槓鈴' && (
+                              <PlateHint weightKg={weight} onPickTotal={(kg) => setWeight(kg)} />
+                            )}
                           </div>
                           <div>
                             <label className="text-[11px] text-muted mb-1.5 block">次數</label>
@@ -2061,7 +2069,7 @@ export function TrainClient() {
                     compact
                     emoji="📋"
                     title="未有自訂課表"
-                    description="跟示範腿日，或者上面週模板撳「存」／砌一套。"
+                    description="跟示範腿日，或者上面週模板撳「存入我嘅自訂」／自己砌一套。"
                     actionLabel="睇週模板"
                     onAction={() => {
                       document.getElementById('plan-col-presets')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -2136,7 +2144,7 @@ export function TrainClient() {
                     compact
                     emoji="🏆"
                     title="未有個人最佳"
-                    description="開波記第一組，破紀錄就會喺度出現。"
+                    description="第一組入帳就會開始追 PR；之後破紀錄會 toast 同留喺呢度。"
                     actionLabel="去今日開波"
                     onAction={() => setTab('today')}
                     secondaryLabel="跟示範腿日"

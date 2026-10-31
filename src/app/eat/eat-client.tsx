@@ -1561,26 +1561,60 @@ export function EatClient() {
         </div>
 
         {periodMeals.length === 0 ? (
-          <EmptyState
-            className="mb-8"
-            emoji="🍜"
-            title={
-              period === 'day'
-                ? '今日未有記錄'
-                : period === 'week'
-                  ? '呢個星期未有記錄'
-                  : '呢個月未有記錄'
-            }
-            description={
-              period === 'day'
-                ? '四條路：影相、港式快加、gym撚常食、手動。'
-                : '換去「日」加一餐，或者撳箭嘴睇其他日子。'
-            }
-            actionLabel="影一餐"
-            onAction={() => cameraRef.current?.click()}
-            secondaryLabel="港式快加"
-            onSecondary={() => scrollEat('hk')}
-          />
+          <div className="mb-8">
+            <EmptyState
+              emoji="🍜"
+              title={
+                period === 'day'
+                  ? '今日未記餐——一掣加就得'
+                  : period === 'week'
+                    ? '呢個星期未有記錄'
+                    : '呢個月未有記錄'
+              }
+              description={
+                period === 'day'
+                  ? '港式快加最方便（譚仔／茶餐廳／大家樂）；想蛋白就 gym撚常食。'
+                  : '切去「日」先加一餐，或者撳箭嘴睇其他日子。'
+              }
+              actionLabel={period === 'day' ? '港式快加' : '睇今日'}
+              onAction={() => {
+                if (period !== 'day') {
+                  setPeriod('day')
+                  setAnchor(startOfDay(new Date()))
+                }
+                // defer scroll so day UI mounts
+                requestAnimationFrame(() => scrollEat('hk'))
+              }}
+              secondaryLabel={period === 'day' ? 'gym撚常食' : '港式快加'}
+              onSecondary={() => {
+                if (period !== 'day') {
+                  setPeriod('day')
+                  setAnchor(startOfDay(new Date()))
+                  requestAnimationFrame(() => scrollEat('hk'))
+                  return
+                }
+                scrollEat('club')
+              }}
+            />
+            {period === 'day' && (
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => cameraRef.current?.click()}
+                  className="rounded-full border border-border px-3 py-1.5 text-[11px] font-medium text-muted hover:text-foreground touch-manipulation"
+                >
+                  影一餐
+                </button>
+                <button
+                  type="button"
+                  onClick={openManualEntry}
+                  className="rounded-full border border-border px-3 py-1.5 text-[11px] font-medium text-muted hover:text-foreground touch-manipulation"
+                >
+                  手動入數
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <Stagger className="space-y-3 mb-8">
             {periodMeals.map((m) => (
