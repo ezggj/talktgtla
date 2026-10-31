@@ -1,11 +1,11 @@
 /** Soft spring — page enter / layout pills (Linear-quiet) */
 export const springSoft = {
   type: 'spring' as const,
-  damping: 32,
-  stiffness: 280,
+  damping: 34,
+  stiffness: 260,
+  mass: 0.85,
 }
 
-/** Snappy spring — taps / chip presses */
 export const springSnappy = {
   type: 'spring' as const,
   damping: 28,
@@ -13,7 +13,7 @@ export const springSnappy = {
 }
 
 export const pageEnter = {
-  initial: { opacity: 0, y: 10 },
+  initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0 },
   transition: springSoft,
 }
@@ -21,14 +21,14 @@ export const pageEnter = {
 export const staggerContainer = {
   animate: {
     transition: {
-      staggerChildren: 0.05,
-      delayChildren: 0.02,
+      staggerChildren: 0.045,
+      delayChildren: 0.03,
     },
   },
 }
 
 export const staggerItem = {
-  initial: { opacity: 0, y: 10 },
+  initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0, transition: springSoft },
 }
 
@@ -38,7 +38,7 @@ export const hoverLift = {
 }
 
 export const tabPanel = {
-  initial: { opacity: 0, y: 8 },
+  initial: { opacity: 0, y: 6 },
   animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -6 },
+  exit: { opacity: 0, y: -4 },
 }

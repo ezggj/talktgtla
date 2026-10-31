@@ -3,7 +3,10 @@ import { cn } from '@/lib/utils'
 export function Skeleton({ className }: { className?: string }) {
   return (
     <div
-      className={cn('rounded-2xl bg-border/55 skeleton-pulse', className)}
+      className={cn(
+        'relative overflow-hidden rounded-2xl bg-border/45 skeleton-shimmer',
+        className
+      )}
       aria-hidden
     />
   )
@@ -15,14 +18,19 @@ export function PageSkeleton({
   wide?: boolean
 }) {
   return (
-    <div className={cn('mx-auto space-y-4 pt-2', wide ? 'max-w-2xl' : 'max-w-lg')}>
-      <Skeleton className="h-3 w-16 rounded-full" />
-      <Skeleton className="h-9 w-48 rounded-2xl" />
-      <Skeleton className="h-4 w-72 max-w-full rounded-xl" />
-      <div className="pt-2 space-y-3">
-        <Skeleton className="h-28 rounded-[20px]" />
-        <Skeleton className="h-40 rounded-[20px] opacity-80" />
-        <Skeleton className="h-24 rounded-[20px] opacity-60" />
+    <div
+      className={cn('mx-auto space-y-3.5 pt-2 page-skeleton-in', wide ? 'max-w-2xl' : 'max-w-lg')}
+      aria-busy="true"
+      aria-label="載入中"
+    >
+      <Skeleton className="h-2.5 w-14 rounded-full" />
+      <Skeleton className="h-8 w-40 rounded-2xl" />
+      <Skeleton className="h-3.5 w-56 max-w-full rounded-xl opacity-80" />
+      <div className="pt-1.5 space-y-3">
+        <Skeleton className="h-14 rounded-2xl" />
+        <Skeleton className="h-32 rounded-[20px]" />
+        <Skeleton className="h-24 rounded-[20px] opacity-75" />
+        <Skeleton className="h-20 rounded-[20px] opacity-55" />
       </div>
     </div>
   )

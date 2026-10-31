@@ -790,9 +790,20 @@ export default function Chat() {
                 </div>
                 <h3 className="font-serif text-xl tracking-tight">歡迎嚟 Talk tgt la</h3>
                 <p className="mt-2 text-sm text-muted leading-relaxed">
-                  呢度係香港人傾偈室——下面 tabs 仲可以記訓練、影餐估營養。而家房靜靜地，入個花名就可以開波。
+                  香港人傾偈室。入花名開波；下面亦可記訓練、影餐。
                 </p>
-                <div className="mt-3 flex gap-2 justify-center">
+                <div className="mt-3 flex flex-wrap gap-2 justify-center">
+                  <button
+                    type="button"
+                    className="inline-flex items-center rounded-full bg-accent px-3.5 py-2 text-[11px] font-semibold text-white hover:bg-[#0d6a63] transition touch-manipulation"
+                    onClick={() => {
+                      const topic = getDailyTopic()
+                      setNewMessage(topicStarterLine(topic))
+                      requestAnimationFrame(() => inputRef.current?.focus())
+                    }}
+                  >
+                    用今日話題開波
+                  </button>
                   <Link
                     href="/train"
                     className="inline-flex items-center rounded-full border border-border px-3 py-1.5 text-[11px] font-medium text-foreground hover:border-accent hover:bg-accent-soft hover:text-accent transition touch-manipulation"

@@ -498,6 +498,16 @@ export default function AdminPage() {
           )}
         </section>
 
+        <section className="mt-8 rounded-[20px] border border-border bg-surface p-4 shadow-soft">
+          <h2 className="font-serif text-lg tracking-tight">安全／限速備註</h2>
+          <ul className="mt-2 space-y-1.5 text-[11px] text-muted leading-relaxed list-disc pl-4">
+            <li>訊息 burst：3 條／10 秒；滑窗 8 條／60 秒 → 429「傾得太密」。</li>
+            <li>硬 ban：同一 IP 超過 20 條／60 秒 → 寫入封鎖名單（DB）。</li>
+            <li>刪除訊息／封鎖／解封 IP 都要二次確認；丟棄進行中訓練亦有 confirm。</li>
+            <li>CSP：default self、object-src none、manifest-src self、Permissions-Policy 收緊相機／定位。</li>
+          </ul>
+        </section>
+
         <p className="mt-6 text-[11px] text-muted leading-relaxed">
           入口保持低調：直接開 /admin、長按傾偈標題、或 Ctrl+Shift+A。一般用戶睇唔到。每分鐘自動刷新一次。
         </p>

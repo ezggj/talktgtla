@@ -1,6 +1,7 @@
 import { dayKeyFromIso, loadSessions, todayKey, type WorkoutSession } from './storage'
 
 const STREAK_KEY = 'talktgtla-workout-days-v1'
+const REPAIR_KEY = 'talktgtla-streak-repair-v1'
 
 function readDays(): string[] {
   if (typeof window === 'undefined') return []
@@ -22,7 +23,49 @@ function writeDays(days: string[]) {
   }
 }
 
-/** Mark today as trained (call on finish session). */
+type RepairState = {
+  month: string
+  remaining: number
+  repairedDays: string[]
+}
+
+function monthKey(d = new Date()) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  return `${y}-${m}`
+}
+
+function readRepair(): RepairState {
+  const mk = monthKey()
+  if (typeof window === 'undefined') {
+    return { month: mk, remaining: 1, repairedDays: [] }
+  }
+  try {
+    const raw = localStorage.getItem(REPAIR_KEY)
+    if (!raw) return { month: mk, remaining: 1, repairedDays: [] }
+    const parsed = JSON.parse(raw) as Partial<RepairState>
+    const repairedDays = Array.isArray(parsed.repairedDays) ? parsed.repairedDays : []
+    if (parsed.month !== mk) {
+      return { month: mk, remaining: 1, repairedDays }
+    }
+    return {
+      month: mk,
+      remaining: parsed.remaining === 0 ? 0 : 1,
+      repairedDays,
+    }
+  } catch {
+    return { month: mk, remaining: 1, repairedDays: [] }
+  }
+}
+
+function writeRepair(state: RepairState) {
+  try {
+    localStorage.setItem(REPAIR_KEY, JSON.stringify(state))
+  } catch {
+    /* ignore */
+  }
+}
+
 export function markTrainedToday(iso = new Date().toISOString()) {
   const day = dayKeyFromIso(iso)
   const days = readDays()
@@ -47,7 +90,6 @@ export function trainedToday(d = new Date()): boolean {
   return loadSessions().some((s) => s.endedAt && dayKeyFromIso(s.startedAt) === key)
 }
 
-/** Sync day set from finished sessions (cloud or local). */
 export function syncDaysFromSessions(sessions: WorkoutSession[]) {
   const days = sessions
     .filter((s) => s.endedAt)
@@ -64,11 +106,14 @@ export function syncDaysFromSessions(sessions: WorkoutSession[]) {
   }
 }
 
-/** Consecutive calendar days ending today or yesterday (still alive). */
+function trainedSet(): Set<string> {
+  const repair = readRepair()
+  return new Set([...readDays(), ...repair.repairedDays])
+}
+
 export function computeStreak(sessions?: WorkoutSession[]): number {
   if (sessions) syncDaysFromSessions(sessions)
-  const set = new Set(readDays())
-  // also merge sessions if provided already done
+  const set = trainedSet()
   let cursor = new Date()
   cursor.setHours(12, 0, 0, 0)
   const today = todayKey(cursor)
@@ -77,11 +122,7 @@ export function computeStreak(sessions?: WorkoutSession[]): number {
   const yesterday = todayKey(y)
 
   if (!set.has(today) && !set.has(yesterday)) return 0
-
-  // If missed today, start from yesterday
-  if (!set.has(today)) {
-    cursor = y
-  }
+  if (!set.has(today)) cursor = y
 
   let streak = 0
   for (;;) {
@@ -98,16 +139,18 @@ export type WeekDay = {
   label: string
   trained: boolean
   isToday: boolean
+  repaired?: boolean
 }
 
-/** Soft weekly consistency: last 7 calendar days ending today (local-first). */
 export function weekConsistency(sessions?: WorkoutSession[]): {
   days: WeekDay[]
   trainedCount: number
   streak: number
 } {
   if (sessions) syncDaysFromSessions(sessions)
-  const set = new Set(readDays())
+  const repair = readRepair()
+  const repaired = new Set(repair.repairedDays)
+  const set = trainedSet()
   const labels = ['日', '一', '二', '三', '四', '五', '六']
   const days: WeekDay[] = []
   const today = todayKey()
@@ -121,6 +164,7 @@ export function weekConsistency(sessions?: WorkoutSession[]): {
       label: labels[d.getDay()],
       trained: set.has(key),
       isToday: key === today,
+      repaired: repaired.has(key),
     })
   }
   return {
@@ -128,4 +172,85 @@ export function weekConsistency(sessions?: WorkoutSession[]): {
     trainedCount: days.filter((d) => d.trained).length,
     streak: computeStreak(),
   }
+}
+
+export type StreakRepairInfo = {
+  remaining: number
+  gapDay: string | null
+  gapLabel: string | null
+  streakAfter: number
+}
+
+export function getStreakRepairInfo(sessions?: WorkoutSession[]): StreakRepairInfo {
+  if (sessions) syncDaysFromSessions(sessions)
+  const repair = readRepair()
+  const set = trainedSet()
+  const today = new Date()
+  today.setHours(12, 0, 0, 0)
+  const y = new Date(today)
+  y.setDate(y.getDate() - 1)
+  const before = new Date(today)
+  before.setDate(before.getDate() - 2)
+  const todayK = todayKey(today)
+  const yesterdayK = todayKey(y)
+  const beforeK = todayKey(before)
+
+  const gapIsYesterday =
+    !set.has(yesterdayK) && set.has(beforeK) && repair.remaining > 0
+
+  if (!gapIsYesterday) {
+    return {
+      remaining: repair.remaining,
+      gapDay: null,
+      gapLabel: null,
+      streakAfter: computeStreak(),
+    }
+  }
+
+  const preview = new Set(set)
+  preview.add(yesterdayK)
+  let cursor = new Date(today)
+  if (!preview.has(todayK)) cursor = y
+  let streakAfter = 0
+  for (;;) {
+    const k = todayKey(cursor)
+    if (!preview.has(k)) break
+    streakAfter++
+    cursor.setDate(cursor.getDate() - 1)
+  }
+
+  return {
+    remaining: repair.remaining,
+    gapDay: yesterdayK,
+    gapLabel: '昨日',
+    streakAfter,
+  }
+}
+
+export function applyStreakRepair(gapDay?: string): { ok: boolean; message: string } {
+  const info = getStreakRepairInfo()
+  const day = gapDay || info.gapDay
+  if (!day) {
+    return { ok: false, message: '而家唔使修復——連練仲喺度，或者冇得接返。' }
+  }
+  const repair = readRepair()
+  if (repair.remaining <= 0) {
+    return { ok: false, message: '呢個月修復日用晒喇——下個月先有新嘅。' }
+  }
+  if (repair.repairedDays.includes(day) || readDays().includes(day)) {
+    return { ok: false, message: '呢日已經計咗練過。' }
+  }
+  writeRepair({
+    month: repair.month,
+    remaining: 0,
+    repairedDays: [...repair.repairedDays, day],
+  })
+  return {
+    ok: true,
+    message: `已用修復日豁免 ${info.gapLabel || day}——連練接返 ${info.streakAfter} 日。`,
+  }
+}
+
+export function streakRepairRemaining(): number {
+  return readRepair().remaining
 }

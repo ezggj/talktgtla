@@ -18,6 +18,7 @@ const contentSecurityPolicy = [
   "font-src 'self' data:",
   "media-src 'self' blob: data:",
   "worker-src 'self' blob:",
+  "manifest-src 'self'",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com",
   // YouTube open-in-new-tab today; allow embed hosts if we add iframes later
   "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.supabase.co",
@@ -30,6 +31,11 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(self), microphone=(), geolocation=(), payment=()",
+  },
+  { key: "X-DNS-Prefetch-Control", value: "on" },
 ];
 
 const nextConfig: NextConfig = {

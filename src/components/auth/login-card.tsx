@@ -203,10 +203,16 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
       <div className="relative space-y-5">
         <div>
           <Badge tone="muted">訪客模式</Badge>
-          <CardTitle className="mt-2 text-xl">登入就上雲</CardTitle>
+          <CardTitle className="mt-2 text-xl">登入好處 · 一屏講清楚</CardTitle>
           <CardDesc className="mt-2">
-            而家資料淨係喺呢部機。登入之後訓練／飲食上雲，仲可以睇日／週／月總計。
+            而家資料淨係喺呢部機。登入之後：
           </CardDesc>
+          <ul className="mt-3 space-y-1.5 text-[12px] text-foreground leading-relaxed">
+            <li className="flex gap-2"><span className="text-accent font-bold">✓</span><span>訓練／飲食／目標<strong className="font-semibold">上雲</strong>，換機都跟住</span></li>
+            <li className="flex gap-2"><span className="text-accent font-bold">✓</span><span>睇齊<strong className="font-semibold">日／週／月</strong>總計同連練</span></li>
+            <li className="flex gap-2"><span className="text-accent font-bold">✓</span><span>本機仍然有 cache，<strong className="font-semibold">離線都睇到</strong></span></li>
+            <li className="flex gap-2"><span className="text-accent font-bold">✓</span><span>傾偈照舊可以<strong className="font-semibold">匿名</strong>——帳戶唔綁花名</span></li>
+          </ul>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -326,7 +332,7 @@ export function LoginPromptBanner({ href = '/me' }: { href?: string }) {
   return (
     <div className="rounded-2xl border border-border/80 bg-surface px-4 py-3.5 shadow-soft flex items-center justify-between gap-3">
       <p className="text-muted text-xs sm:text-[13px] leading-relaxed">
-        而家係本機模式。登入之後訓練／飲食會上雲，仲可以睇日／週／月總計。
+        本機模式。登入＝上雲＋日週月總計；傾偈照舊匿名。
       </p>
       <Link
         href={href}

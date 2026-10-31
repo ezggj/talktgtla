@@ -1402,11 +1402,13 @@ export function EatClient() {
             }
             description={
               period === 'day'
-                ? '上面四條路：影相 AI、港式快加、gym撚常食、手動。登入之後會入雲端。'
-                : '換去「日」影一餐，或者撳箭嘴睇其他日子。登入之後週／月總計會齊啲。'
+                ? '四條路：影相、港式快加、gym撚常食、手動。'
+                : '換去「日」加一餐，或者撳箭嘴睇其他日子。'
             }
             actionLabel="影一餐"
             onAction={() => cameraRef.current?.click()}
+            secondaryLabel="港式快加"
+            onSecondary={() => scrollEat('hk')}
           />
         ) : (
           <Stagger className="space-y-3 mb-8">

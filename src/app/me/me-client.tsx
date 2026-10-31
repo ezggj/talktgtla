@@ -36,7 +36,8 @@ import { migrateLocalFitnessToCloud } from '@/lib/fitness/migrate'
 import { PlanGenerator } from '@/components/fitness/plan-generator'
 import { GymNudgeCard } from '@/components/fitness/gym-nudge-card'
 import { HkGymEntryCard } from '@/components/fitness/hk-gym-entry-card'
-import { computeStreak, trainedToday, weekConsistency, type WeekDay } from '@/lib/fitness/streaks'
+import { applyStreakRepair, computeStreak, getStreakRepairInfo, trainedToday, weekConsistency, type StreakRepairInfo, type WeekDay } from '@/lib/fitness/streaks'
+import { MonthlyReviewCard } from '@/components/fitness/monthly-review-card'
 import { WeekDots } from '@/components/fitness/week-dots'
 import { WeeklySummaryCard } from '@/components/fitness/weekly-summary-card'
 import { GoalRings } from '@/components/fitness/goal-rings'
@@ -67,6 +68,8 @@ export function MeClient() {
   const [unlocked, setUnlocked] = useState<Set<FitnessAchievementId>>(new Set())
   const [prs, setPrs] = useState(loadPRs())
   const [guestMore, setGuestMore] = useState(false)
+  const [repairInfo, setRepairInfo] = useState<StreakRepairInfo | null>(null)
+  const [repairMsg, setRepairMsg] = useState<string | null>(null)
   const authError = search.get('auth') === 'error'
   const showDetail = Boolean(user) || guestMore
 
@@ -85,6 +88,7 @@ export function MeClient() {
     setMealCount(localMeals.length)
     setUnlocked(loadFitnessUnlocked())
     setPrs(loadPRs())
+    setRepairInfo(getStreakRepairInfo(sessions))
     setReady(true)
   }, [])
 
@@ -114,6 +118,7 @@ export function MeClient() {
         setWeekDays(w.days)
         setWeekCount(w.trainedCount)
         setStreak(w.streak)
+        setRepairInfo(getStreakRepairInfo(result.workouts))
         setSyncNote(result.note)
         if (result.workoutsUploaded > 0 || result.mealsUploaded > 0) {
           setSyncToast(result.note)
@@ -160,8 +165,8 @@ export function MeClient() {
           title={user ? '跟住你走' : '試玩中'}
           description={
             user
-              ? '訓練同飲食上雲，換機都睇到。目標同方案都喺呢度。'
-              : '訪客資料淨係留喺呢部機。登入之後上雲，仲可以睇齊日／週／月。'
+              ? '上雲資料 · 目標同方案喺呢度'
+              : '訪客本機。登入＝上雲＋日週月'
           }
         />
 
@@ -207,6 +212,36 @@ export function MeClient() {
                     ? '今日打咗卡——聽日再嚟就開始連練。'
                     : '練完一日就會喺度亮；唔使日日爆機，一星期一兩日都得。'}
               </p>
+              {repairInfo?.gapDay && repairInfo.remaining > 0 ? (
+                <div className="mt-3 rounded-2xl border border-accent/25 bg-accent-soft/50 px-3.5 py-3">
+                  <p className="text-[12px] text-foreground leading-relaxed">
+                    斷咗一日？呢個月仲有 <strong className="font-semibold">1 日修復</strong>
+                    ——豁免{repairInfo.gapLabel}，連練接返約 {repairInfo.streakAfter} 日。
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-2 inline-flex items-center rounded-xl bg-accent px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#0d6a63] transition touch-manipulation"
+                    onClick={() => {
+                      const r = applyStreakRepair(repairInfo.gapDay || undefined)
+                      setRepairMsg(r.message)
+                      const sessionsNow = loadSessions()
+                      setStreak(computeStreak(sessionsNow))
+                      const w = weekConsistency(sessionsNow)
+                      setWeekDays(w.days)
+                      setWeekCount(w.trainedCount)
+                      setRepairInfo(getStreakRepairInfo(sessionsNow))
+                      window.setTimeout(() => setRepairMsg(null), 3200)
+                    }}
+                  >
+                    用修復日豁免{repairInfo.gapLabel}
+                  </button>
+                </div>
+              ) : repairInfo && repairInfo.remaining === 0 ? (
+                <p className="mt-2 text-[10px] text-muted">呢個月修復日用晒——下個月會刷新。</p>
+              ) : null}
+              {repairMsg ? (
+                <p className="mt-2 text-[11px] text-accent font-medium leading-relaxed">{repairMsg}</p>
+              ) : null}
             </Card>
           </StaggerItem>
 
@@ -286,6 +321,10 @@ export function MeClient() {
           </StaggerItem>
 
           <StaggerItem>
+            <MonthlyReviewCard sessions={sessionsLocal} meals={meals} proteinGoal={goals.proteinG} />
+          </StaggerItem>
+
+          <StaggerItem>
             <Card className="py-4">
               <CardTitle className="text-lg mb-3">訓練熱圖</CardTitle>
               <p className="text-[12px] text-muted mb-3 -mt-1">過去幾星期邊日有落場——顏色愈深愈密。</p>
@@ -300,9 +339,17 @@ export function MeClient() {
                 <CardTitle className="text-lg">個人最佳牆</CardTitle>
               </div>
               {Object.keys(prs).length === 0 ? (
-                <p className="text-sm text-muted leading-relaxed">
-                  未破過紀錄——去訓練頁記組，破咗就會彈出嚟。
-                </p>
+                <div className="space-y-3">
+                  <p className="text-sm text-muted leading-relaxed">
+                    未破過紀錄——記第一組就開始。
+                  </p>
+                  <Link
+                    href="/train"
+                    className="inline-flex items-center justify-center rounded-xl bg-accent px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-[#0d6a63] transition touch-manipulation"
+                  >
+                    去訓練開波
+                  </Link>
+                </div>
               ) : (
                 <ul className="space-y-2">
                   {Object.entries(prs)
