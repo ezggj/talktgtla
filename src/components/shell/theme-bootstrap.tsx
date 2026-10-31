@@ -2,16 +2,20 @@
 
 import { useEffect } from 'react'
 import {
+  applyAccent,
   applyTheme,
+  readAccent,
   readThemePreference,
   resolveTheme,
-  type ThemePreference,
 } from '@/lib/theme'
 
-/** Apply stored / system theme on mount and when OS preference changes (system mode). */
+/** Apply stored / system theme + accent on mount; listen for OS changes. */
 export function ThemeBootstrap() {
   useEffect(() => {
-    const apply = () => applyTheme(resolveTheme(readThemePreference()))
+    const apply = () => {
+      applyTheme(resolveTheme(readThemePreference()))
+      applyAccent(readAccent())
+    }
     apply()
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
     const onChange = () => {
@@ -22,5 +26,3 @@ export function ThemeBootstrap() {
   }, [])
   return null
 }
-
-export type { ThemePreference }

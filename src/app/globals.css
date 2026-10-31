@@ -51,6 +51,47 @@ html.dark {
   background-color: var(--surface-muted);
 }
 
+/* 主題色：淺色 */
+:root[data-accent="pink"] {
+  --accent: #db2777;
+  --accent-soft: #fce7f3;
+}
+:root[data-accent="green"] {
+  --accent: #16a34a;
+  --accent-soft: #dcfce7;
+}
+:root[data-accent="blue"] {
+  --accent: #2563eb;
+  --accent-soft: #dbeafe;
+}
+:root[data-accent="ink"] {
+  --accent: #1c1917;
+  --accent-soft: #e7e5e4;
+}
+
+/* 主題色：深色（稍光啲嘅 accent） */
+.dark[data-accent="teal"] {
+  --accent: #2dd4bf;
+  --accent-soft: #134e4a;
+}
+.dark[data-accent="pink"] {
+  --accent: #f472b6;
+  --accent-soft: #831843;
+}
+.dark[data-accent="green"] {
+  --accent: #4ade80;
+  --accent-soft: #14532d;
+}
+.dark[data-accent="blue"] {
+  --accent: #60a5fa;
+  --accent-soft: #1e3a8a;
+}
+.dark[data-accent="ink"] {
+  --accent: #e7e5e4;
+  --accent-soft: #292524;
+}
+
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -200,6 +241,28 @@ body {
 .welcome-card { animation: welcome-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .achievement-toast { animation: toast-in 200ms ease-out both; }
 .skeleton-pulse { animation: pulse-soft 1.5s ease-in-out infinite; }
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+.skeleton-shimmer {
+  background-image: linear-gradient(
+    105deg,
+    color-mix(in srgb, var(--border) 55%, transparent) 0%,
+    color-mix(in srgb, var(--border) 55%, transparent) 38%,
+    color-mix(in srgb, var(--surface) 90%, white) 50%,
+    color-mix(in srgb, var(--border) 55%, transparent) 62%,
+    color-mix(in srgb, var(--border) 55%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.35s ease-in-out infinite;
+}
+@keyframes page-skeleton-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-skeleton-in { animation: page-skeleton-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .pr-burst { animation: pr-burst 460ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .success-pop { animation: success-pop 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .send-pop { animation: send-pop 380ms cubic-bezier(0.22, 1, 0.36, 1) both; }
@@ -227,7 +290,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .chat-messages { scroll-behavior: auto; }
-  .chat-msg, .chat-reply-bar, .emoji-picker, .welcome-card, .achievement-toast, .skeleton-pulse, .pr-burst, .success-pop, .send-pop, .jump-in, .online-dot-live, .rest-done-glow, .rest-done-ring {
+  .chat-msg, .chat-reply-bar, .emoji-picker, .welcome-card, .achievement-toast, .skeleton-pulse, .skeleton-shimmer, .page-skeleton-in, .pr-burst, .success-pop, .send-pop, .jump-in, .online-dot-live, .rest-done-glow, .rest-done-ring {
     animation: none;
   }
 }
