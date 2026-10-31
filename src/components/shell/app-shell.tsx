@@ -14,7 +14,7 @@ export function AppShell({
   flush?: boolean
 }) {
   return (
-    <div className="min-h-dvh bg-background text-foreground">
+    <div className="min-h-dvh bg-background text-foreground overflow-x-clip">
       <div
         className={cn(
           'md:pl-[88px]',

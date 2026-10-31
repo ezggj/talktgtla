@@ -13,6 +13,7 @@ import {
   Trash2,
   Utensils,
   X,
+  Sparkles,
 } from 'lucide-react'
 import { AppShell } from '@/components/shell/app-shell'
 import { PageTransition } from '@/components/motion/page-transition'
@@ -25,7 +26,7 @@ import { PageSkeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { ProgressBar, ProgressRing } from '@/components/ui/progress'
+import { ProgressBar, ProgressRing, MacroBars } from '@/components/ui/progress'
 import { LoginPromptBanner } from '@/components/auth/login-card'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
@@ -495,109 +496,201 @@ export function EatClient() {
         )}
 
         {/* Period switcher */}
-        <div className="mb-4 flex gap-1.5 p-1 rounded-2xl bg-[#f0efee] border border-border">
-          {(['day', 'week', 'month'] as PeriodKind[]).map((k) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setPeriod(k)}
-              className={cn(
-                'relative flex-1 rounded-xl py-2.5 text-sm font-medium transition-colors',
-                period === k ? 'text-accent' : 'text-muted hover:text-foreground'
-              )}
-            >
-              {period === k && (
-                <motion.span
-                  layoutId="eat-period"
-                  className="absolute inset-0 rounded-xl bg-surface shadow-soft"
-                  transition={springSoft}
-                />
-              )}
-              <span className="relative z-10">{periodLabel(k)}計</span>
-            </button>
-          ))}
-        </div>
-
-        <Card className="mb-5 py-4">
-          <div className="flex items-center justify-between mb-3">
-            <button
-              type="button"
-              aria-label="上一段"
-              onClick={() => shiftAnchor(-1)}
-              className="h-9 w-9 rounded-xl border border-border flex items-center justify-center hover:bg-black/[0.03]"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <div className="text-center">
-              <div className="text-sm font-medium">{range.label}</div>
-              <div className="text-[11px] text-muted">{periodMeals.length} 餐</div>
-            </div>
-            <button
-              type="button"
-              aria-label="下一段"
-              onClick={() => shiftAnchor(1)}
-              className="h-9 w-9 rounded-xl border border-border flex items-center justify-center hover:bg-black/[0.03]"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="grid grid-cols-4 gap-2 text-center">
-            {(
-              [
-                { label: 'kcal', v: Math.round(periodSum.kcal) },
-                { label: '蛋白', v: `${Math.round(periodSum.protein)}g` },
-                { label: '碳水', v: `${Math.round(periodSum.carbs)}g` },
-                { label: '脂肪', v: `${Math.round(periodSum.fat)}g` },
-              ] as const
-            ).map((x) => (
-              <div key={x.label} className="rounded-2xl bg-[#fafaf9] border border-border px-2 py-3">
-                <div className="text-base font-semibold tabular-nums">{x.v}</div>
-                <div className="text-[10px] text-muted">{x.label}</div>
-              </div>
+        <div className="mb-3 flex items-center gap-2 min-w-0">
+          <div className="flex-1 min-w-0 flex gap-1 p-1 rounded-2xl bg-[#f0efee] border border-border">
+            {(['day', 'week', 'month'] as PeriodKind[]).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => {
+                  setPeriod(k)
+                  if (k === 'day' && todayKey(anchor) !== todayKey()) {
+                    /* keep anchor — user can jump 今日 */
+                  }
+                }}
+                aria-pressed={period === k}
+                className={cn(
+                  'relative flex-1 rounded-xl py-2.5 text-sm font-medium transition-colors touch-manipulation',
+                  period === k ? 'text-accent' : 'text-muted hover:text-foreground'
+                )}
+              >
+                {period === k && (
+                  <motion.span
+                    layoutId="eat-period"
+                    className="absolute inset-0 rounded-xl bg-surface shadow-soft"
+                    transition={springSoft}
+                  />
+                )}
+                <span className="relative z-10">{periodLabel(k)}計</span>
+              </button>
             ))}
           </div>
-          {period === 'month' && buckets.length > 1 && (
-            <p className="mt-3 text-[11px] text-muted text-center">
-              本月有記錄嘅日子：{buckets.length} 日
-            </p>
-          )}
-        </Card>
+          <button
+            type="button"
+            onClick={() => {
+              setPeriod('day')
+              setAnchor(startOfDay(new Date()))
+            }}
+            className={cn(
+              'shrink-0 rounded-xl border px-3 py-2.5 text-xs font-medium transition touch-manipulation',
+              period === 'day' && todayKey(anchor) === todayKey()
+                ? 'border-accent/30 bg-accent-soft text-accent'
+                : 'border-border text-muted hover:text-foreground hover:bg-black/[0.03]'
+            )}
+          >
+            今日
+          </button>
+        </div>
 
-        {/* Today rings — always show today's progress vs goals */}
-        <Stagger className="grid grid-cols-2 gap-3 mb-6">
-          <StaggerItem>
-            <Card className="flex items-center gap-4 py-4">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`${period}-${range.label}`}
+            initial={reduce ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduce ? undefined : { opacity: 0, y: -4 }}
+            transition={springSoft}
+          >
+            <Card className="mb-5 py-4 overflow-hidden">
+              <div className="flex items-center justify-between mb-3 gap-2">
+                <button
+                  type="button"
+                  aria-label="上一段"
+                  onClick={() => shiftAnchor(-1)}
+                  className="h-9 w-9 shrink-0 rounded-xl border border-border flex items-center justify-center hover:bg-black/[0.03] active:scale-95 transition touch-manipulation"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <div className="text-center min-w-0 px-1">
+                  <div className="text-sm font-medium truncate">{range.label}</div>
+                  <div className="text-[11px] text-muted tabular-nums">{periodMeals.length} 餐</div>
+                </div>
+                <button
+                  type="button"
+                  aria-label="下一段"
+                  onClick={() => shiftAnchor(1)}
+                  className="h-9 w-9 shrink-0 rounded-xl border border-border flex items-center justify-center hover:bg-black/[0.03] active:scale-95 transition touch-manipulation"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-center">
+                {(
+                  [
+                    { label: 'kcal', v: Math.round(periodSum.kcal), tone: 'text-foreground' },
+                    { label: '蛋白', v: `${Math.round(periodSum.protein)}g`, tone: 'text-accent' },
+                    { label: '碳水', v: `${Math.round(periodSum.carbs)}g`, tone: 'text-warning' },
+                    { label: '脂肪', v: `${Math.round(periodSum.fat)}g`, tone: 'text-[#7C3AED]' },
+                  ] as const
+                ).map((x) => (
+                  <div
+                    key={x.label}
+                    className="rounded-2xl bg-[#fafaf9] border border-border px-1.5 sm:px-2 py-3 min-w-0"
+                  >
+                    <div className={cn('text-sm sm:text-base font-semibold tabular-nums truncate', x.tone)}>
+                      {x.v}
+                    </div>
+                    <div className="text-[10px] text-muted">{x.label}</div>
+                  </div>
+                ))}
+              </div>
+              {period !== 'day' && periodMeals.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-border/70">
+                  <div className="flex justify-between text-[10px] text-muted mb-1.5">
+                    <span>呢段蛋白進度（對目標 × 日數粗估）</span>
+                    <span className="tabular-nums">
+                      {Math.round(periodSum.protein)}g
+                    </span>
+                  </div>
+                  <ProgressBar
+                    value={periodSum.protein}
+                    max={Math.max(
+                      1,
+                      goals.proteinG *
+                        (period === 'week' ? 7 : new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate())
+                    )}
+                    tone="protein"
+                    height="md"
+                  />
+                </div>
+              )}
+              {period === 'month' && buckets.length > 1 && (
+                <p className="mt-3 text-[11px] text-muted text-center">
+                  本月有記錄嘅日子：{buckets.length} 日
+                </p>
+              )}
+            </Card>
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Today macros — rings + full bars */}
+        <Card className="mb-4 py-4 overflow-hidden">
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <div className="min-w-0">
+              <div className="text-sm font-medium">今日進度</div>
+              <div className="text-[11px] text-muted">對住你嘅蛋白／卡路里目標</div>
+            </div>
+            <div className="flex gap-2 shrink-0">
               <ProgressRing
                 value={todaySum.protein}
                 max={goals.proteinG}
-                label={`${todaySum.protein}g`}
-                sublabel="蛋白"
-                size={76}
+                label={`${Math.round(todaySum.protein)}`}
+                sublabel="g P"
+                size={56}
+                stroke={6}
+                tone="protein"
               />
-              <div>
-                <div className="text-xs text-muted">今日蛋白</div>
-                <div className="text-sm font-medium tabular-nums">{goals.proteinG} g</div>
-                <ProgressBar className="mt-2 w-24" value={todaySum.protein} max={goals.proteinG} />
-              </div>
-            </Card>
-          </StaggerItem>
-          <StaggerItem>
-            <Card className="flex items-center gap-4 py-4">
               <ProgressRing
                 value={todaySum.kcal}
                 max={goals.kcal}
-                label={`${todaySum.kcal}`}
+                label={`${Math.round(todaySum.kcal)}`}
                 sublabel="kcal"
-                size={76}
+                size={56}
+                stroke={6}
+                tone="kcal"
               />
-              <div>
-                <div className="text-xs text-muted">今日卡路里</div>
-                <div className="text-sm font-medium tabular-nums">{goals.kcal}</div>
-                <ProgressBar className="mt-2 w-24" value={todaySum.kcal} max={goals.kcal} />
-              </div>
-            </Card>
-          </StaggerItem>
-        </Stagger>
+            </div>
+          </div>
+          <MacroBars macros={todaySum} goals={goals} />
+        </Card>
+
+        {/* Gentle nudges */}
+        {period === 'day' &&
+          todayKey(anchor) === todayKey() &&
+          (() => {
+            const hour = new Date().getHours()
+            const pct = goals.proteinG > 0 ? todaySum.protein / goals.proteinG : 0
+            if (todayMeals.length === 0 && hour >= 14) {
+              return (
+                <div className="mb-5 flex gap-3 rounded-2xl border border-border/90 bg-surface px-4 py-3.5 shadow-soft">
+                  <div className="h-9 w-9 shrink-0 rounded-xl bg-accent-soft flex items-center justify-center">
+                    <Sparkles className="h-4 w-4 text-accent" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">今日未影餐？都冇所謂</div>
+                    <p className="text-[12px] text-muted leading-relaxed mt-0.5">
+                      休息日唔使硬食到目標。想跟住就影一餐；想鬆啲就放低，聽日再嚟都得。
+                    </p>
+                  </div>
+                </div>
+              )
+            }
+            if (todayMeals.length > 0 && pct < 0.45 && hour >= 16) {
+              return (
+                <div className="mb-5 flex gap-3 rounded-2xl border border-border/90 bg-surface px-4 py-3.5 shadow-soft">
+                  <div className="h-9 w-9 shrink-0 rounded-xl bg-[#FEF3C7] flex items-center justify-center">
+                    <Utensils className="h-4 w-4 text-warning" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">蛋白仲差一截</div>
+                    <p className="text-[12px] text-muted leading-relaxed mt-0.5">
+                      而家大概 {Math.round(pct * 100)}%——晚啲加碟蛋／雞胸／豆腐都得，唔使一次過硬塞。
+                    </p>
+                  </div>
+                </div>
+              )
+            }
+            return null
+          })()}
 
         {/* Month calendar heat (protein) */}
         {(period === 'month' || period === 'week') && (
@@ -609,7 +702,7 @@ export function EatClient() {
                 <div key={d}>{d}</div>
               ))}
             </div>
-            <div className="grid grid-cols-7 gap-1.5">
+            <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
               {Array.from({ length: monthStartWeekday }).map((_, i) => (
                 <div key={`e-${i}`} />
               ))}
@@ -623,7 +716,7 @@ export function EatClient() {
                     key={iso}
                     type="button"
                     onClick={() => jumpToDay(iso)}
-                    className="aspect-square rounded-xl text-[11px] font-medium tabular-nums border border-border/60 hover:scale-105 transition"
+                    className="aspect-square rounded-lg sm:rounded-xl text-[10px] sm:text-[11px] font-medium tabular-nums border border-border/60 hover:scale-105 transition touch-manipulation"
                     style={{
                       background:
                         p === 0

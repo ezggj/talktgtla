@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardDesc, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { ProgressBar } from '@/components/ui/progress'
+import { ProgressRing } from '@/components/ui/progress'
 import { PageHeader } from '@/components/ui/page-header'
 import { PageSkeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -68,6 +68,14 @@ function formatDuration(sec: number) {
   const s = sec % 60
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+function formatRest(sec: number) {
+  if (sec <= 0) return '✓'
+  if (sec < 60) return `${sec}s`
+  const m = Math.floor(sec / 60)
+  const s = sec % 60
+  return `${m}:${String(s).padStart(2, '0')}`
 }
 
 function volumeOf(sets: WorkoutSet[]) {
@@ -609,61 +617,90 @@ export function TrainClient() {
                 <div className="space-y-4">
                   {/* Rest timer */}
                   {restLeft != null && (
-                    <Card className={cn('py-4', restLeft === 0 && 'ring-2 ring-accent/30')}>
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <Timer className="h-4 w-4 text-accent" />
-                          <span className="text-sm font-medium">
-                            {restLeft === 0 ? '休息完 · 下一組啦' : '組間休息'}
-                          </span>
+                    <Card
+                      className={cn(
+                        'py-4 overflow-hidden',
+                        restLeft === 0 && 'ring-2 ring-accent/35 rest-done-glow'
+                      )}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="relative shrink-0">
+                          <ProgressRing
+                            value={restSec - (restLeft || 0)}
+                            max={restSec || 1}
+                            size={72}
+                            stroke={7}
+                            label={formatRest(restLeft)}
+                            tone={restLeft === 0 ? 'accent' : 'accent'}
+                          />
+                          {restLeft === 0 && (
+                            <span className="pointer-events-none absolute inset-0 rounded-full rest-done-ring" />
+                          )}
                         </div>
-                        <div className="font-semibold tabular-nums text-2xl text-accent">
-                          {formatDuration(restLeft)}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 text-sm font-medium">
+                            <Timer className="h-3.5 w-3.5 text-accent shrink-0" />
+                            <span className="truncate">
+                              {restLeft === 0 ? '休息完 · 下一組啦' : '組間休息'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted mt-0.5 leading-relaxed">
+                            {restLeft === 0
+                              ? '呼吸定啲，再上就得。'
+                              : restRunning
+                                ? '倒數緊——想加就 +15'
+                                : '已暫停'}
+                          </p>
+                          <div className="mt-2.5 flex flex-wrap gap-1.5">
+                            {[60, 90, 120].map((s) => (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => {
+                                  setRestSec(s)
+                                  setRestLeft(s)
+                                  setRestRunning(true)
+                                }}
+                                className={cn(
+                                  'rounded-full px-2.5 py-1 text-[11px] border transition touch-manipulation',
+                                  restSec === s
+                                    ? 'border-accent bg-accent-soft text-accent'
+                                    : 'border-border text-muted hover:text-foreground'
+                                )}
+                              >
+                                {s}s
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRestLeft((v) => Math.max(0, (v ?? 0) + 15))
+                                setRestRunning(true)
+                              }}
+                              className="rounded-full px-2.5 py-1 text-[11px] border border-border text-muted hover:text-foreground touch-manipulation"
+                            >
+                              +15
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRestRunning((v) => !v)}
+                              className="rounded-full px-2.5 py-1 text-[11px] border border-border text-muted hover:text-foreground inline-flex items-center gap-1 touch-manipulation"
+                            >
+                              {restRunning ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                              {restRunning ? '暫停' : '繼續'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRestLeft(null)
+                                setRestRunning(false)
+                              }}
+                              className="rounded-full px-2.5 py-1 text-[11px] border border-border text-muted hover:text-foreground touch-manipulation"
+                            >
+                              跳過
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                      <ProgressBar
-                        className="mt-3"
-                        value={restSec - (restLeft || 0)}
-                        max={restSec || 1}
-                      />
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {[60, 90, 120].map((s) => (
-                          <button
-                            key={s}
-                            type="button"
-                            onClick={() => {
-                              setRestSec(s)
-                              setRestLeft(s)
-                              setRestRunning(true)
-                            }}
-                            className={cn(
-                              'rounded-full px-3 py-1 text-xs border transition',
-                              restSec === s
-                                ? 'border-accent bg-accent-soft text-accent'
-                                : 'border-border text-muted hover:text-foreground'
-                            )}
-                          >
-                            {s}s
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => setRestRunning((v) => !v)}
-                          className="rounded-full px-3 py-1 text-xs border border-border text-muted hover:text-foreground inline-flex items-center gap-1"
-                        >
-                          {restRunning ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                          {restRunning ? '暫停' : '繼續'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRestLeft(null)
-                            setRestRunning(false)
-                          }}
-                          className="rounded-full px-3 py-1 text-xs border border-border text-muted hover:text-foreground"
-                        >
-                          跳過
-                        </button>
                       </div>
                     </Card>
                   )}
@@ -702,32 +739,73 @@ export function TrainClient() {
                           </div>
                         </div>
 
-                        {planQueue.length > 1 && (
-                          <div className="mb-3 flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-                            {planQueue.map((id) => {
-                              const ex = exerciseById(id)
-                              if (!ex) return null
-                              const done = active?.sets.some((s) => s.exerciseId === id)
-                              return (
+                        {(() => {
+                          const loggedIds = setsByExercise.map((g) => g.id)
+                          const ids: string[] = []
+                          for (const id of planQueue) if (!ids.includes(id)) ids.push(id)
+                          for (const id of loggedIds) if (!ids.includes(id)) ids.push(id)
+                          if (selectedEx && !ids.includes(selectedEx)) ids.unshift(selectedEx)
+                          if (ids.length === 0) return null
+                          return (
+                            <div className="mb-3 -mx-1 px-1">
+                              <div className="flex items-center justify-between mb-1.5 px-0.5">
+                                <span className="text-[10px] text-muted font-medium">快速換動作</span>
+                                {nextPlanExercise && (
+                                  <button
+                                    type="button"
+                                    onClick={() => pickExercise(nextPlanExercise)}
+                                    className="text-[10px] font-medium text-accent touch-manipulation"
+                                  >
+                                    下一個 →
+                                  </button>
+                                )}
+                              </div>
+                              <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 overscroll-x-contain">
+                                {ids.map((id) => {
+                                  const ex = exerciseById(id)
+                                  if (!ex) return null
+                                  const done = active?.sets.some((s) => s.exerciseId === id)
+                                  const setCount =
+                                    active?.sets.filter((s) => s.exerciseId === id).length || 0
+                                  return (
+                                    <button
+                                      key={id}
+                                      type="button"
+                                      onClick={() => pickExercise(id)}
+                                      className={cn(
+                                        'shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium border transition touch-manipulation inline-flex items-center gap-1.5',
+                                        selectedEx === id
+                                          ? 'bg-accent text-white border-accent'
+                                          : done
+                                            ? 'bg-accent-soft/60 text-accent border-accent/20'
+                                            : 'bg-surface border-border text-muted hover:text-foreground'
+                                      )}
+                                    >
+                                      <span className="max-w-[7.5rem] truncate">{ex.nameZh}</span>
+                                      {setCount > 0 && (
+                                        <span
+                                          className={cn(
+                                            'tabular-nums text-[10px] rounded-full px-1.5 py-0.5',
+                                            selectedEx === id ? 'bg-white/20' : 'bg-black/[0.05]'
+                                          )}
+                                        >
+                                          {setCount}
+                                        </span>
+                                      )}
+                                    </button>
+                                  )
+                                })}
                                 <button
-                                  key={id}
                                   type="button"
-                                  onClick={() => pickExercise(id)}
-                                  className={cn(
-                                    'shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium border transition',
-                                    selectedEx === id
-                                      ? 'bg-accent text-white border-accent'
-                                      : done
-                                        ? 'bg-accent-soft/60 text-accent border-accent/20'
-                                        : 'bg-surface border-border text-muted hover:text-foreground'
-                                  )}
+                                  onClick={() => setPickerOpen(true)}
+                                  className="shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium border border-dashed border-border text-muted hover:text-accent hover:border-accent/40 touch-manipulation"
                                 >
-                                  {ex.nameZh}
+                                  + 其他
                                 </button>
-                              )
-                            })}
-                          </div>
-                        )}
+                              </div>
+                            </div>
+                          )
+                        })()}
 
                         <div className="grid grid-cols-2 gap-3 mb-3">
                           <div>
@@ -833,11 +911,11 @@ export function TrainClient() {
                             同上
                           </Button>
                         </div>
-                        {nextPlanExercise && (
+                        {nextPlanExercise && planQueue.length <= 1 && (
                           <button
                             type="button"
                             onClick={() => pickExercise(nextPlanExercise)}
-                            className="w-full text-center text-xs font-medium text-accent py-2 rounded-xl hover:bg-accent-soft transition"
+                            className="w-full text-center text-xs font-medium text-accent py-2 rounded-xl hover:bg-accent-soft transition touch-manipulation"
                           >
                             下一個：{exerciseById(nextPlanExercise)?.nameZh} →
                           </button>
@@ -865,8 +943,18 @@ export function TrainClient() {
                       </div>
                       {setsByExercise.map((group) => (
                         <div key={group.id}>
-                          <div className="flex items-center justify-between gap-2 mb-2">
-                            <div className="text-sm font-medium">{group.name}</div>
+                          <div className="flex items-center justify-between gap-2 mb-2 min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => pickExercise(group.id)}
+                              className={cn(
+                                'text-sm font-medium truncate text-left touch-manipulation',
+                                selectedEx === group.id ? 'text-accent' : 'hover:text-accent'
+                              )}
+                            >
+                              {group.name}
+                              {selectedEx === group.id ? ' · 記緊' : ''}
+                            </button>
                             <ExerciseHowTo exerciseId={group.id} exerciseName={group.name} />
                           </div>
                           <ul className="space-y-1.5">

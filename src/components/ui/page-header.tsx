@@ -26,7 +26,7 @@ export function PageHeader({
           <p className="mt-2.5 text-sm text-muted leading-relaxed max-w-md">{description}</p>
         )}
       </div>
-      {trailing}
+      {trailing ? <div className="shrink-0 max-w-[42%]">{trailing}</div> : null}
     </header>
   )
 }

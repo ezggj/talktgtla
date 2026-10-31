@@ -57,6 +57,7 @@ body {
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  overflow-x: clip;
 }
 
 ::selection {
@@ -151,6 +152,18 @@ body {
   to { opacity: 1; transform: translate(-50%, 0); }
 }
 
+@keyframes rest-done-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 35%, transparent); }
+  70% { box-shadow: 0 0 0 10px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@keyframes rest-ring-pop {
+  0% { transform: scale(0.92); opacity: 0.5; }
+  55% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
 @keyframes online-pulse {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
   70% { box-shadow: 0 0 0 5px transparent; }
@@ -166,6 +179,8 @@ body {
 .success-pop { animation: success-pop 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .send-pop { animation: send-pop 380ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .jump-in { animation: jump-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.rest-done-glow { animation: rest-done-pulse 1.4s ease-out 2; }
+.rest-done-ring { animation: rest-ring-pop 700ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 .online-dot {
   display: inline-block;
@@ -181,7 +196,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .chat-messages { scroll-behavior: auto; }
-  .chat-msg, .chat-reply-bar, .emoji-picker, .welcome-card, .achievement-toast, .skeleton-pulse, .pr-burst, .success-pop, .send-pop, .jump-in, .online-dot-live {
+  .chat-msg, .chat-reply-bar, .emoji-picker, .welcome-card, .achievement-toast, .skeleton-pulse, .pr-burst, .success-pop, .send-pop, .jump-in, .online-dot-live, .rest-done-glow, .rest-done-ring {
     animation: none;
   }
 }
