@@ -321,9 +321,10 @@ export function MeetupBoard({ className }: { className?: string }) {
         </Card>
       ) : meetups.length === 0 ? (
         <EmptyState
+          emoji="🤝"
           title="而家未有人開台"
-          description="你做第一個——揀 247 或者附近分店，寫低時段等人凑。"
-          actionLabel="開台"
+          description="你做第一個——揀 247 或者附近分店，寫低時段等人凑同一部位。"
+          actionLabel="我開台"
           onAction={() => setComposer(true)}
         />
       ) : (

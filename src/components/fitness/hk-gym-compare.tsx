@@ -113,11 +113,11 @@ function GymCard({
           </div>
           <div className="flex gap-2">
             <Scale className="h-3.5 w-3.5 shrink-0 mt-0.5 text-accent" />
-            <span>
+            <span className="inline-flex flex-wrap items-center gap-1.5">
               <span className="font-medium tabular-nums text-foreground">
                 {formatMonthlyRange(gym)}
               </span>
-              <span className="text-muted"> · 大約／參考</span>
+              <Badge tone="muted">參考 · 非報價</Badge>
             </span>
           </div>
           <div className="flex gap-2 text-muted">
@@ -148,9 +148,12 @@ function CompareTable({ gyms, onRemove }: { gyms: HkGym[]; onRemove: (id: string
 
   const rows: { label: string; cell: (g: HkGym) => React.ReactNode }[] = [
     {
-      label: '月費（大約／參考）',
+      label: '月費（參考 · 非報價）',
       cell: (g) => (
-        <span className="tabular-nums font-medium">{formatMonthlyRange(g)}</span>
+        <span className="inline-flex flex-col gap-0.5">
+          <span className="tabular-nums font-medium">{formatMonthlyRange(g)}</span>
+          <span className="text-[10px] text-muted font-normal">參考 · 非報價</span>
+        </span>
       ),
     },
     {
@@ -283,7 +286,7 @@ export function HkGymCompare() {
           <CardTitle className="text-lg">先篩一篩</CardTitle>
         </div>
         <CardDesc className="text-[12px] mb-3">
-          月費係大約區間——簽約前同會所確認，呢度淨係幫你收窄選擇。
+          價錢標「參考 · 非報價」——簽約前同會所確認，呢度淨係幫你收窄選擇。
         </CardDesc>
 
         <div className="relative mb-3">
@@ -400,7 +403,7 @@ export function HkGymCompare() {
           compact
           emoji="🏋️"
           title="冇夾到"
-          description="放寬地區或者價錢再試；又或者清晒篩選。"
+          description="放寬地區或者價錢（參考 · 非報價）再試；又或者清晒篩選。"
           actionLabel="重設篩選"
           onAction={() => setFilters(DEFAULT_GYM_FILTERS)}
         />
@@ -434,7 +437,7 @@ export function HkGymCompare() {
       {selected.length > 0 ? <div className="h-16 md:hidden" aria-hidden /> : null}
 
       <p className="text-[10px] text-muted text-center leading-relaxed px-2 pb-2">
-        月費、分店同開放時間會變——呢度係靜態整理（對齊公開官網／消委會等大約數），僅供參考，唔構成報價或建議。簽約前請向會所確認最新條款、按金同隱藏收費。
+        月費、分店同開放時間會變——呢度係靜態整理（對齊公開官網／消委會等大約數）。每卡標明「參考 · 非報價」，唔構成報價或建議。簽約前請向會所確認最新條款、按金同隱藏收費。
       </p>
 
       <AnimatePresence>

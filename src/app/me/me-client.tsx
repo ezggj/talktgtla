@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Cloud, Dumbbell, Flame, MessageCircle, Target, Trophy, Utensils } from 'lucide-react'
+import { ChevronDown, Cloud, Dumbbell, Flame, MessageCircle, Target, Trophy, Utensils } from 'lucide-react'
 import { AppShell } from '@/components/shell/app-shell'
 import { PageTransition } from '@/components/motion/page-transition'
 import { Stagger, StaggerItem } from '@/components/motion/stagger'
@@ -62,7 +62,9 @@ export function MeClient() {
   const [sessionsLocal, setSessionsLocal] = useState(loadSessions())
   const [unlocked, setUnlocked] = useState<Set<FitnessAchievementId>>(new Set())
   const [prs, setPrs] = useState(loadPRs())
+  const [guestMore, setGuestMore] = useState(false)
   const authError = search.get('auth') === 'error'
+  const showDetail = Boolean(user) || guestMore
 
   useEffect(() => {
     setGoals(loadGoals())
@@ -226,11 +228,46 @@ export function MeClient() {
           {!user && (
             <StaggerItem>
               <div className="rounded-2xl border border-dashed border-border bg-[#fafaf9] px-4 py-3.5 text-xs text-muted leading-relaxed">
-                上面數字而家淨係本機。登入之後會上雲，換手機都跟住你。
+                上面數字而家淨係本機。登入之後會上雲，換手機都跟住你。傾偈仍然可以匿名。
               </div>
             </StaggerItem>
           )}
 
+          <StaggerItem>
+            <Card className="py-4">
+              <CardTitle className="text-lg mb-3">想做嘅事</CardTitle>
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    { href: '/train', label: '去訓練', icon: Dumbbell, hint: '開波記組' },
+                    { href: '/eat', label: '去飲食', icon: Utensils, hint: '影餐估營養' },
+                    { href: '/', label: '去傾偈', icon: MessageCircle, hint: '匿名開波' },
+                  ] as const
+                ).map(({ href, label, icon: Icon, hint }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-[#fafaf9] px-2 py-3 text-center hover:border-accent/35 hover:bg-accent-soft/40 transition touch-manipulation"
+                  >
+                    <Icon className="h-4 w-4 text-accent" />
+                    <span className="text-xs font-semibold">{label}</span>
+                    <span className="text-[10px] text-muted leading-tight">{hint}</span>
+                  </Link>
+                ))}
+              </div>
+            </Card>
+          </StaggerItem>
+
+          <StaggerItem>
+            <HkGymEntryCard />
+          </StaggerItem>
+
+          <StaggerItem>
+            <GymNudgeCard streak={streak} />
+          </StaggerItem>
+
+          {showDetail ? (
+            <>
           <StaggerItem>
             <GoalRings meals={meals} sessions={sessionsLocal} goals={goals} />
           </StaggerItem>
@@ -245,14 +282,6 @@ export function MeClient() {
               <p className="text-[12px] text-muted mb-3 -mt-1">過去幾星期邊日有落場——顏色愈深愈密。</p>
               <TrainHeatmap sessions={sessionsLocal} weeks={12} />
             </Card>
-          </StaggerItem>
-
-          <StaggerItem>
-            <GymNudgeCard streak={streak} />
-          </StaggerItem>
-
-          <StaggerItem>
-            <HkGymEntryCard />
           </StaggerItem>
 
           <StaggerItem>
@@ -357,7 +386,24 @@ export function MeClient() {
               </div>
             </Card>
           </StaggerItem>
+            </>
+          ) : (
+            <StaggerItem>
+              <button
+                type="button"
+                onClick={() => setGuestMore(true)}
+                className="w-full rounded-[20px] border border-dashed border-border bg-[#fafaf9] px-4 py-4 text-sm font-medium text-accent hover:bg-accent-soft/50 transition touch-manipulation inline-flex items-center justify-center gap-2"
+              >
+                展開進度／熱圖／徽章／目標
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              <p className="mt-2 text-center text-[11px] text-muted leading-relaxed px-2">
+                訪客先睇帳戶同想做嘅事；詳細進度可展開，登入會自動上雲。
+              </p>
+            </StaggerItem>
+          )}
 
+          {user && (
           <StaggerItem>
             <div className="grid grid-cols-3 gap-3">
               {(
@@ -384,6 +430,7 @@ export function MeClient() {
               ))}
             </div>
           </StaggerItem>
+          )}
 
           <StaggerItem>
             <CardDesc className="text-center text-[11px] px-2">

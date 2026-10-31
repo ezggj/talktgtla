@@ -1168,6 +1168,7 @@ export function EatClient() {
         {periodMeals.length === 0 ? (
           <EmptyState
             className="mb-8"
+            emoji="🍜"
             title={
               period === 'day'
                 ? '今日未有記錄'
@@ -1177,8 +1178,8 @@ export function EatClient() {
             }
             description={
               period === 'day'
-                ? '影低一餐，或者撳「香港常見」加示範。登入之後會入雲端歷史。'
-                : '換去「日」計影一餐，或者撳上面箭嘴睇其他日子。登入之後週／月總計會齊啲。'
+                ? '影低一餐，或者用「香港常見／會所蛋白」快加。登入之後會入雲端。'
+                : '換去「日」影一餐，或者撳箭嘴睇其他日子。登入之後週／月總計會齊啲。'
             }
             actionLabel="影一餐"
             onAction={() => cameraRef.current?.click()}

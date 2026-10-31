@@ -797,6 +797,72 @@ export function TrainClient() {
                 </Stagger>
               ) : (
                 <div className="space-y-4">
+                  {(active.sets.length === 0 || sessions.filter((s) => s.endedAt).length === 0) && (
+                    <Card className="py-4 border-accent/25 bg-accent-soft/25">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge tone="accent">首次</Badge>
+                        <CardTitle className="text-base">三步搞掂呢場</CardTitle>
+                      </div>
+                      <ol className="space-y-2.5 text-sm">
+                        <li className="flex gap-2.5 items-start">
+                          <span
+                            className={
+                              selectedEx
+                                ? 'shrink-0 h-5 w-5 rounded-full bg-accent text-white text-[11px] flex items-center justify-center'
+                                : 'shrink-0 h-5 w-5 rounded-full border border-accent text-accent text-[11px] flex items-center justify-center'
+                            }
+                          >
+                            {selectedEx ? '✓' : '1'}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium">揀一個動作</div>
+                            <p className="text-[11px] text-muted leading-relaxed">
+                              搜 RDL／保加利亞／後腿都得；撳「點做」睇步驟。
+                            </p>
+                            {!selectedEx && (
+                              <Button
+                                size="sm"
+                                variant="soft"
+                                className="mt-1.5"
+                                onClick={() => setPickerOpen(true)}
+                              >
+                                <Search className="h-3.5 w-3.5" />
+                                開動作庫
+                              </Button>
+                            )}
+                          </div>
+                        </li>
+                        <li className="flex gap-2.5 items-start">
+                          <span
+                            className={
+                              active.sets.length > 0
+                                ? 'shrink-0 h-5 w-5 rounded-full bg-accent text-white text-[11px] flex items-center justify-center'
+                                : 'shrink-0 h-5 w-5 rounded-full border border-accent text-accent text-[11px] flex items-center justify-center'
+                            }
+                          >
+                            {active.sets.length > 0 ? '✓' : '2'}
+                          </span>
+                          <div>
+                            <div className="font-medium">填重量 × 次數，撳「記低」</div>
+                            <p className="text-[11px] text-muted leading-relaxed">
+                              唔記得就睇「點做」；重量唔夠就由輕開始。
+                            </p>
+                          </div>
+                        </li>
+                        <li className="flex gap-2.5 items-start">
+                          <span className="shrink-0 h-5 w-5 rounded-full border border-accent text-accent text-[11px] flex items-center justify-center">
+                            3
+                          </span>
+                          <div>
+                            <div className="font-medium">休息完自動跳下一組</div>
+                            <p className="text-[11px] text-muted leading-relaxed">
+                              倒數完會 focus 重量格——改完再記，少撳幾吓。
+                            </p>
+                          </div>
+                        </li>
+                      </ol>
+                    </Card>
+                  )}
                   {/* Rest timer */}
                   {restLeft != null && (
                     <Card
@@ -1373,9 +1439,11 @@ export function TrainClient() {
                 <EmptyState
                   emoji="🏋️"
                   title="仲未有歷史"
-                  description="練完第一次之後，日曆同容量會喺度慢慢長出來。"
+                  description="第一次完場之後，日曆、熱圖同容量會喺度長出來。而家可以開腿日或自由練。"
                   actionLabel="去今日開波"
                   onAction={() => setTab('today')}
+                  secondaryLabel="睇新手課表"
+                  onSecondary={() => setTab('templates')}
                 />
               ) : (
                 <Stagger className="space-y-3">
