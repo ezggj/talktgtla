@@ -41,14 +41,14 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Bench Press',
     aliases: [
       'bench', '胸', '卧推', '平板卧推', '練胸', '推胸', '平板推', '胸推', 'bench press', 'bp', '臥推',
-      '平板臥推', '槓鈴卧推', '槓鈴臥推', 'benchpress', '平推', '胸推槓',
+      '平板臥推', '槓鈴卧推', '槓鈴臥推', 'benchpress', '平推', '胸推槓', '大臥推', '臥推架',
     ],
     muscle: '胸',
     equipment: '槓鈴',
     cues: [
-      '仰躺凳上，腳踩實、肩胛骨夾實貼凳，槓大概喺眼上方。',
-      '下放時手肘約 45°，槓落到胸口中下；推起時呼氣，唔好彈胸借力。',
-      '新手常見錯：手肘完全打開、屁股離凳、下放太快。',
+      '仰躺，腳踩實地，肩胛夾實貼凳。槓大概喺眼上面，唔好抬頸去就槓。',
+      '落槓手肘大概 45°，落到胸口中下；推起呼氣，唔好彈胸借力。',
+      '手肘完全打開、屁股離凳、落太快，都係新手最易錯。痛就停。',
     ],
     demoUrl: 'https://www.youtube.com/watch?v=rT7DgCr-3pg',
     demoLabel: 'YouTube 卧推教學',
@@ -102,9 +102,9 @@ export const EXERCISES: ExerciseGuide[] = [
     muscle: '腿',
     equipment: '槓鈴',
     cues: [
-      '腳大約與肩同寬、腳尖微向外；槓坐上斜方肌，胸挺、望前。',
-      '臀向後坐落去，膝跟住腳尖方向；大腿至少到平行，再踩地站起。',
-      '常見錯：膝內扣、腰圓背、腳跟離地——重量唔夠就減先練姿勢。',
+      '腳與肩同寬，腳尖微向外。槓坐實斜方（上背），唔好擺落頸。',
+      '屁股向後坐落去，膝跟住腳尖；大腿至少平行先踩地企返。',
+      '膝內扣、腰圓、腳跟離地就即減重量——姿勢先，重量後。',
     ],
     demoUrl: 'https://www.youtube.com/watch?v=bEv6CCg2BC8',
     demoLabel: 'YouTube 深蹲教學',
@@ -138,9 +138,9 @@ export const EXERCISES: ExerciseGuide[] = [
     muscle: '背',
     equipment: '槓鈴',
     cues: [
-      '槓貼小腿，髖向後推彎腰握槓；背打直、核心收實，肩喺槓微前方——呢個就係 Threads 成日講嘅 deadlift／硬拉。',
-      '用腳踩地「推地板」起身，槓一路貼大腿；到頂髖向前夾，唔好過度後仰或者甩腰。',
-      '常見錯：圓背起槓、槓離身、用腰拗起。痛腰即停。想練後髀多啲就轉做 RDL（羅馬尼亞硬拉）。',
+      '槓貼住小腿，髖向後推彎低去握。背打直，核心收實，肩喺槓少少前面。',
+      '用腳踩地「推開地板」企起，槓一路貼大腿；到頂髖向前夾，唔好過度後仰。',
+      '圓背起槓、槓離身、用腰拗，都唔好。腰痛即停。想練後髀多啲就轉做 RDL。',
     ],
     demoUrl: 'https://www.youtube.com/watch?v=op9kVnSso6Q',
     demoLabel: 'YouTube 硬拉教學',
@@ -168,14 +168,14 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Overhead Press',
     aliases: [
       'ohp', '肩', '推舉', '軍事推舉', '過頭推', '練肩', '過頭推舉', '站姿推舉', '軍事推',
-      '槓鈴肩推', 'Standing press', 'military press', '推頭',
+      '槓鈴肩推', 'Standing press', 'military press', '推頭', '推肩', '站推',
     ],
     muscle: '肩',
     equipment: '槓鈴',
     cues: [
-      '站姿核心收實，槓由鎖骨前方推起，頭微後讓路再開前穿出。',
-      '推到手臂伸直但唔鎖死；下放有控制落到鎖骨附近。',
-      '常見錯：過度後仰借腰力、手肘過度打開——重量太大就減。',
+      '企直，核心收實。槓由鎖骨前面推起，頭微後讓路，再企返穿過。',
+      '推到手臂伸直但唔鎖死；落返鎖骨附近要有控制。',
+      '過度後仰借腰、手肘打到太開，都係重量太大。減完再推。',
     ],
     demoUrl: 'https://www.youtube.com/watch?v=2yjwXTZQDDI',
     demoLabel: 'YouTube 肩推教學',
@@ -313,7 +313,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameZh: '腿舉',
     nameEn: 'Leg Press',
     aliases: [
-      '腿舉', 'leg press', '腿推', '蹬腿', '腿機', '推腿', '腿推機', '腿部推舉', '斜蹬',
+      '腿舉', 'leg press', '腿推', '蹬腿', '腿機', '推腿', '腿推機', '腿部推舉', '斜蹬', '45度腿推',
     ],
     muscle: '腿',
     equipment: '機械',
@@ -619,7 +619,7 @@ export const EXERCISES: ExerciseGuide[] = [
     id: 'dip',
     nameZh: '雙槓臂屈伸',
     nameEn: 'Dip',
-    aliases: ['雙槓', 'dip', '臂屈伸', '雙槓臂屈伸', '雙槓撐體', 'dip bar', '椅撑'],
+    aliases: ['雙槓', 'dip', '臂屈伸', '雙槓臂屈伸', '雙槓撐體', 'dip bar', '椅撑', '撐雙槓', '雙槓dip'],
     muscle: '胸',
     equipment: '自重',
     cues: [
@@ -1104,6 +1104,15 @@ const QUERY_SYNONYMS: Record<string, string[]> = {
   legday: ['腿', '深蹲'],
   'leg day': ['腿', '深蹲'],
   腿日: ['腿', '深蹲', 'rdl'],
+  蝴蝶: ['飛鳥', '蝴蝶機'],
+  伏地挺身: ['掌上壓', 'push-up'],
+  推肩: ['肩推', 'ohp'],
+  站推: ['肩推', 'ohp'],
+  腿推: ['腿舉', 'leg press'],
+  拉單槓: ['引體', 'pull-up'],
+  俯身划: ['划船', 'row'],
+  夾胸: ['飛鳥', '蝴蝶機'],
+  平板推: ['卧推', 'bench'],
 }
 
 function normalizeQuery(q: string) {
@@ -1192,6 +1201,29 @@ export function matchedAliasLabel(exercise: ExerciseGuide, q: string): string | 
     }
   }
   return null
+}
+
+/** Short 俗稱 for 「點做」— Chinese nicknames first, skip the official name. */
+export function displayNicknames(guide: ExerciseGuide, limit = 4): string[] {
+  const canon = new Set([guide.nameZh, guide.nameEn, guide.id].map((x) => normalizeQuery(x)))
+  const seen = new Set<string>()
+  const zh: string[] = []
+  const other: string[] = []
+  for (const raw of guide.aliases) {
+    const a = raw.trim()
+    const n = normalizeQuery(a)
+    if (!n || n.length < 2 || canon.has(n) || seen.has(n)) continue
+    seen.add(n)
+    if (/[\u4e00-\u9fff]/.test(a)) zh.push(a)
+    else if (/[a-z]/i.test(a) && a.length <= 14) other.push(a)
+  }
+  zh.sort((a, b) => a.length - b.length || a.localeCompare(b, 'zh-HK'))
+  const picked = zh.slice(0, limit)
+  for (const o of other) {
+    if (picked.length >= limit) break
+    picked.push(o)
+  }
+  return picked.slice(0, limit)
 }
 
 /** Resolve guide by id or fuzzy name; null → use generic cues in UI. */

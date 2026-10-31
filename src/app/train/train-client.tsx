@@ -9,12 +9,10 @@ import {
   Clock,
   Flame,
   History,
-  Pause,
   Play,
   Plus,
   RotateCcw,
   Search,
-  Smartphone,
   Sparkles,
   Star,
   Timer,
@@ -78,7 +76,17 @@ import { TrainHeatmap } from '@/components/fitness/train-heatmap'
 import { analyzeWorkout, formatDelta, type WorkoutAnalysis } from '@/lib/fitness/analysis'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
-import { buzzLight, notifyRestDone, flashDocumentTitle, armRestNotification } from '@/lib/fitness/haptic'
+import {
+  armRestNotification,
+  buzzLight,
+  buzzRestTick,
+  cancelRestAlarm,
+  flashDocumentTitle,
+  notifyRestDone,
+  vibrationAvailable,
+} from '@/lib/fitness/haptic'
+import { clampRestSeconds, loadRestPrefs, saveRestPrefs } from '@/lib/fitness/rest-prefs'
+import { RestTimerControls } from '@/components/fitness/rest-timer-controls'
 import { buildOverloadTip } from '@/lib/fitness/overload-tip'
 import { InstallPrompt } from '@/components/pwa/install-prompt'
 import {
@@ -178,6 +186,10 @@ export function TrainClient() {
   const [weight, setWeight] = useState(60)
   const [reps, setReps] = useState(8)
   const [restSec, setRestSec] = useState(90)
+  const [restAutoStart, setRestAutoStart] = useState(true)
+  const [canVibrate, setCanVibrate] = useState(false)
+  const [online, setOnline] = useState(true)
+  const [draftNote, setDraftNote] = useState<string | null>(null)
   const [restLeft, setRestLeft] = useState<number | null>(null)
   const [restRunning, setRestRunning] = useState(false)
   const [prToast, setPrToast] = useState<string | null>(null)
@@ -269,10 +281,42 @@ export function TrainClient() {
     setPrs(loadPRs())
     const a = loadActiveSession()
     setActive(a)
+    const prefs = loadRestPrefs()
+    setRestSec(prefs.seconds)
+    setRestAutoStart(prefs.autoStart)
+    setCanVibrate(vibrationAvailable())
+    if (a && !a.endedAt && a.sets.length > 0) {
+      setDraftNote(`已還原未完場草稿 · ${a.sets.length} 組喺呢部機`)
+    }
     setSfxOn(loadTrainSfxEnabled())
     setHowtoFavs(loadHowtoFavs())
     setReady(true)
   }, [])
+
+  useEffect(() => {
+    const sync = () => setOnline(typeof navigator === 'undefined' ? true : navigator.onLine)
+    sync()
+    window.addEventListener('online', sync)
+    window.addEventListener('offline', sync)
+    return () => {
+      window.removeEventListener('online', sync)
+      window.removeEventListener('offline', sync)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!active || active.endedAt) return
+    const flush = () => saveActiveSession(active)
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onHide)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', onHide)
+    }
+  }, [active])
 
   useEffect(() => {
     if (!pickerOpen) return
@@ -460,7 +504,10 @@ export function TrainClient() {
       }
       return
     }
-    if (restLeft <= 3 && restLeft > 0) sfxRestTick()
+    if (restLeft <= 3 && restLeft > 0) {
+      sfxRestTick()
+      buzzRestTick()
+    }
     const id = window.setTimeout(() => setRestLeft((v) => (v == null ? v : v - 1)), 1000)
     return () => window.clearTimeout(id)
   }, [restRunning, restLeft])
@@ -546,6 +593,80 @@ export function TrainClient() {
     pickExercise(exerciseId)
   }
 
+  const rememberRest = (seconds: number) => {
+    const next = clampRestSeconds(seconds)
+    setRestSec(next)
+    saveRestPrefs({ seconds: next })
+    return next
+  }
+
+  const armOrHoldRest = (seconds: number) => {
+    const dur = rememberRest(seconds)
+    setRestLeft(dur)
+    setRestReadyNext(false)
+    restEndedFocus.current = false
+    if (restAutoStart) {
+      setRestRunning(true)
+      setRestFullscreen(true)
+      void armRestNotification(dur)
+    } else {
+      setRestRunning(false)
+      setRestFullscreen(false)
+      cancelRestAlarm()
+    }
+  }
+
+  const pickRestDuration = (seconds: number) => {
+    const next = rememberRest(seconds)
+    setRestLeft(next)
+    setRestRunning(true)
+    setRestReadyNext(false)
+    void armRestNotification(next)
+  }
+
+  const adjustRest = (delta: number) => {
+    const base = restLeft ?? restSec
+    const nextLeft = Math.max(0, Math.min(300, base + delta))
+    rememberRest(restSec + delta)
+    setRestLeft(nextLeft)
+    setRestRunning(true)
+    if (nextLeft > 0) void armRestNotification(nextLeft)
+    else cancelRestAlarm()
+  }
+
+  const skipRest = () => {
+    setRestLeft(null)
+    setRestRunning(false)
+    setRestFullscreen(false)
+    setRestReadyNext(true)
+    cancelRestAlarm()
+    window.setTimeout(() => {
+      loggerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      weightRef.current?.focus()
+      weightRef.current?.select()
+    }, 50)
+  }
+
+  const toggleRestRun = () => {
+    if (restRunning) {
+      setRestRunning(false)
+      cancelRestAlarm()
+      return
+    }
+    const left = restLeft ?? restSec
+    setRestRunning(true)
+    setRestFullscreen(true)
+    if (left > 0) void armRestNotification(left)
+  }
+
+  const toggleRestAuto = () => {
+    setRestAutoStart((v) => {
+      const next = !v
+      saveRestPrefs({ autoStart: next })
+      return next
+    })
+  }
+
   const addSet = (outcome: SetOutcome = pendingOutcome) => {
     if (!active || !selectedEx) return
     const ex = exerciseById(selectedEx)
@@ -582,15 +703,10 @@ export function TrainClient() {
     setJustAdded(row.id)
     window.setTimeout(() => setJustAdded(null), 500)
 
-    setRestLeft(restSec)
-    setRestRunning(true)
-    setRestFullscreen(true)
-    restEndedFocus.current = false
-    setRestReadyNext(false)
     setPendingOutcome('ok')
     buzzLight()
     sfxLogSet()
-    void armRestNotification(restSec)
+    armOrHoldRest(restSec)
   }
 
   const cycleSetOutcome = (setId: string) => {
@@ -627,6 +743,7 @@ export function TrainClient() {
       reps: prev.reps,
       restSec,
       completedAt: new Date().toISOString(),
+      outcome: prev.outcome || 'ok',
     }
     const next = { ...active, sets: [...active.sets, row] }
     persistActive(next)
@@ -647,13 +764,9 @@ export function TrainClient() {
     }
     setJustAdded(row.id)
     window.setTimeout(() => setJustAdded(null), 500)
-    setRestLeft(restSec)
-    setRestRunning(true)
-    setRestFullscreen(true)
-    setRestReadyNext(false)
     buzzLight()
     sfxLogSet()
-    void armRestNotification(restSec)
+    armOrHoldRest(restSec)
   }
 
   const finishSession = () => {
@@ -723,7 +836,10 @@ export function TrainClient() {
     setSelectedEx(null)
     setRestRunning(false)
     setRestLeft(null)
+    setRestFullscreen(false)
     setRestReadyNext(false)
+    setDraftNote(null)
+    cancelRestAlarm()
   }
 
   if (!ready || !authReady) {
@@ -1083,6 +1199,25 @@ export function TrainClient() {
                 </Stagger>
               ) : (
                 <div className="space-y-4">
+                  {!online && (
+                    <div className="rounded-2xl border border-border bg-surface-muted px-3.5 py-2.5 text-[12px] leading-relaxed text-muted">
+                      <span className="font-semibold text-foreground">離線草稿</span>
+                      {' · '}
+                      {active.sets.length} 組已存呢部機。返到線之後完場會自動上雲。
+                    </div>
+                  )}
+                  {draftNote && (
+                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-accent/25 bg-accent-soft/40 px-3.5 py-2.5">
+                      <p className="text-[12px] text-accent leading-relaxed">{draftNote}</p>
+                      <button
+                        type="button"
+                        onClick={() => setDraftNote(null)}
+                        className="shrink-0 text-[11px] font-medium text-accent touch-manipulation"
+                      >
+                        知喇
+                      </button>
+                    </div>
+                  )}
                   {(active.sets.length === 0 || sessions.filter((s) => s.endedAt).length === 0) && (
                     <div className="rounded-2xl border border-accent/25 bg-accent-soft/25 px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                       <Badge tone="accent">首次</Badge>
@@ -1120,8 +1255,8 @@ export function TrainClient() {
                       <div className="flex items-center gap-4">
                         <div className="relative shrink-0">
                           <ProgressRing
-                            value={restSec - (restLeft || 0)}
-                            max={restSec || 1}
+                            value={Math.max(0, Math.max(restSec, restLeft || 0) - (restLeft || 0))}
+                            max={Math.max(restSec, restLeft || 0, 1)}
                             size={72}
                             stroke={7}
                             label={formatRest(restLeft)}
@@ -1148,66 +1283,25 @@ export function TrainClient() {
                           <p className="text-[11px] text-muted mt-0.5 leading-relaxed">
                             {restLeft === 0
                               ? '休息完自動跳下一組——重量格已 focus，改完撳「記低」或 Enter 即入帳。'
-                              : restRunning
-                                ? '倒數完自動跳下一組並 focus 重量——想加就 +15，唔使手動搵格'
-                                : '已暫停'}
+                              : !restRunning
+                                ? restAutoStart
+                                  ? '已暫停'
+                                  : '記低咗。撳「開始倒數」先計時，長度會記住。'
+                                : '倒數完跳下一組。±15 會記住下次休息。'}
                           </p>
-                          <div className="mt-2.5 flex flex-wrap gap-1.5">
-                            {[60, 90, 120].map((s) => (
-                              <button
-                                key={s}
-                                type="button"
-                                onClick={() => {
-                                  setRestSec(s)
-                                  setRestLeft(s)
-                                  setRestRunning(true)
-                                  void armRestNotification(s)
-                                }}
-                                className={cn(
-                                  'rounded-full px-2.5 py-1 text-[11px] border transition touch-manipulation',
-                                  restSec === s
-                                    ? 'border-accent bg-accent-soft text-accent'
-                                    : 'border-border text-muted hover:text-foreground'
-                                )}
-                              >
-                                {s}s
-                              </button>
-                            ))}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setRestLeft((v) => Math.max(0, (v ?? 0) + 15))
-                                setRestRunning(true)
-                              }}
-                              className="rounded-full px-2.5 py-1 text-[11px] border border-border text-muted hover:text-foreground touch-manipulation"
-                            >
-                              +15
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setRestRunning((v) => !v)}
-                              className="rounded-full px-2.5 py-1 text-[11px] border border-border text-muted hover:text-foreground inline-flex items-center gap-1 touch-manipulation"
-                            >
-                              {restRunning ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                              {restRunning ? '暫停' : '繼續'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setRestLeft(null)
-                                setRestRunning(false)
-                                setRestReadyNext(true)
-                                window.setTimeout(() => {
-                                  loggerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                                  weightRef.current?.focus()
-                                  weightRef.current?.select()
-                                }, 50)
-                              }}
-                              className="rounded-full px-2.5 py-1 text-[11px] border border-border text-muted hover:text-foreground touch-manipulation"
-                            >
-                              跳過 · 下一組
-                            </button>
-                          </div>
+                          <RestTimerControls
+                            variant="inline"
+                            restSec={restSec}
+                            restLeft={restLeft ?? 0}
+                            restRunning={restRunning}
+                            autoStart={restAutoStart}
+                            canVibrate={canVibrate}
+                            onPick={pickRestDuration}
+                            onAdjust={adjustRest}
+                            onToggleRun={toggleRestRun}
+                            onSkip={skipRest}
+                            onToggleAuto={toggleRestAuto}
+                          />
                         </div>
                       </div>
                     </Card>
@@ -1376,7 +1470,7 @@ export function TrainClient() {
                           <div className="mb-3 rounded-2xl border border-border bg-surface-muted px-3 py-2.5">
                             <div className="flex items-center justify-between gap-2 mb-1.5">
                               <div className="text-[10px] font-semibold text-muted tracking-wide">
-                                器械替代
+                                冇呢部機？換呢啲
                               </div>
                               <div className="flex gap-1 flex-wrap justify-end">
                                 {(['槓鈴', '啞鈴', '機械'] as const).map((eq) => (
@@ -1613,9 +1707,12 @@ export function TrainClient() {
                             className="flex-1 h-[4.5rem] text-base px-3 rounded-[20px]"
                             disabled={!lastLoggedForSelected}
                             onClick={repeatLastSet}
-                            title="同上組重量次數再記一組"
+                            title="一掣再記同上組重量同次數"
                           >
-                            同上
+                            同上組
+                            {lastLoggedForSelected
+                              ? ` ${lastLoggedForSelected.weightKg}×${lastLoggedForSelected.reps}`
+                              : ''}
                           </Button>
                         </div>
                         <div className="mb-2 flex items-center justify-between px-0.5">
@@ -2266,6 +2363,9 @@ export function TrainClient() {
                                     minute: '2-digit',
                                   }),
                                   tip: s.analysis.tips?.[0],
+                                  prs: (s.analysis.prs || []).map(
+                                    (p) => `${p.name} ${p.weightKg}×${p.reps}`
+                                  ),
                                 }}
                               />
                             </div>
@@ -2345,67 +2445,25 @@ export function TrainClient() {
               <p className="mt-4 text-center text-sm text-white/70 max-w-xs leading-relaxed">
                 {restLeft === 0
                   ? '準備下一組——撳下面繼續記'
-                  : selectedEx
-                    ? `${exerciseById(selectedEx)?.nameZh || ''} · 休息完自動跳返記組`
-                    : '休息完自動跳返記組'}
+                  : !restRunning
+                    ? '未開始計時。撳「開始倒數」，或者跳過直接記下一組。'
+                    : selectedEx
+                      ? `${exerciseById(selectedEx)?.nameZh || ''} · 完咗會震，再跳返記組`
+                      : '完咗會震，再跳返記組'}
               </p>
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
-                {[60, 90, 120].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => {
-                      setRestSec(s)
-                      setRestLeft(s)
-                      setRestRunning(true)
-                      void armRestNotification(s)
-                    }}
-                    className={cn(
-                      'min-h-12 rounded-full px-5 text-sm font-semibold border touch-manipulation',
-                      restSec === s ? 'border-teal-300 bg-teal-400/20 text-teal-100' : 'border-white/25 text-white/80'
-                    )}
-                  >
-                    {s}s
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRestLeft((v) => Math.max(0, (v ?? 0) + 15))
-                    setRestRunning(true)
-                  }}
-                  className="min-h-12 rounded-full border border-white/25 px-5 text-sm font-semibold text-white/80 touch-manipulation"
-                >
-                  +15
-                </button>
-              </div>
-              <div className="mt-4 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setRestRunning((v) => !v)}
-                  className="min-h-12 rounded-full border border-white/25 px-6 text-sm font-semibold touch-manipulation inline-flex items-center gap-2"
-                >
-                  {restRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                  {restRunning ? '暫停' : '繼續'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRestLeft(null)
-                    setRestRunning(false)
-                    setRestFullscreen(false)
-                    setRestReadyNext(true)
-                    window.setTimeout(() => {
-                      loggerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                      weightRef.current?.focus()
-                      weightRef.current?.select()
-                    }, 50)
-                  }}
-                  className="min-h-12 rounded-full bg-teal-600 px-6 text-sm font-semibold touch-manipulation"
-                >
-                  跳過 · 下一組
-                </button>
-              </div>
+              <RestTimerControls
+                variant="fullscreen"
+                restSec={restSec}
+                restLeft={restLeft ?? 0}
+                restRunning={restRunning}
+                autoStart={restAutoStart}
+                canVibrate={canVibrate}
+                onPick={pickRestDuration}
+                onAdjust={adjustRest}
+                onToggleRun={toggleRestRun}
+                onSkip={skipRest}
+                onToggleAuto={toggleRestAuto}
+              />
             </div>
           </motion.div>
         )}
@@ -2414,10 +2472,20 @@ export function TrainClient() {
       {/* Exercise picker */}
       {active && selectedEx && tab === 'today' && (
         <div className="one-hand-sticky fixed above-nav-gap left-0 right-0 z-40 px-4 pointer-events-none sm:hidden md:hidden">
-          <div className="mx-auto max-w-lg pointer-events-auto">
+          <div className="mx-auto max-w-lg pointer-events-auto flex gap-2">
+            {lastLoggedForSelected && (
+              <Button
+                size="xl"
+                variant="secondary"
+                className="h-16 min-w-[5.75rem] rounded-[20px] px-3 text-base touch-manipulation"
+                onClick={repeatLastSet}
+              >
+                同上
+              </Button>
+            )}
             <Button
               size="xl"
-              className="w-full h-16 rounded-[20px] shadow-hover text-lg touch-manipulation"
+              className="flex-1 h-16 rounded-[20px] shadow-hover text-lg touch-manipulation"
               onClick={() => addSet()}
             >
               <Plus className="h-6 w-6" />
@@ -2767,16 +2835,35 @@ export function TrainClient() {
                 </div>
               </div>
 
+              {(lastAnalysis.prs?.length ?? 0) > 0 && (
+                <div className="mb-4 rounded-2xl border border-[#F59E0B]/35 bg-[#FEF3C7] px-3.5 py-3 text-left">
+                  <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[#92400E]">
+                    <Trophy className="h-3.5 w-3.5" />
+                    今日 PR
+                  </div>
+                  <ul className="space-y-1">
+                    {lastAnalysis.prs!.map((pr) => (
+                      <li key={pr.exerciseId} className="text-sm font-medium tabular-nums text-[#1C1917]">
+                        {pr.name} · {pr.weightKg} kg × {pr.reps}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="rounded-[20px] border border-border bg-surface-muted p-4 mb-5 text-left">
-                <div className="text-xs font-semibold text-accent mb-2">今日建議</div>
-                <ul className="space-y-2">
-                  {lastAnalysis.tips.map((tip, i) => (
-                    <li key={i} className="text-sm text-foreground/90 leading-relaxed flex gap-2">
-                      <span className="text-accent shrink-0">·</span>
-                      <span>{tip}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="text-xs font-semibold text-accent mb-2">一句講</div>
+                <p className="text-sm text-foreground/90 leading-relaxed">{lastAnalysis.tips[0]}</p>
+                {lastAnalysis.tips.length > 1 && (
+                  <ul className="mt-3 space-y-2">
+                    {lastAnalysis.tips.slice(1).map((tip, i) => (
+                      <li key={i} className="text-sm text-foreground/90 leading-relaxed flex gap-2">
+                        <span className="text-accent shrink-0">·</span>
+                        <span>{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <p className="text-[10px] text-muted mt-3 leading-relaxed">
                   提示只係一般健身參考，唔係醫療、物理治療或私人教練建議。身體唔舒服就停低並求醫。{' '}
                   <a href="/disclaimer" className="text-accent font-medium hover:underline">
@@ -2818,6 +2905,7 @@ export function TrainClient() {
                         { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
                       ),
                       tip: lastAnalysis.tips[0],
+                      prs: (lastAnalysis.prs || []).map((p) => `${p.name} ${p.weightKg}×${p.reps}`),
                     }}
                   />
                 </div>

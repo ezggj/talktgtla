@@ -17,14 +17,35 @@ export function buzzLight() {
   }
 }
 
+export function vibrationAvailable() {
+  try {
+    return typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function'
+  } catch {
+    return false
+  }
+}
+
+/** Short pulse on the last few seconds of rest. */
+export function buzzRestTick() {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(35)
+  } catch {
+    /* ignore */
+  }
+}
+
 export function buzzRestDone() {
   try {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate([80, 40, 80, 40, 120])
+      navigator.vibrate([80, 40, 80, 40, 160])
     }
   } catch {
     /* ignore */
   }
+}
+
+export function cancelRestAlarm() {
+  void cancelScheduledRestNotification()
 }
 
 /** Soft-ask once, then notify via SW when possible. */
