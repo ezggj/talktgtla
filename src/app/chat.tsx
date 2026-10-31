@@ -130,6 +130,8 @@ export default function Chat() {
   const [replyToId, setReplyToId] = useState<number | null>(null)
   const [sending, setSending] = useState(false)
   const [showJump, setShowJump] = useState(false)
+  const [pendingNewCount, setPendingNewCount] = useState(0)
+  const [copyHintId, setCopyHintId] = useState<number | null>(null)
   const [showEmoji, setShowEmoji] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [showAdminLogin, setShowAdminLogin] = useState(false)
@@ -163,6 +165,7 @@ export default function Chat() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const stickToBottomRef = useRef(true)
   const initialScrollDone = useRef(false)
+  const lastMsgLenRef = useRef(0)
 
   const messagesById = useMemo(() => {
     const map = new Map<number, Message>()
@@ -191,12 +194,14 @@ export default function Chat() {
     }
     stickToBottomRef.current = true
     setShowJump(false)
+    setPendingNewCount(0)
   }, [])
 
   const onListScroll = () => {
     const near = isNearBottom()
     stickToBottomRef.current = near
     setShowJump(!near)
+    if (near) setPendingNewCount(0)
   }
 
   useEffect(() => {
@@ -398,7 +403,13 @@ export default function Chat() {
   }, [])
 
   useEffect(() => {
-    if (!messages.length) return
+    if (!messages.length) {
+      lastMsgLenRef.current = 0
+      return
+    }
+    const grew = messages.length > lastMsgLenRef.current
+    const delta = Math.max(0, messages.length - lastMsgLenRef.current)
+    lastMsgLenRef.current = messages.length
     if (!initialScrollDone.current) {
       requestAnimationFrame(() => {
         scrollToLatest('auto')
@@ -408,6 +419,9 @@ export default function Chat() {
     }
     if (stickToBottomRef.current) {
       requestAnimationFrame(() => scrollToLatest('smooth'))
+    } else if (grew) {
+      setShowJump(true)
+      setPendingNewCount((n) => n + delta)
     } else {
       setShowJump(true)
     }
@@ -423,6 +437,17 @@ export default function Chat() {
   useEffect(() => {
     resizeComposer()
   }, [newMessage, resizeComposer])
+
+  const copyMessage = async (msg: Message) => {
+    try {
+      await navigator.clipboard.writeText(msg.content)
+      setCopyHintId(msg.id)
+      window.setTimeout(() => setCopyHintId((id) => (id === msg.id ? null : id)), 1600)
+    } catch {
+      setCopyHintId(msg.id)
+      window.setTimeout(() => setCopyHintId((id) => (id === msg.id ? null : id)), 1600)
+    }
+  }
 
   const startReply = (msg: Message) => {
     setReplyToId(msg.id)
@@ -963,6 +988,13 @@ export default function Chat() {
                   >
                     回覆
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => void copyMessage(msg)}
+                    className="text-xs text-muted hover:text-accent hover:underline active:opacity-70 transition-opacity font-medium"
+                  >
+                    {copyHintId === msg.id ? '已複製' : '複製'}
+                  </button>
                   {!msg.is_admin && (
                     <MessageModActions
                       messageId={msg.id}
@@ -1016,7 +1048,7 @@ export default function Chat() {
             onClick={() => scrollToLatest('smooth')}
             className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-foreground/92 text-background text-xs px-3.5 py-1.5 shadow-hover backdrop-blur-md active:scale-95 transition-transform jump-in"
           >
-            最新 ↓
+            {pendingNewCount > 0 ? `有 ${pendingNewCount} 則新訊息 ↓` : '最新 ↓'}
           </button>
         )}
       </div>

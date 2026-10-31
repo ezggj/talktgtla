@@ -760,6 +760,9 @@ export function TrainClient() {
                 <div className="font-semibold tabular-nums text-base text-accent leading-tight">
                   {formatDuration(elapsed)}
                 </div>
+                <div className="text-[10px] text-muted tabular-nums mt-0.5">
+                  {active.sets.length} 組 · {Math.round(volumeOf(active.sets)).toLocaleString()}
+                </div>
               </div>
             ) : undefined
           }
@@ -1279,9 +1282,21 @@ export function TrainClient() {
                               </span>
                             )}
                             {lastLoggedForSelected && (
-                              <span>
-                                上次 {lastLoggedForSelected.weightKg} kg × {lastLoggedForSelected.reps}
-                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWeight(lastLoggedForSelected.weightKg)
+                                  setReps(lastLoggedForSelected.reps)
+                                  setPendingOutcome(
+                                    lastLoggedForSelected.outcome || 'ok'
+                                  )
+                                  weightRef.current?.focus()
+                                }}
+                                className="rounded-full border border-border bg-surface-muted px-2 py-0.5 text-[10px] font-semibold text-accent touch-manipulation"
+                                title="填入上次重量／次數（唔會即記）"
+                              >
+                                上次 {lastLoggedForSelected.weightKg} kg × {lastLoggedForSelected.reps} · 填入
+                              </button>
                             )}
                           </div>
                           <div className="mt-2">

@@ -148,6 +148,7 @@ export function EatClient() {
   const [dishQuery, setDishQuery] = useState('')
   const [quickPortion, setQuickPortion] = useState(1)
   const [undoMeal, setUndoMeal] = useState<MealEntry | null>(null)
+  const [mealSlotFilter, setMealSlotFilter] = useState<'全部' | '早餐' | '午餐' | '下午茶' | '晚餐' | '宵夜'>('全部')
   const [draft, setDraft] = useState<Draft | null>(null)
   const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null)
   const [quotaLimit, setQuotaLimit] = useState(3)
@@ -388,6 +389,20 @@ export function EatClient() {
   }, [meals])
 
   const todaySum = useMemo(() => sumMacros(todayMeals), [todayMeals])
+
+  const filteredPeriodMeals = useMemo(() => {
+    if (period !== 'day' || mealSlotFilter === '全部') return periodMeals
+    return periodMeals.filter((m) => mealTimeLabel(m.createdAt) === mealSlotFilter)
+  }, [period, periodMeals, mealSlotFilter])
+
+  const remainProtein = Math.max(0, Math.round(goals.proteinG - todaySum.protein))
+  const remainKcal = Math.max(0, Math.round(goals.kcal - todaySum.kcal))
+  const overProtein = todaySum.protein > goals.proteinG
+  const overKcal = todaySum.kcal > goals.kcal
+
+  useEffect(() => {
+    if (period !== 'day' && mealSlotFilter !== '全部') setMealSlotFilter('全部')
+  }, [period, mealSlotFilter])
 
   /** MFP 風格：最近常食（去重，最多 8 個）一掣再加 */
   const recentMeals = useMemo(() => {
@@ -1131,6 +1146,19 @@ export function EatClient() {
             </div>
           </div>
           <MacroBars macros={todaySum} goals={goals} />
+          {(todayMeals.length > 0 || remainProtein > 0 || remainKcal > 0) && (
+            <p className="mt-3 text-[12px] leading-relaxed text-muted">
+              {overProtein && overKcal
+                ? '今日蛋白同卡路里都過咗目標——休息日／增肌日都得，聽日再調。'
+                : overProtein
+                  ? `蛋白已過目標；卡路里仲剩約 ${remainKcal} kcal（睇你目標）。`
+                  : overKcal
+                    ? `卡路里已過目標；蛋白仲差 ${remainProtein}g。`
+                    : remainProtein === 0 && remainKcal === 0
+                      ? '今日目標差唔多齊——叻呀。'
+                      : `仲差約 ${remainProtein}g 蛋白 · ${remainKcal} kcal——影一餐或港式快加補返。`}
+            </p>
+          )}
         </Card>
 
         {/* Weekly protein — high visibility near top */}
@@ -1553,12 +1581,44 @@ export function EatClient() {
         </div>
 
         {/* History list for selected period */}
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between">
           <h2 className="font-serif text-xl">
             {period === 'day' ? '今日食咗咩' : period === 'week' ? '呢個星期' : '呢個月'}
           </h2>
-          <span className="text-xs text-muted">{periodMeals.length} 餐</span>
+          <span className="text-xs text-muted">
+            {period === 'day' && mealSlotFilter !== '全部'
+              ? `${filteredPeriodMeals.length}/${periodMeals.length} 餐`
+              : `${periodMeals.length} 餐`}
+          </span>
         </div>
+
+        {period === 'day' && periodMeals.length > 0 && (
+          <div className="mb-3 flex gap-1.5 overflow-x-auto pb-0.5 -mx-0.5 px-0.5 scrollbar-none">
+            {(['全部', '早餐', '午餐', '下午茶', '晚餐', '宵夜'] as const).map((slot) => {
+              const count =
+                slot === '全部'
+                  ? periodMeals.length
+                  : periodMeals.filter((m) => mealTimeLabel(m.createdAt) === slot).length
+              if (slot !== '全部' && count === 0) return null
+              return (
+                <button
+                  key={slot}
+                  type="button"
+                  onClick={() => setMealSlotFilter(slot)}
+                  className={cn(
+                    'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium touch-manipulation',
+                    mealSlotFilter === slot
+                      ? 'border-accent bg-accent-soft text-accent'
+                      : 'border-border text-muted hover:text-foreground'
+                  )}
+                >
+                  {slot}
+                  {count > 0 ? ` · ${count}` : ''}
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         {periodMeals.length === 0 ? (
           <div className="mb-8">
@@ -1615,9 +1675,20 @@ export function EatClient() {
               </div>
             )}
           </div>
+        ) : filteredPeriodMeals.length === 0 ? (
+          <div className="mb-8 rounded-[20px] border border-dashed border-border bg-surface px-5 py-8 text-center">
+            <p className="text-sm text-muted">呢個時段未有餐——換個篩選或者快加一餐。</p>
+            <button
+              type="button"
+              className="mt-3 text-[12px] font-semibold text-accent touch-manipulation"
+              onClick={() => setMealSlotFilter('全部')}
+            >
+              睇全部時段
+            </button>
+          </div>
         ) : (
           <Stagger className="space-y-3 mb-8">
-            {periodMeals.map((m) => (
+            {filteredPeriodMeals.map((m) => (
               <StaggerItem key={m.id}>
                 <Card className="py-4">
                   <div className="flex gap-3">
