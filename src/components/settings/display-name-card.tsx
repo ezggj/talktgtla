@@ -35,7 +35,7 @@ export function DisplayNameCard() {
         <div>
           <CardTitle className="text-lg">凑局顯示名</CardTitle>
           <CardDesc className="mt-0.5">
-            開台／入台用嘅花名。傾偈室仍然可以揀匿名，唔會自動綁呢個名。花名唔等於實名認證——線下見面請自行判斷。
+            開台、入台用嘅花名。傾偈仍然可以匿名，唔會自動用呢個名。線下見面自己判斷。
           </CardDesc>
         </div>
       </div>

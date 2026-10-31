@@ -79,7 +79,7 @@ export function SettingsClient() {
           </StaggerItem>
           <StaggerItem>
             <CardDesc className="text-[12px] leading-relaxed px-1">
-              傾偈可以匿名；凑局花名唔會自動綁去聊天室。訓練／飲食登入後可上雲，本機設定清瀏覽器會冇。詳情見免責聲明。
+              傾偈可以匿名。凑局花名唔會自動變成傾偈花名。登入之後訓練同飲食會同步去你個帳戶。清瀏覽器，設定會冇。
             </CardDesc>
           </StaggerItem>
           <StaggerItem>
@@ -93,7 +93,7 @@ export function SettingsClient() {
           </StaggerItem>
           <StaggerItem>
             <CardDesc className="text-center text-[11px] px-2 pb-2">
-              設定用 localStorage，唔會上雲。清瀏覽器資料會重置。
+              呢啲設定只係呢部機。清瀏覽器就冇。
             </CardDesc>
           </StaggerItem>
         </Stagger>

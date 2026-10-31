@@ -233,7 +233,7 @@ export function analyzeWorkout(
   }
 
   if (dropEx) {
-    tips.push(`「${dropEx}」後段組明顯輕咗——下次前幾組可以多休息 15–30 秒，保質量。`)
+    tips.push(`「${dropEx}」後段組明顯輕咗——下次前幾組可以多休息 15–30 秒，保住姿勢。`)
   }
 
   if (restAvg != null && restAvg <= 55 && sets >= 8) {

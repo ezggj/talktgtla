@@ -122,7 +122,7 @@ export function MeClient() {
         }
       } catch (e) {
         if (!cancelled) {
-          setSyncNote(e instanceof Error ? e.message : 'sync 唔到')
+          setSyncNote(e instanceof Error ? e.message : '同步唔到')
         }
       }
     })()
@@ -162,8 +162,8 @@ export function MeClient() {
           title={user ? '跟住你走' : '試玩中'}
           description={
             user
-              ? '上雲資料 · 目標同方案喺呢度'
-              : '訪客本機。登入＝上雲＋日週月'
+              ? '目標同課表喺呢度，跟住你個帳戶。'
+              : '登入先可以喺第部機睇返訓練同飲食。'
           }
         />
 
@@ -183,7 +183,7 @@ export function MeClient() {
               <div className="flex items-start gap-2 rounded-2xl border border-accent/25 bg-accent-soft px-4 py-3 text-xs text-accent">
                 <Cloud className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                 <div>
-                  <div className="font-semibold">登入後自動上雲</div>
+                  <div className="font-semibold">已同步去你個帳戶</div>
                   <div className="mt-0.5 text-accent/90 leading-relaxed">{syncNote}</div>
                 </div>
               </div>
@@ -265,7 +265,7 @@ export function MeClient() {
           {!user && (
             <StaggerItem>
               <div className="rounded-2xl border border-dashed border-border bg-surface-muted px-4 py-3.5 text-xs text-muted leading-relaxed">
-                上面數字而家淨係本機。登入之後會上雲，換手機都跟住你。傾偈仍然可以匿名。
+                上面數字而家淨係呢部機。登入之後會同步去你個帳戶，換手機都睇到。傾偈仍然可以匿名。
               </div>
             </StaggerItem>
           )}
@@ -404,7 +404,7 @@ export function MeClient() {
               <div className="flex items-center gap-2 mb-4">
                 <Target className="h-4 w-4 text-accent" />
                 <CardTitle className="text-xl">今日想食幾多</CardTitle>
-                {user && <Badge tone="muted">雲端</Badge>}
+                {user && <Badge tone="muted">已登入</Badge>}
               </div>
               <div className="space-y-3">
                 <label className="block text-xs text-muted">
@@ -447,7 +447,7 @@ export function MeClient() {
                 <ChevronDown className="h-4 w-4" />
               </button>
               <p className="mt-2 text-center text-[11px] text-muted leading-relaxed px-2">
-                訪客先睇帳戶同想做嘅事；詳細進度可展開，登入會自動上雲。
+                而家先睇想做嘅事。進度可以展開；登入先可以喺第部機睇返。
               </p>
             </StaggerItem>
           )}
@@ -511,7 +511,7 @@ export function MeClient() {
               <div>
                 <div className="text-sm font-semibold text-foreground">免責聲明</div>
                 <p className="mt-0.5 text-[11px] text-muted leading-relaxed">
-                  傾偈 · 訓練 · AI 影餐 · 凑局 · 數據
+                  傾偈、訓練、飲食、凑局
                 </p>
               </div>
               <span className="text-accent text-sm font-medium shrink-0">睇 →</span>

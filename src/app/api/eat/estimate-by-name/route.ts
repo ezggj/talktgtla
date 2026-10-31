@@ -56,7 +56,7 @@ export async function POST(req: Request) {
 
   const name = (body.name || '').trim().slice(0, 64)
   if (!name) {
-    return NextResponse.json({ error: '請先寫食物名稱', code: 'bad_name' }, { status: 400 })
+    return NextResponse.json({ error: '先寫個名先', code: 'bad_name' }, { status: 400 })
   }
 
   const table = estimateFromFoodName(name)

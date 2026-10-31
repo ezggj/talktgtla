@@ -34,7 +34,7 @@ export function SyncToast({ message, onDismiss, durationMs = 5200 }: Props) {
         >
           <Cloud className="h-4 w-4 shrink-0 mt-0.5 opacity-90" aria-hidden />
           <div className="leading-relaxed">
-            <div className="font-semibold text-[13px]">登入後自動上雲</div>
+            <div className="font-semibold text-[13px]">已同步去你個帳戶</div>
             <div className="opacity-90 mt-0.5">{message}</div>
           </div>
         </motion.div>

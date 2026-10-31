@@ -593,7 +593,7 @@ export default function Chat() {
       setShowAdminLogin(false)
       setAdminPassword('')
     } catch {
-      setAdminError('網絡錯誤')
+      setAdminError('網絡唔得')
     } finally {
       setAdminBusy(false)
     }
@@ -608,8 +608,8 @@ export default function Chat() {
     if (!isAdmin) return
     const ok = window.confirm(
       banIp
-        ? '刪除呢條訊息，同時封鎖對方 IP？\n\n封鎖後呢個 IP 暫時唔可以再發言。假封鎖請小心。'
-        : '確定刪除呢條訊息？\n\n刪除後傾偈室其他人唔會再見到。'
+        ? '刪呢條，同時封住對方？\n\n封咗佢暫時講唔到嘢。唔好亂封。'
+        : '真係刪呢條？\n\n刪咗其他人就睇唔到。'
     )
     if (!ok) return
     const res = await fetch('/api/admin/messages', {
@@ -627,7 +627,7 @@ export default function Chat() {
     if (banIp && data.bannedIp) {
       window.alert(`已封鎖 IP：${data.bannedIp}`)
     } else if (banIp && !data.bannedIp) {
-      window.alert('已刪除；呢條舊訊息冇 IP 記錄，未有封鎖')
+      window.alert('刪咗。呢條舊訊息封唔到人。')
     }
   }
 
@@ -635,7 +635,7 @@ export default function Chat() {
     if (!isAdmin) return
     if (
       !window.confirm(
-        '只封鎖呢條訊息嘅 IP（唔刪訊息）？\n\n封鎖後呢個 IP 暫時唔可以再發言；訊息會留低畀人睇。'
+        '只封住呢個人，唔刪訊息？\n\n封咗佢暫時講唔到嘢，呢句會留低。'
       )
     )
       return
@@ -771,7 +771,7 @@ export default function Chat() {
                   href="/admin"
                   className="text-[11px] text-accent font-medium"
                 >
-                  數據
+                  站務
                 </Link>
                 <button
                   type="button"
@@ -802,11 +802,7 @@ export default function Chat() {
 
       {!isSupabaseConfigured && (
         <div className="mx-4 mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          傾偈後台未開好。要喺 Vercel 加
-          <code className="mx-1">NEXT_PUBLIC_SUPABASE_URL</code>
-          同
-          <code className="mx-1">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>
-          ，再照 README 起 messages 表。
+          傾偈暫時連唔上。陣間再試。
         </div>
       )}
 

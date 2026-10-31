@@ -377,7 +377,7 @@ export function TrainClient() {
           setSyncToast(result.note)
         }
       } catch (e) {
-        if (!cancelled) setCloudNote(e instanceof Error ? e.message : '訓練 sync 唔到')
+        if (!cancelled) setCloudNote(e instanceof Error ? e.message : '訓練同步唔到')
       }
     })()
     return () => {
@@ -793,16 +793,16 @@ export function TrainClient() {
         try {
           if (typeof navigator !== 'undefined' && navigator.onLine === false) {
             enqueueWorkout(ended)
-            setCloudNote(`離線暫存 · 排隊 ${offlineQueueCount()} 項，上網再 sync`)
+            setCloudNote(`暫時冇網 · ${offlineQueueCount()} 項留喺呢部機，有網會再同步`)
             return
           }
           const supabase = createClient()
           await persistFinishedWorkout(supabase, user.id, ended)
-          setCloudNote('呢次訓練已上雲')
+          setCloudNote('呢次訓練已同步去你個帳戶')
         } catch (e) {
           enqueueWorkout(ended)
           setCloudNote(
-            (e instanceof Error ? e.message : '上雲唔到') + ' · 已離線暫存，返到線會自動 sync'
+            (e instanceof Error ? e.message : '同步唔到') + ' · 已留喺呢部機，有網會再試'
           )
         }
       })()
@@ -865,7 +865,11 @@ export function TrainClient() {
           compact
           eyebrow="訓練"
           title="今日練咩？"
-          description="撳開波就得"
+          description={
+            active && !active.endedAt
+              ? '記一組，休息完再記下一組。'
+              : '記低每組重量同次數。'
+          }
           trailing={
             active && !active.endedAt ? (
               <div className="shrink-0 rounded-2xl border border-border/80 bg-surface px-3 py-2 shadow-soft text-right">
@@ -1205,7 +1209,7 @@ export function TrainClient() {
                     <div className="rounded-2xl border border-border bg-surface-muted px-3.5 py-2.5 text-[12px] leading-relaxed text-muted">
                       <span className="font-semibold text-foreground">離線草稿</span>
                       {' · '}
-                      {active.sets.length} 組已存呢部機。返到線之後完場會自動上雲。
+                      {active.sets.length} 組已留喺呢部機。有網完場之後會同步去你個帳戶。
                     </div>
                   )}
                   {draftNote && (
@@ -1284,7 +1288,7 @@ export function TrainClient() {
                           </div>
                           <p className="text-[11px] text-muted mt-0.5 leading-relaxed">
                             {restLeft === 0
-                              ? '休息完自動跳下一組——重量格已 focus，改完撳「記低」或 Enter 即入帳。'
+                              ? '休息完，重量格準備好。改完撳「記低」就得。'
                               : !restRunning
                                 ? restAutoStart
                                   ? '已暫停'
@@ -1327,7 +1331,7 @@ export function TrainClient() {
                               : ''}
                           </div>
                           <p className="text-[11px] text-white/85 mt-0.5 leading-snug">
-                            重量／次數沿用上組——撳下面大掣「下一組」或 Enter 即入帳。
+                            重量同次數跟上一組。撳下面大掣就記低。
                           </p>
                         </div>
                         <button
@@ -1532,7 +1536,7 @@ export function TrainClient() {
                                   }}
                                   className="mt-1.5 text-[11px] font-semibold text-accent touch-manipulation"
                                 >
-                                  用建議重量 {overloadTip.suggestedWeightKg} kg
+                                  下次試 {overloadTip.suggestedWeightKg} kg
                                 </button>
                               )}
                             </div>
@@ -2251,14 +2255,14 @@ export function TrainClient() {
                   )}
                 </div>
                 <p className="text-[11px] text-muted mb-3 -mt-1 leading-relaxed">
-                  破個人最佳會即時彈 toast。呢度留低全部紀錄同日期。
+                  破咗個人最佳會即刻彈出嚟。全部紀錄同日期留喺呢度。
                 </p>
                 {Object.keys(prs).length === 0 ? (
                   <EmptyState
                     compact
                     emoji="🏆"
                     title="未有個人最佳"
-                    description="第一組入帳就會開始追 PR；之後破紀錄會 toast 同留喺呢度。"
+                    description="第一組記低就會開始追。之後破紀錄會彈出嚟，同留喺呢度。"
                     actionLabel="去今日開波"
                     onAction={() => setTab('today')}
                     secondaryLabel="跟示範腿日"
@@ -2399,7 +2403,7 @@ export function TrainClient() {
         )}
         {user && cloudNote && (
           <div className="mt-4 mb-2 flex items-start gap-2 rounded-2xl border border-accent/25 bg-accent-soft px-3.5 py-2 text-[11px] text-accent">
-            <span className="font-semibold shrink-0">上雲</span>
+            <span className="font-semibold shrink-0">帳戶</span>
             <span className="leading-relaxed text-accent/90">{cloudNote}</span>
           </div>
         )}

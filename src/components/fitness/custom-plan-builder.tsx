@@ -164,7 +164,7 @@ export function CustomPlanBuilder({ userId, onSaved }: Props) {
           <Badge tone="muted">儲存</Badge>
         </div>
         <p className="mt-1 text-[11px] text-muted leading-relaxed">
-          揀邊幾日練、加動作，本機即存；登入會一同上雲。
+          揀邊幾日練、加動作。登入先可以喺第部機睇返。
         </p>
       </button>
     )
@@ -313,7 +313,7 @@ export function CustomPlanBuilder({ userId, onSaved }: Props) {
         <p className="text-xs text-accent inline-flex items-center gap-1">
           <Check className="h-3.5 w-3.5" />
           已儲存並跟住呢套課表
-          {!userId && '（本機；登入可上雲）'}
+          {!userId && '（只係呢部機）'}
         </p>
       )}
 

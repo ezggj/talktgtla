@@ -437,7 +437,7 @@ export function HkGymCompare() {
       {selected.length > 0 ? <div className="h-16 md:hidden" aria-hidden /> : null}
 
       <p className="text-[10px] text-muted text-center leading-relaxed px-2 pb-2">
-        月費、分店同開放時間會變——呢度係靜態整理（對齊公開官網／消委會等大約數）。每卡標明「參考 · 非報價」，唔構成報價或建議。簽約前請向會所確認最新條款、按金同隱藏收費。
+        月費、分店同開放時間會變。呢度係整理公開資料嘅大約數，每張卡寫明「參考 · 非報價」。簽約之前同會所核實最新條款、按金同隱藏收費。
       </p>
 
       <AnimatePresence>
