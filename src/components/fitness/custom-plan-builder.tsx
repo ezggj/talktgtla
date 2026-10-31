@@ -219,7 +219,7 @@ export function CustomPlanBuilder({ userId, onSaved }: Props) {
       <div className="space-y-2">
         {days.map((d, i) =>
           d.enabled ? (
-            <div key={i} className="rounded-2xl border border-border bg-[#fafaf9] p-3">
+            <div key={i} className="rounded-2xl border border-border bg-surface-muted p-3">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <span className="text-sm font-medium">星期{WEEKDAYS[i]}</span>
                 <button

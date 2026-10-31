@@ -72,7 +72,7 @@ export function ExerciseHowTo({
         className={cn(
           'inline-flex items-center gap-1.5 rounded-full border transition touch-manipulation',
           variant === 'panel'
-            ? 'w-full justify-between px-3.5 py-2.5 text-sm border-border bg-[#fafaf9] hover:bg-accent-soft/50'
+            ? 'w-full justify-between px-3.5 py-2.5 text-sm border-border bg-surface-muted hover:bg-accent-soft/50'
             : 'px-2.5 py-1 text-[11px] font-medium border-border text-accent hover:bg-accent-soft'
         )}
       >
@@ -105,7 +105,7 @@ export function ExerciseHowTo({
           >
             <div
               className={cn(
-                'mt-2 rounded-2xl border border-border bg-[#fafaf9] p-3.5',
+                'mt-2 rounded-2xl border border-border bg-surface-muted p-3.5',
                 variant === 'inline' && 'mt-2'
               )}
             >

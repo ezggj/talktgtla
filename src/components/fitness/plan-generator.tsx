@@ -267,7 +267,7 @@ export function PlanGenerator({ userId }: Props) {
                 <motion.div
                   key={`${d.dayIndex}-${d.focus}`}
                   layout
-                  className="rounded-2xl border border-border bg-[#fafaf9] p-3.5"
+                  className="rounded-2xl border border-border bg-surface-muted p-3.5"
                 >
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <div>
@@ -402,7 +402,7 @@ function PlanWeekProgress({ plan }: { plan: GeneratedPlan }) {
                 ? 'bg-accent-soft text-accent border-accent/25'
                 : d.isToday
                   ? 'bg-[#FEF3C7] text-[#92400E] border-[#F59E0B]/30'
-                  : 'bg-[#fafaf9] text-muted border-border'
+                  : 'bg-surface-muted text-muted border-border'
             )}
             title={d.slotDate}
           >

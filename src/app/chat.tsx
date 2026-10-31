@@ -22,7 +22,7 @@ import {
   sanitizeContent,
   sanitizeUsername,
 } from '@/lib/sanitize'
-import { applyTheme, resolveInitialTheme, type ThemeMode } from '@/lib/theme'
+import { applyTheme, resolveTheme, readThemePreference, setThemePreference, type ThemeMode } from '@/lib/theme'
 import { AppShell } from '@/components/shell/app-shell'
 import { NewbieGuide } from '@/components/shell/newbie-guide'
 import { computeStreak, trainedToday } from '@/lib/fitness/streaks'
@@ -194,10 +194,9 @@ export default function Chat() {
   }, [])
 
   useEffect(() => {
-    const mode = resolveInitialTheme()
-    // Premium redesign: prefer calm light; keep stored preference
+    const mode = resolveTheme(readThemePreference())
     setThemeMode(mode)
-    applyTheme(mode === 'dark' ? 'dark' : 'light')
+    applyTheme(mode)
     setShowWelcome(!isWelcomeDismissed())
     setUnlocked(loadUnlocked())
     setStats(loadStats())
@@ -650,7 +649,7 @@ export default function Chat() {
   const toggleTheme = () => {
     const next: ThemeMode = themeMode === 'dark' ? 'light' : 'dark'
     setThemeMode(next)
-    applyTheme(next)
+    setThemePreference(next)
   }
 
   return (
@@ -662,7 +661,7 @@ export default function Chat() {
             <button
               type="button"
               onClick={toggleTheme}
-              className="h-8 min-w-8 px-2 rounded-xl text-[11px] text-muted hover:text-foreground hover:bg-black/[0.04] transition-colors"
+              className="h-8 min-w-8 px-2 rounded-xl text-[11px] text-muted hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
               aria-label={themeMode === 'dark' ? '轉日間模式' : '轉夜間模式'}
               title={themeMode === 'dark' ? '日間' : '夜間'}
             >
@@ -671,7 +670,7 @@ export default function Chat() {
             <button
               type="button"
               onClick={() => setShowBadges(true)}
-              className="h-8 px-2.5 rounded-xl text-[11px] text-muted hover:text-foreground hover:bg-black/[0.04] transition-colors"
+              className="h-8 px-2.5 rounded-xl text-[11px] text-muted hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
               aria-label="徽章"
             >
               徽章{unlocked.size > 0 ? ` ${unlocked.size}` : ''}
@@ -871,7 +870,7 @@ export default function Chat() {
                   }`}
                 >
                   {parent && (
-                    <div className="mb-2 rounded-xl border-l-2 border-accent bg-[#fafaf9] px-2.5 py-1.5 text-xs text-muted">
+                    <div className="mb-2 rounded-xl border-l-2 border-accent bg-surface-muted px-2.5 py-1.5 text-xs text-muted">
                       <div className="font-medium text-foreground/80">
                         回覆 {parent.username}
                       </div>
@@ -1010,7 +1009,7 @@ export default function Chat() {
                 key={phrase}
                 type="button"
                 onClick={() => insertSlang(phrase)}
-                className="shrink-0 rounded-full border border-border bg-[#fafaf9] px-2.5 py-1 text-xs text-foreground hover:bg-accent-soft active:scale-95 transition-all"
+                className="shrink-0 rounded-full border border-border bg-surface-muted px-2.5 py-1 text-xs text-foreground hover:bg-accent-soft active:scale-95 transition-all"
               >
                 {phrase}
               </button>
@@ -1019,7 +1018,7 @@ export default function Chat() {
         )}
 
         {showEmoji && (
-          <div className="emoji-picker mb-2 max-h-36 overflow-y-auto overscroll-contain flex flex-wrap gap-1 rounded-2xl border border-border bg-[#fafaf9] p-2">
+          <div className="emoji-picker mb-2 max-h-36 overflow-y-auto overscroll-contain flex flex-wrap gap-1 rounded-2xl border border-border bg-surface-muted p-2">
             {EMOJIS.map((emoji, i) => (
               <button
                 key={`${emoji}-${i}`}
@@ -1102,7 +1101,7 @@ export default function Chat() {
         )}
       </form>
 
-      <footer className="px-3 py-1.5 border-t border-border bg-[#fafaf9]/95 shrink-0">
+      <footer className="px-3 py-1.5 border-t border-border bg-surface-muted/95 shrink-0">
         <button
           type="button"
           onClick={() => setShowTerms((v) => !v)}
@@ -1258,7 +1257,7 @@ export default function Chat() {
                   setAdminPassword('')
                   setAdminError('')
                 }}
-                className="text-sm px-3 py-1.5 rounded-xl text-muted hover:bg-black/[0.04]"
+                className="text-sm px-3 py-1.5 rounded-xl text-muted hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
               >
                 取消
               </button>

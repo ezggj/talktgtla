@@ -891,7 +891,7 @@ export function TrainClient() {
                               setPickerOpen(true)
                               setPickerHowtoId(null)
                             }}
-                            className="shrink-0 rounded-full border border-border bg-[#fafaf9] px-2.5 py-1 text-[11px] font-medium text-accent hover:bg-accent-soft touch-manipulation"
+                            className="shrink-0 rounded-full border border-border bg-surface-muted px-2.5 py-1 text-[11px] font-medium text-accent hover:bg-accent-soft touch-manipulation"
                           >
                             {chip}
                           </button>
@@ -1184,7 +1184,7 @@ export function TrainClient() {
                               <button
                                 type="button"
                                 onClick={() => bumpWeight(-2.5)}
-                                className="h-16 w-14 rounded-2xl border border-border/90 bg-[#fafaf9] text-2xl font-medium hover:bg-accent-soft active:scale-95 transition touch-manipulation"
+                                className="h-16 w-14 rounded-2xl border border-border/90 bg-surface-muted text-2xl font-medium hover:bg-accent-soft active:scale-95 transition touch-manipulation"
                               >
                                 −
                               </button>
@@ -1210,7 +1210,7 @@ export function TrainClient() {
                               <button
                                 type="button"
                                 onClick={() => bumpWeight(2.5)}
-                                className="h-16 w-14 rounded-2xl border border-border/90 bg-[#fafaf9] text-2xl font-medium hover:bg-accent-soft active:scale-95 transition touch-manipulation"
+                                className="h-16 w-14 rounded-2xl border border-border/90 bg-surface-muted text-2xl font-medium hover:bg-accent-soft active:scale-95 transition touch-manipulation"
                               >
                                 +
                               </button>
@@ -1235,7 +1235,7 @@ export function TrainClient() {
                               <button
                                 type="button"
                                 onClick={() => setReps((r) => Math.max(1, r - 1))}
-                                className="h-16 w-14 rounded-2xl border border-border/90 bg-[#fafaf9] text-2xl font-medium hover:bg-accent-soft active:scale-95 transition touch-manipulation"
+                                className="h-16 w-14 rounded-2xl border border-border/90 bg-surface-muted text-2xl font-medium hover:bg-accent-soft active:scale-95 transition touch-manipulation"
                               >
                                 −
                               </button>
@@ -1258,7 +1258,7 @@ export function TrainClient() {
                               <button
                                 type="button"
                                 onClick={() => setReps((r) => r + 1)}
-                                className="h-16 w-14 rounded-2xl border border-border/90 bg-[#fafaf9] text-2xl font-medium hover:bg-accent-soft active:scale-95 transition touch-manipulation"
+                                className="h-16 w-14 rounded-2xl border border-border/90 bg-surface-muted text-2xl font-medium hover:bg-accent-soft active:scale-95 transition touch-manipulation"
                               >
                                 +
                               </button>
@@ -1361,7 +1361,7 @@ export function TrainClient() {
                               <li
                                 key={s.id}
                                 className={cn(
-                                  'flex items-center justify-between rounded-xl bg-[#fafaf9] border border-border px-3 py-2 text-sm',
+                                  'flex items-center justify-between rounded-xl bg-surface-muted border border-border px-3 py-2 text-sm',
                                   justAdded === s.id && 'pr-burst ring-2 ring-accent/25'
                                 )}
                               >
@@ -2177,7 +2177,7 @@ export function TrainClient() {
               </div>
 
               <div className="grid grid-cols-2 gap-2 mb-4">
-                <div className="rounded-2xl border border-border bg-[#fafaf9] px-3 py-3 text-center">
+                <div className="rounded-2xl border border-border bg-surface-muted px-3 py-3 text-center">
                   <div className="text-lg font-semibold tabular-nums">
                     {lastAnalysis.volume.toLocaleString()}
                   </div>
@@ -2189,11 +2189,11 @@ export function TrainClient() {
                     </div>
                   )}
                 </div>
-                <div className="rounded-2xl border border-border bg-[#fafaf9] px-3 py-3 text-center">
+                <div className="rounded-2xl border border-border bg-surface-muted px-3 py-3 text-center">
                   <div className="text-lg font-semibold tabular-nums">{lastAnalysis.sets}</div>
                   <div className="text-[10px] text-muted">總組數</div>
                 </div>
-                <div className="rounded-2xl border border-border bg-[#fafaf9] px-3 py-3 text-center">
+                <div className="rounded-2xl border border-border bg-surface-muted px-3 py-3 text-center">
                   <div className="text-lg font-semibold tabular-nums">
                     {Math.floor(lastAnalysis.durationSec / 60)}:{String(lastAnalysis.durationSec % 60).padStart(2, '0')}
                   </div>
@@ -2204,13 +2204,13 @@ export function TrainClient() {
                     </div>
                   )}
                 </div>
-                <div className="rounded-2xl border border-border bg-[#fafaf9] px-3 py-3 text-center">
+                <div className="rounded-2xl border border-border bg-surface-muted px-3 py-3 text-center">
                   <div className="text-lg font-semibold tabular-nums">{lastAnalysis.density}</div>
                   <div className="text-[10px] text-muted">密度／分鐘</div>
                 </div>
               </div>
 
-              <div className="rounded-[20px] border border-border bg-[#fafaf9] p-4 mb-5 text-left">
+              <div className="rounded-[20px] border border-border bg-surface-muted p-4 mb-5 text-left">
                 <div className="text-xs font-semibold text-accent mb-2">今日建議</div>
                 <ul className="space-y-2">
                   {lastAnalysis.tips.map((tip, i) => (

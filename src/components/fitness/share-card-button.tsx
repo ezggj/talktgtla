@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Download, Instagram, Loader2, Share2 } from 'lucide-react'
+import { Download, Loader2, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   copyText,
@@ -178,7 +178,7 @@ export function ShareCardButton(props: Props) {
             {busy === 'ig' ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <Instagram className="h-3.5 w-3.5" />
+              <Share2 className="h-3.5 w-3.5" />
             )}
             分享去 IG
           </Button>

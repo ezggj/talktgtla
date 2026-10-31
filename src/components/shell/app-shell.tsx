@@ -1,6 +1,7 @@
 'use client'
 
 import { BottomNav } from './bottom-nav'
+import { ThemeBootstrap } from './theme-bootstrap'
 import { FeedbackSheet } from '@/components/feedback/feedback-sheet'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +17,7 @@ export function AppShell({
 }) {
   return (
     <div className="min-h-dvh bg-background text-foreground overflow-x-clip">
+      <ThemeBootstrap />
       <div
         className={cn(
           'md:pl-[88px]',

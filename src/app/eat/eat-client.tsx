@@ -984,7 +984,7 @@ export function EatClient() {
                 ).map((x) => (
                   <div
                     key={x.label}
-                    className="rounded-2xl bg-[#fafaf9] border border-border px-1.5 sm:px-2 py-3 min-w-0"
+                    className="rounded-2xl bg-surface-muted border border-border px-1.5 sm:px-2 py-3 min-w-0"
                   >
                     <div className={cn('text-sm sm:text-base font-semibold tabular-nums truncate', x.tone)}>
                       {x.v}
@@ -1593,7 +1593,7 @@ export function EatClient() {
                       ).map((item) => (
                         <label
                           key={item.k}
-                          className="rounded-2xl border border-border/90 bg-[#fafaf9] px-3 py-2.5 focus-within:ring-2 focus-within:ring-accent/25 focus-within:border-accent/35 transition"
+                          className="rounded-2xl border border-border/90 bg-surface-muted px-3 py-2.5 focus-within:ring-2 focus-within:ring-accent/25 focus-within:border-accent/35 transition"
                         >
                           <div className="text-[10px] text-muted mb-1">{item.label}</div>
                           <div className="flex items-baseline gap-1">

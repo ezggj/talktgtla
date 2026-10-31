@@ -79,7 +79,7 @@ export function NewbieGuide({ open, onClose }: Props) {
           ))}
         </div>
 
-        <div className="rounded-2xl border border-border/80 bg-[#fafaf9] px-4 py-4 mb-5">
+        <div className="rounded-2xl border border-border/80 bg-surface-muted px-4 py-4 mb-5">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent">
               <Icon className="h-5 w-5" />

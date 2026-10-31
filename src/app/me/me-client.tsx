@@ -18,6 +18,8 @@ import { Badge } from '@/components/ui/badge'
 import { LoginCard } from '@/components/auth/login-card'
 import { SyncToast } from '@/components/ui/sync-toast'
 import { FeedbackSheet } from '@/components/feedback/feedback-sheet'
+import { ThemeToggleCard } from '@/components/shell/theme-toggle'
+import { InstallPrompt } from '@/components/pwa/install-prompt'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -229,7 +231,7 @@ export function MeClient() {
 
           {!user && (
             <StaggerItem>
-              <div className="rounded-2xl border border-dashed border-border bg-[#fafaf9] px-4 py-3.5 text-xs text-muted leading-relaxed">
+              <div className="rounded-2xl border border-dashed border-border bg-surface-muted px-4 py-3.5 text-xs text-muted leading-relaxed">
                 上面數字而家淨係本機。登入之後會上雲，換手機都跟住你。傾偈仍然可以匿名。
               </div>
             </StaggerItem>
@@ -249,7 +251,7 @@ export function MeClient() {
                   <Link
                     key={href}
                     href={href}
-                    className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-[#fafaf9] px-2 py-3 text-center hover:border-accent/35 hover:bg-accent-soft/40 transition touch-manipulation"
+                    className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-surface-muted px-2 py-3 text-center hover:border-accent/35 hover:bg-accent-soft/40 transition touch-manipulation"
                   >
                     <Icon className="h-4 w-4 text-accent" />
                     <span className="text-xs font-semibold">{label}</span>
@@ -258,6 +260,10 @@ export function MeClient() {
                 ))}
               </div>
             </Card>
+          </StaggerItem>
+
+          <StaggerItem>
+            <InstallPrompt variant="card" />
           </StaggerItem>
 
           <StaggerItem>
@@ -335,7 +341,7 @@ export function MeClient() {
                       className={
                         on
                           ? 'rounded-2xl border border-accent/25 bg-accent-soft/50 px-3 py-2.5'
-                          : 'rounded-2xl border border-border bg-[#fafaf9] px-3 py-2.5 opacity-55'
+                          : 'rounded-2xl border border-border bg-surface-muted px-3 py-2.5 opacity-55'
                       }
                     >
                       <div className="text-base leading-none mb-1">{a.emoji}</div>
@@ -394,7 +400,7 @@ export function MeClient() {
               <button
                 type="button"
                 onClick={() => setGuestMore(true)}
-                className="w-full rounded-[20px] border border-dashed border-border bg-[#fafaf9] px-4 py-4 text-sm font-medium text-accent hover:bg-accent-soft/50 transition touch-manipulation inline-flex items-center justify-center gap-2"
+                className="w-full rounded-[20px] border border-dashed border-border bg-surface-muted px-4 py-4 text-sm font-medium text-accent hover:bg-accent-soft/50 transition touch-manipulation inline-flex items-center justify-center gap-2"
               >
                 展開進度／熱圖／徽章／目標
                 <ChevronDown className="h-4 w-4" />
@@ -433,6 +439,10 @@ export function MeClient() {
             </div>
           </StaggerItem>
           )}
+
+          <StaggerItem>
+            <ThemeToggleCard />
+          </StaggerItem>
 
           <StaggerItem>
             <FeedbackSheet card userId={user?.id ?? null} />

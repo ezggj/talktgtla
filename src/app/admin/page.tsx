@@ -486,7 +486,7 @@ export default function AdminPage() {
                         type="button"
                         disabled={updatingId === f.id || f.status === b.status}
                         onClick={() => void setFeedbackStatus(f.id, b.status)}
-                        className="text-[11px] px-2.5 py-1 rounded-xl border border-border bg-[#fafaf9] hover:bg-accent-soft/60 disabled:opacity-40"
+                        className="text-[11px] px-2.5 py-1 rounded-xl border border-border bg-surface-muted hover:bg-accent-soft/60 disabled:opacity-40"
                       >
                         {b.label}
                       </button>
