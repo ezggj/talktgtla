@@ -134,7 +134,9 @@ export function TrainClient() {
   const [achToast, setAchToast] = useState<string | null>(null)
   const weightRef = useRef<HTMLInputElement>(null)
   const repsRef = useRef<HTMLInputElement>(null)
+  const loggerRef = useRef<HTMLDivElement>(null)
   const restEndedFocus = useRef(false)
+  const [restReadyNext, setRestReadyNext] = useState(false)
 
   useEffect(() => {
     const s = loadSessions()
@@ -254,10 +256,12 @@ export function TrainClient() {
       setRestLeft(0)
       void notifyRestDone()
       flashDocumentTitle('休息完 · 下一組')
-      // Auto-focus weight for next set (fewer taps)
+      setRestReadyNext(true)
+      // Auto-jump: focus logger, ready for next set — no extra tap
       if (!restEndedFocus.current) {
         restEndedFocus.current = true
         window.setTimeout(() => {
+          loggerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
           const el = weightRef.current
           if (el) {
             el.focus()
@@ -265,6 +269,10 @@ export function TrainClient() {
           }
           restEndedFocus.current = false
         }, 80)
+        // Dismiss rest card shortly so logger is front-and-centre (下一組)
+        window.setTimeout(() => {
+          setRestLeft(null)
+        }, 1400)
       }
       return
     }
@@ -351,6 +359,7 @@ export function TrainClient() {
     setRestLeft(restSec)
     setRestRunning(true)
     restEndedFocus.current = false
+    setRestReadyNext(false)
     buzzLight()
   }
 
@@ -398,6 +407,7 @@ export function TrainClient() {
     window.setTimeout(() => setJustAdded(null), 500)
     setRestLeft(restSec)
     setRestRunning(true)
+    setRestReadyNext(false)
     buzzLight()
   }
 
@@ -468,6 +478,7 @@ export function TrainClient() {
     setSelectedEx(null)
     setRestRunning(false)
     setRestLeft(null)
+    setRestReadyNext(false)
   }
 
   const filtered = useMemo(() => searchExercises(search), [search])
@@ -634,7 +645,7 @@ export function TrainClient() {
                       <div className="relative">
                         <CardTitle>未開波？</CardTitle>
                         <CardDesc className="mt-2 mb-5">
-                          撳下面開今日場。組間休息完會自動 focus 重量——少撳幾吓。
+                          撳下面開今日場。組間休息完會自動跳下一組同 focus 重量——少撳幾吓。
                         </CardDesc>
                         <Button size="lg" className="w-full sm:w-auto" onClick={() => startSession()}>
                           <Play className="h-4 w-4" />
@@ -734,9 +745,9 @@ export function TrainClient() {
                           </div>
                           <p className="text-[11px] text-muted mt-0.5 leading-relaxed">
                             {restLeft === 0
-                              ? '重量格已 focus——改完撳 Enter 或者「記低」就得。'
+                              ? '已自動跳去下一組——重量已 focus，改完撳「記低」／Enter。'
                               : restRunning
-                                ? '倒數緊——想加就 +15'
+                                ? '倒數完會自動跳下一組——想加就 +15'
                                 : '已暫停'}
                           </p>
                           <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -782,10 +793,16 @@ export function TrainClient() {
                               onClick={() => {
                                 setRestLeft(null)
                                 setRestRunning(false)
+                                setRestReadyNext(true)
+                                window.setTimeout(() => {
+                                  loggerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                  weightRef.current?.focus()
+                                  weightRef.current?.select()
+                                }, 50)
                               }}
                               className="rounded-full px-2.5 py-1 text-[11px] border border-border text-muted hover:text-foreground touch-manipulation"
                             >
-                              跳過
+                              跳過 · 下一組
                             </button>
                           </div>
                         </div>
@@ -794,7 +811,32 @@ export function TrainClient() {
                   )}
 
                   {/* Logger */}
-                  <Card>
+                  <div ref={loggerRef}>
+                  <Card
+                    className={cn(restReadyNext && 'ring-2 ring-accent/30 rest-done-glow')}
+                  >
+                    {restReadyNext && (
+                      <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-accent-soft/80 border border-accent/20 px-3 py-2">
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-accent">
+                            休息完 · 下一組準備好
+                            {selectedEx
+                              ? ` · 第 ${(active?.sets.filter((s) => s.exerciseId === selectedEx).length || 0) + 1} 組`
+                              : ''}
+                          </div>
+                          <p className="text-[10px] text-muted mt-0.5">
+                            已自動跳嚟——重量／次數沿用上組，撳「記低」就得。
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setRestReadyNext(false)}
+                          className="shrink-0 text-[10px] text-muted hover:text-foreground touch-manipulation px-1"
+                        >
+                          知喇
+                        </button>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mb-4">
                       <CardTitle className="text-lg">記一組</CardTitle>
                       <Button variant="secondary" size="sm" onClick={() => setPickerOpen(true)}>
@@ -1003,9 +1045,17 @@ export function TrainClient() {
 
                         <div className="flex gap-2 mb-2">
                           <motion.div className="flex-[1.6]" whileTap={reduce ? undefined : { scale: 0.98 }} transition={springSnappy}>
-                            <Button size="xl" className="w-full text-base gap-2 h-16 rounded-[18px] shadow-hover touch-manipulation" onClick={addSet}>
+                            <Button
+                              size="xl"
+                              className={cn(
+                                'w-full text-base gap-2 h-16 rounded-[18px] shadow-hover touch-manipulation',
+                                restReadyNext && 'rest-done-glow ring-2 ring-accent/25'
+                              )}
+                              onClick={addSet}
+                            >
                               <Plus className="h-6 w-6" />
-                              記低 · {weight}×{reps}
+                              {restReadyNext ? '下一組 · ' : '記低 · '}
+                              {weight}×{reps}
                             </Button>
                           </motion.div>
                           <Button
@@ -1039,6 +1089,7 @@ export function TrainClient() {
                       </button>
                     )}
                   </Card>
+                  </div>
 
                   {/* Sets list */}
                   {setsByExercise.length > 0 && (

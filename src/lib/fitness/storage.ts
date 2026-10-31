@@ -134,10 +134,21 @@ export function newId() {
   return uid()
 }
 
+/** Local calendar day YYYY-MM-DD (HK / Asia timezone-friendly; not UTC slice). */
 export function todayKey(d = new Date()) {
-  return d.toISOString().slice(0, 10)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** Day key of an ISO timestamp in the user's local zone. */
+export function dayKeyFromIso(iso: string) {
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return iso.slice(0, 10)
+  return todayKey(new Date(t))
 }
 
 export function isSameDay(iso: string, day = todayKey()) {
-  return iso.slice(0, 10) === day
+  return dayKeyFromIso(iso) === day
 }

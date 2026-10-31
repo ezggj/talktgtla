@@ -1,4 +1,4 @@
-import { loadSessions, todayKey, type WorkoutSession } from './storage'
+import { dayKeyFromIso, loadSessions, todayKey, type WorkoutSession } from './storage'
 
 const STREAK_KEY = 'talktgtla-workout-days-v1'
 
@@ -24,7 +24,7 @@ function writeDays(days: string[]) {
 
 /** Mark today as trained (call on finish session). */
 export function markTrainedToday(iso = new Date().toISOString()) {
-  const day = iso.slice(0, 10)
+  const day = dayKeyFromIso(iso)
   const days = readDays()
   if (!days.includes(day)) {
     days.push(day)
@@ -44,14 +44,14 @@ export function trainedToday(d = new Date()): boolean {
   } catch {
     /* ignore */
   }
-  return loadSessions().some((s) => s.endedAt && s.startedAt.slice(0, 10) === key)
+  return loadSessions().some((s) => s.endedAt && dayKeyFromIso(s.startedAt) === key)
 }
 
 /** Sync day set from finished sessions (cloud or local). */
 export function syncDaysFromSessions(sessions: WorkoutSession[]) {
   const days = sessions
     .filter((s) => s.endedAt)
-    .map((s) => s.startedAt.slice(0, 10))
+    .map((s) => dayKeyFromIso(s.startedAt))
   const merged = [...new Set([...readDays(), ...days])].sort()
   writeDays(merged)
   const today = todayKey()

@@ -182,6 +182,12 @@ body {
 .rest-done-glow { animation: rest-done-pulse 1.4s ease-out 2; }
 .rest-done-ring { animation: rest-ring-pop 700ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
+@keyframes next-set-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent); }
+  50% { box-shadow: 0 0 0 8px transparent; }
+}
+.next-set-ready { animation: next-set-pulse 1.2s ease-out 3; }
+
 .online-dot {
   display: inline-block;
   width: 6px;

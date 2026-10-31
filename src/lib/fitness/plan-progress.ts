@@ -2,7 +2,7 @@
 
 import type { GeneratedPlan, PlanDay } from './plan-generator'
 import { startOfWeekMonday, addDays } from './cloud'
-import type { WorkoutSession } from './storage'
+import { dayKeyFromIso, todayKey as localTodayKey, type WorkoutSession } from './storage'
 
 export type PlanDayProgress = {
   day: PlanDay
@@ -44,13 +44,13 @@ export function computePlanWeekProgress(
     return t >= weekStart.getTime() && t < weekEnd.getTime()
   })
 
-  const todayKey = now.toISOString().slice(0, 10)
+  const todayStr = localTodayKey(now)
 
   const days: PlanDayProgress[] = plan.days.map((day) => {
     const slot = addDays(weekStart, day.dayIndex)
-    const slotDate = slot.toISOString().slice(0, 10)
+    const slotDate = localTodayKey(slot)
     // Prefer sessions on the same weekday slot; else any this week
-    const sameDay = finished.filter((s) => s.startedAt.slice(0, 10) === slotDate)
+    const sameDay = finished.filter((s) => dayKeyFromIso(s.startedAt) === slotDate)
     const pool = sameDay.length ? sameDay : finished
     let best: WorkoutSession | null = null
     let bestCov = 0
@@ -77,7 +77,7 @@ export function computePlanWeekProgress(
       coverage: bestCov,
       done,
       slotDate,
-      isToday: slotDate === todayKey,
+      isToday: slotDate === todayStr,
     }
   })
 
@@ -98,9 +98,9 @@ export function volumeByDay(
     const d = new Date()
     d.setHours(12, 0, 0, 0)
     d.setDate(d.getDate() - i)
-    const key = d.toISOString().slice(0, 10)
+    const key = localTodayKey(d)
     const volume = sessions
-      .filter((s) => s.endedAt && s.startedAt.slice(0, 10) === key)
+      .filter((s) => s.endedAt && dayKeyFromIso(s.startedAt) === key)
       .reduce((a, s) => a + s.sets.reduce((b, x) => b + x.weightKg * x.reps, 0), 0)
     out.push({ key, label: labels[d.getDay()], volume })
   }
