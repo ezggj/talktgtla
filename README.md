@@ -11,17 +11,18 @@
 | `/eat` | 飲食（影相估算＋日／週／月歷史匯總） |
 | `/me` | 登入、目標、課表生成器 |
 | `/admin` | 管理員（不公開連結；長按標題 / Ctrl+Shift+A） |
-| `/auth/confirm` · `/auth/callback` | Magic link / PKCE 回跳 |
+| `/auth/confirm` · `/auth/callback` | Google／舊連結回跳 |
 
 ## Auth 同雲端
 
-- Supabase Auth：**Google OAuth（建議）**＋電郵 magic link／6 位碼（次選）
+- Supabase Auth：**Google OAuth（建議）**＋電郵六位數字（次選，唔係 magic link）
 - 登入後：訓練、飲食、目標、課表上雲；RLS 只得自己
 - 訪客仍可用本機 localStorage；登入會遷移本機資料
 - `authRedirectTo()` 永遠用 `https://talktgtla.com`（`NEXT_PUBLIC_SITE_URL`），避免電郵／OAuth 跳去 localhost
 - **Dashboard 必須設定**（Authentication → URL Configuration）：
   - Site URL: `https://talktgtla.com`
   - Redirect URLs: `https://talktgtla.com/**`, `https://talktgtla.com/auth/confirm`, `https://talktgtla.com/auth/callback`, `http://localhost:3000/**`
+- **電郵六位數字**（Authentication → Email Templates → Magic Link）：Supabase 用呢個模板寄 `signInWithOtp`。主旨改成「你嘅六位數字」，內容用 `supabase/templates/magic_link.html`（只顯示 `{{ .Token }}`）。唔好留「Sign in」／`{{ .ConfirmationURL }}`，否則用戶會收到 magic link 而唔係六位數字。App 寄碼時**唔會**傳 `emailRedirectTo`。
 
 ### 開 Google 登入
 

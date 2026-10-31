@@ -104,7 +104,7 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
     }
   }
 
-  const sendLink = async () => {
+  const sendCode = async () => {
     setErr(null)
     setMsg(null)
     const trimmed = email.trim().toLowerCase()
@@ -115,16 +115,17 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
     setBusy(true)
     try {
       const supabase = createClient()
+      // Code flow: do not pass emailRedirectTo. That flag makes Supabase send a magic link
+      // ("Your sign-in link") instead of the 6-digit email OTP.
       const { error } = await supabase.auth.signInWithOtp({
         email: trimmed,
         options: {
-          emailRedirectTo: authRedirectTo(),
           shouldCreateUser: true,
         },
       })
       if (error) throw error
       setPhase('sent')
-      setMsg('登入連結（同 6 位碼）寄咗喇。撳電郵入面條 link，或者喺下面填碼。')
+      setMsg('六位數字寄咗去你電郵。喺下面填，唔使撳電郵入面個連結。')
     } catch (e) {
       const raw = e instanceof Error ? e.message : '寄唔到，陣間再試'
       setErr(authErrorMessage(raw, 'otp'))
@@ -138,8 +139,8 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
     setErr(null)
     const trimmed = email.trim().toLowerCase()
     const token = otp.trim()
-    if (!trimmed || token.length < 6) {
-      setErr('電郵同 6 位碼都要填吓')
+    if (!trimmed || !/^\d{6}$/.test(token)) {
+      setErr('填電郵同六位數字')
       return
     }
     setBusy(true)
@@ -237,8 +238,9 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
           <div className="h-px flex-1 bg-border/70" />
         </div>
 
+        <p className="text-[12px] text-muted leading-relaxed">次選：寄六位數字去電郵，唔使撳連結。</p>
         <label className="block text-xs text-muted">
-          電郵（次選）
+          電郵
           <Input
             type="email"
             autoComplete="email"
@@ -251,13 +253,15 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
         </label>
         {phase === 'sent' && (
           <label className="block text-xs text-muted">
-            6 位驗證碼（電郵有顯示就填）
+            六位數字
             <Input
               inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
               className="mt-1.5 tracking-widest"
               placeholder="123456"
               value={otp}
-              onChange={(e) => setOtp(e.target.value)}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
               disabled={oauthLocked}
             />
           </label>
@@ -266,7 +270,7 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
           <Button
             variant="secondary"
             className="flex-1"
-            onClick={() => void sendLink()}
+            onClick={() => void sendCode()}
             disabled={oauthLocked}
           >
             {busy ? (
@@ -274,7 +278,7 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
             ) : (
               <Mail className="h-4 w-4" />
             )}
-            {phase === 'sent' ? '再寄一次' : '寄登入連結'}
+            {phase === 'sent' ? '再寄六位數字' : '寄六位數字'}
           </Button>
           {phase === 'sent' && (
             <Button
