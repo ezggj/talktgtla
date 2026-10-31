@@ -31,7 +31,7 @@ export function GymNudgeCard({
     nudge.tone === 'warm'
       ? 'bg-[#FEF3C7]/55'
       : nudge.tone === 'calm'
-        ? 'bg-[#f0efee]'
+        ? 'bg-surface-muted'
         : 'bg-accent-soft/70'
 
   return (

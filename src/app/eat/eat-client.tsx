@@ -992,7 +992,7 @@ export function EatClient() {
 
         {/* Period switcher */}
         <div className="mb-3 flex items-center gap-2 min-w-0">
-          <div className="flex-1 min-w-0 flex gap-1 p-1 rounded-2xl bg-[#f0efee] border border-border">
+          <div className="flex-1 min-w-0 flex gap-1 p-1 rounded-2xl bg-surface-muted border border-border">
             {(['day', 'week', 'month'] as PeriodKind[]).map((k) => (
               <button
                 key={k}
