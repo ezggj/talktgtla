@@ -78,6 +78,7 @@ import {
 } from '@/lib/fitness/offline-queue'
 import { LoginPromptBanner } from '@/components/auth/login-card'
 import { MeetupBoard } from '@/components/fitness/meetup-board'
+import { TrainCoachCard } from '@/components/fitness/train-coach-card'
 import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
@@ -675,6 +676,49 @@ export function TrainClient() {
                     />
                   </StaggerItem>
                   <StaggerItem>
+                    <TrainCoachCard
+                      sessions={sessions}
+                      onStartTemplate={(id, ids) => startSession(id, ids)}
+                    />
+                  </StaggerItem>
+                  {Object.keys(prs).length > 0 && (
+                    <StaggerItem>
+                      <Card className="py-4">
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-2">
+                            <Trophy className="h-4 w-4 text-accent" />
+                            <CardTitle className="text-lg">PR 速覽</CardTitle>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setTab('history')}
+                            className="text-[11px] font-semibold text-accent touch-manipulation"
+                          >
+                            睇晒 PR 牆 →
+                          </button>
+                        </div>
+                        <ul className="space-y-2">
+                          {Object.entries(prs)
+                            .sort((a, b) => b[1].weightKg - a[1].weightKg)
+                            .slice(0, 3)
+                            .map(([id, pr]) => (
+                              <li
+                                key={id}
+                                className="flex items-center justify-between rounded-xl border border-border px-3 py-2"
+                              >
+                                <span className="text-sm font-medium truncate">
+                                  {exerciseById(id)?.nameZh || id}
+                                </span>
+                                <span className="text-sm tabular-nums text-accent font-semibold shrink-0">
+                                  {pr.weightKg} kg × {pr.reps}
+                                </span>
+                              </li>
+                            ))}
+                        </ul>
+                      </Card>
+                    </StaggerItem>
+                  )}
+                  <StaggerItem>
                     <Card className="overflow-hidden relative">
                       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--accent-soft),_transparent_55%)] pointer-events-none" />
                       <div className="relative">
@@ -779,21 +823,34 @@ export function TrainClient() {
                       </p>
                     </Card>
                   </StaggerItem>
-                  <StaggerItem>
-                    <Card>
-                      <div className="flex items-center justify-between mb-3">
-                        <CardTitle className="text-lg">呢個星期</CardTitle>
-                        <Badge tone="muted">容量</Badge>
-                      </div>
-                      <Sparkline values={sparkline} labels={sparkLabels} />
-                    </Card>
-                  </StaggerItem>
-                  <StaggerItem>
-                    <Card className="py-4">
-                      <CardTitle className="text-lg mb-3">訓練熱圖</CardTitle>
-                      <TrainHeatmap sessions={sessions} weeks={12} />
-                    </Card>
-                  </StaggerItem>
+                  {sessions.some((s) => s.endedAt) ? (
+                    <>
+                      <StaggerItem>
+                        <Card>
+                          <div className="flex items-center justify-between mb-3">
+                            <CardTitle className="text-lg">呢個星期</CardTitle>
+                            <Badge tone="muted">容量</Badge>
+                          </div>
+                          <Sparkline values={sparkline} labels={sparkLabels} />
+                        </Card>
+                      </StaggerItem>
+                      <StaggerItem>
+                        <Card className="py-4">
+                          <CardTitle className="text-lg mb-3">訓練熱圖</CardTitle>
+                          <TrainHeatmap sessions={sessions} weeks={12} />
+                        </Card>
+                      </StaggerItem>
+                    </>
+                  ) : (
+                    <StaggerItem>
+                      <Card className="py-4 border-dashed">
+                        <CardTitle className="text-lg mb-1">熱圖同容量稍後出現</CardTitle>
+                        <CardDesc>
+                          完場一次之後，呢度會有星期曲線同訓練熱圖——而家跟教練建議或新手腿日開波就得。
+                        </CardDesc>
+                      </Card>
+                    </StaggerItem>
+                  )}
                 </Stagger>
               ) : (
                 <div className="space-y-4">
@@ -1406,14 +1463,22 @@ export function TrainClient() {
                 <TrainHeatmap sessions={sessions} weeks={16} />
               </Card>
 
-              <Card>
-                <div className="flex items-center gap-2 mb-3">
-                  <Trophy className="h-4 w-4 text-accent" />
-                  <CardTitle className="text-lg">PR 牆</CardTitle>
+              <Card id="pr-wall">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-accent" />
+                    <CardTitle className="text-lg">PR 牆</CardTitle>
+                  </div>
+                  {Object.keys(prs).length > 0 && (
+                    <Badge tone="accent">{Object.keys(prs).length} 項</Badge>
+                  )}
                 </div>
+                <p className="text-[11px] text-muted mb-3 -mt-1 leading-relaxed">
+                  破個人最佳會即時彈 toast；完整清單永遠喺「歷史」呢度。
+                </p>
                 {Object.keys(prs).length === 0 ? (
                   <p className="text-sm text-muted leading-relaxed">
-                    未有個人最佳——練完第一組破紀錄就會喺度出現。
+                    未有個人最佳——去今日開波記第一組，破紀錄就會喺度出現。
                   </p>
                 ) : (
                   <ul className="space-y-2">
@@ -1478,6 +1543,37 @@ export function TrainClient() {
                               {TEMPLATES.find((t) => t.id === s.templateId)?.name || '自由練'}
                             </Badge>
                           </div>
+                          {s.analysis && (
+                            <div className="mt-3">
+                              <ShareCardButton
+                                kind="workout"
+                                label="再分享呢場"
+                                variant="soft"
+                                size="sm"
+                                payload={{
+                                  title: TEMPLATES.find((t) => t.id === s.templateId)?.name || '訓練',
+                                  volume: s.analysis.volume,
+                                  sets: s.analysis.sets,
+                                  durationSec: s.analysis.durationSec,
+                                  topExercises: [
+                                    ...new Map(
+                                      s.sets.map((x) => [
+                                        x.exerciseId,
+                                        `${x.exerciseName} ${x.weightKg}×${x.reps}`,
+                                      ])
+                                    ).values(),
+                                  ].slice(0, 5),
+                                  dateLabel: new Date(s.endedAt || s.startedAt).toLocaleString('zh-HK', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  }),
+                                  tip: s.analysis.tips?.[0],
+                                }}
+                              />
+                            </div>
+                          )}
                         </Card>
                       </StaggerItem>
                     )
@@ -1648,20 +1744,28 @@ export function TrainClient() {
       {/* PR toast */}
       <AnimatePresence>
         {prToast && (
-          <motion.div
-            className="fixed top-6 left-1/2 z-[60] -translate-x-1/2 rounded-2xl bg-foreground text-background px-4 py-3 shadow-hover flex items-center gap-2 max-w-[90vw]"
+          <motion.button
+            type="button"
+            className="fixed top-6 left-1/2 z-[60] -translate-x-1/2 rounded-2xl bg-foreground text-background px-4 py-3 shadow-hover flex items-center gap-2 max-w-[90vw] text-left touch-manipulation"
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={springSoft}
             role="status"
+            onClick={() => {
+              setPrToast(null)
+              setTab('history')
+              window.setTimeout(() => {
+                document.getElementById('pr-wall')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }, 120)
+            }}
           >
             <Trophy className="h-4 w-4 text-amber-300 shrink-0" />
             <div>
-              <div className="text-xs opacity-70">新 PR 🎉</div>
+              <div className="text-xs opacity-70">新 PR 🎉 · 撳睇牆</div>
               <div className="text-sm font-medium">{prToast}</div>
             </div>
-          </motion.div>
+          </motion.button>
         )}
       </AnimatePresence>
 
@@ -1752,10 +1856,16 @@ export function TrainClient() {
               </div>
 
               {lastFinished && lastAnalysis && (
-                <div className="mb-3">
+                <div className="mb-4 rounded-[20px] border border-accent/30 bg-accent-soft/40 p-4">
+                  <div className="text-sm font-semibold text-accent mb-1">出分享卡</div>
+                  <p className="text-[11px] text-muted mb-3 leading-relaxed">
+                    一掣出圖——發 Threads／IG／WhatsApp 都得。街坊見到你練完會想一齊嚟。
+                  </p>
                   <ShareCardButton
                     kind="workout"
-                    label="分享呢場"
+                    label="分享呢場 · 出圖"
+                    variant="default"
+                    size="lg"
                     payload={{
                       title: '搞掂！',
                       volume: lastAnalysis.volume,
@@ -1778,15 +1888,35 @@ export function TrainClient() {
                   />
                 </div>
               )}
-              <Button
-                className="w-full"
-                onClick={() => {
-                  setFinishOpen(false)
-                  setLastFinished(null)
-                }}
-              >
-                收工
-              </Button>
+              <div className="flex flex-col gap-2">
+                {Object.keys(prs).length > 0 && (
+                  <Button
+                    variant="soft"
+                    className="w-full"
+                    onClick={() => {
+                      setFinishOpen(false)
+                      setLastFinished(null)
+                      setTab('history')
+                      window.setTimeout(() => {
+                        document.getElementById('pr-wall')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                      }, 120)
+                    }}
+                  >
+                    <Trophy className="h-4 w-4" />
+                    睇 PR 牆
+                  </Button>
+                )}
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => {
+                    setFinishOpen(false)
+                    setLastFinished(null)
+                  }}
+                >
+                  收工
+                </Button>
+              </div>
             </motion.div>
           </motion.div>
         )}
