@@ -791,7 +791,7 @@ export default function Chat() {
                 </div>
                 <h3 className="font-serif text-lg tracking-tight">房暫時靜靜地</h3>
                 <p className="mt-2 text-sm text-muted leading-relaxed">
-                  機械人已停——淨係真人。唔知開波講咩？用今日話題就得。
+                  而家靜靜地——入個花名，用今日話題開波就得。
                 </p>
                 {(() => {
                   const topic = getDailyTopic()
