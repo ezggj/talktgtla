@@ -35,6 +35,8 @@ import {
   requestNotificationPermissionCantonese,
   notificationPermission,
 } from '@/lib/pwa/notifications'
+import { buildMeetupOpener } from '@/lib/fitness/meetup-opener'
+import { copyText } from '@/lib/fitness/share-card'
 
 const WATCH_KEY = 'talktgtla-meetup-watch-v1'
 const PREF_AREA_KEY = 'talktgtla-meetup-pref-area-v1'
@@ -91,6 +93,8 @@ export function MeetupBoard({ className }: { className?: string }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [openerText, setOpenerText] = useState<string | null>(null)
+  const [openerCopied, setOpenerCopied] = useState(false)
   const [checkin, setCheckin] = useState<GymCheckin | null>(null)
   const [checkinArea, setCheckinArea] = useState('')
   const [checkinBusy, setCheckinBusy] = useState(false)
@@ -278,6 +282,15 @@ export function MeetupBoard({ className }: { className?: string }) {
       return
     }
     saveMeetupDisplayName(name)
+    const slotLabel = formatMeetupSlot(slotAt)
+    const opener = buildMeetupOpener({
+      hostName: name,
+      gymName: selectedGym.nameZh,
+      area,
+      focus,
+      slotLabel,
+    })
+    const noteToSend = note.trim() || opener
     setBusy(true)
     setError(null)
     try {
@@ -291,7 +304,7 @@ export function MeetupBoard({ className }: { className?: string }) {
           area,
           slotAt,
           focus,
-          note: note.trim() || undefined,
+          note: noteToSend,
           guestId: getMeetupGuestId(),
           userId: user?.id || undefined,
         }),
@@ -303,8 +316,10 @@ export function MeetupBoard({ className }: { className?: string }) {
       }
       setComposer(false)
       setNote('')
+      setOpenerText(opener)
+      setOpenerCopied(false)
       setFilterArea(area)
-      showToast('開咗台——等人入嚟凑')
+      showToast('開咗台——開場白已備好')
       if (data.meetup?.id) {
         watchMeetup(data.meetup.id, data.meetup.join_count ?? 1)
         savePrefArea(area)
@@ -810,6 +825,48 @@ export function MeetupBoard({ className }: { className?: string }) {
           免責
         </a>
       </p>
+
+      {openerText && (
+        <div className="rounded-2xl border border-accent/30 bg-accent-soft/40 px-3.5 py-3 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-accent tracking-wide">開台開場白</p>
+              <p className="mt-1 text-[12px] text-foreground leading-relaxed whitespace-pre-wrap">
+                {openerText}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="shrink-0 text-[11px] text-muted touch-manipulation"
+              onClick={() => {
+                setOpenerText(null)
+                setOpenerCopied(false)
+              }}
+              aria-label="收埋開場白"
+            >
+              ✕
+            </button>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="soft"
+            className="w-full"
+            onClick={() => {
+              void (async () => {
+                const ok = await copyText(openerText)
+                setOpenerCopied(ok)
+                showToast(ok ? '開場白已複製' : '複製唔到，試多次')
+              })()
+            }}
+          >
+            {openerCopied ? '已複製 ✓' : '複製開場白'}
+          </Button>
+          <p className="text-[10px] text-muted leading-relaxed">
+            如果你開台時冇寫 note，已自動用呢段開場白；入台嘅人會睇到。
+          </p>
+        </div>
+      )}
 
       <AnimatePresence>
         {toast && (
