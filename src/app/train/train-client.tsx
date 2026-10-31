@@ -53,7 +53,8 @@ import {
   migrateLocalWorkouts,
   persistFinishedWorkout,
 } from '@/lib/fitness/cloud'
-import { markTrainedToday, syncDaysFromSessions } from '@/lib/fitness/streaks'
+import { markTrainedToday, syncDaysFromSessions, weekConsistency, type WeekDay } from '@/lib/fitness/streaks'
+import { WeekDots } from '@/components/fitness/week-dots'
 import { analyzeWorkout, formatDelta, type WorkoutAnalysis } from '@/lib/fitness/analysis'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
@@ -394,10 +395,17 @@ export function TrainClient() {
   const [weekVolume, setWeekVolume] = useState(0)
   const [sparkline, setSparkline] = useState<number[]>([0, 0, 0, 0, 0, 0, 0])
   const [sparkLabels, setSparkLabels] = useState<string[]>(['一','二','三','四','五','六','日'])
+  const [weekDays, setWeekDays] = useState<WeekDay[]>([])
+  const [weekTrainCount, setWeekTrainCount] = useState(0)
+  const [streak, setStreak] = useState(0)
 
   useEffect(() => {
     if (!ready) return
     setTodayDone(sessions.filter((s) => s.endedAt && isSameDay(s.startedAt)))
+    const w = weekConsistency(sessions)
+    setWeekDays(w.days)
+    setWeekTrainCount(w.trainedCount)
+    setStreak(w.streak)
     const now = Date.now()
     const weekAgo = now - 7 * 86400000
     setWeekVolume(
@@ -560,6 +568,32 @@ export function TrainClient() {
                         <div className="text-xs text-muted">kg×reps</div>
                       </Card>
                     </div>
+                  </StaggerItem>
+                  <StaggerItem>
+                    <Card className="py-4">
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-2">
+                          <Flame className="h-4 w-4 text-accent" />
+                          <CardTitle className="text-lg">連貫</CardTitle>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-semibold tabular-nums text-accent">
+                            {streak > 0 ? `連練 ${streak}` : `${weekTrainCount}/7`}
+                          </div>
+                          <div className="text-[10px] text-muted">
+                            {streak > 0 ? '日' : '呢個星期'}
+                          </div>
+                        </div>
+                      </div>
+                      <WeekDots days={weekDays} />
+                      <p className="mt-3 text-[11px] text-muted leading-relaxed">
+                        {todayDone.length > 0
+                          ? '今日已經打卡——聽日再嚟就繼續連練。'
+                          : streak > 0
+                            ? '今日未開波，去下面撳開波保持連練。'
+                            : '一星期練一兩日都好——點亮個點就得。'}
+                      </p>
+                    </Card>
                   </StaggerItem>
                   <StaggerItem>
                     <Card>
@@ -956,6 +990,7 @@ export function TrainClient() {
 
               {sessions.length === 0 ? (
                 <EmptyState
+                  emoji="🏋️"
                   title="仲未有歷史"
                   description="練完第一次之後，日曆同容量會喺度慢慢長出來。"
                   actionLabel="去今日開波"

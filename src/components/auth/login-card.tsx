@@ -154,10 +154,10 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
       <Card className={compact ? 'py-4' : undefined}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <Badge tone="accent">已登入</Badge>
+            <Badge tone="accent">已登入 · 雲端開咗</Badge>
             <CardTitle className="mt-2 text-xl">資料跟住你走</CardTitle>
             <CardDesc className="mt-2 break-all">{user.email}</CardDesc>
-            <p className="mt-2 text-xs text-muted">訓練同飲食會 sync 上雲，換機都睇到；手機都有本地 cache。</p>
+            <p className="mt-2 text-xs text-muted">訓練／飲食／目標會 sync 上雲；呢部機都有本地 cache，離線都睇到。</p>
           </div>
           <Button
             variant="secondary"
@@ -178,10 +178,10 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--accent-soft),_transparent_60%)] pointer-events-none" />
       <div className="relative space-y-5">
         <div>
-          <Badge tone="accent">登入</Badge>
-          <CardTitle className="mt-2 text-xl">登入先完整用</CardTitle>
+          <Badge tone="muted">訪客模式</Badge>
+          <CardTitle className="mt-2 text-xl">登入就上雲</CardTitle>
           <CardDesc className="mt-2">
-            撳 Google 最方便。訪客都可以試訓練／飲食；登入先會上雲同睇齊日週月統計。
+            而家資料淨係喺呢部機。登入之後訓練／飲食上雲，仲可以睇日／週／月總計。
           </CardDesc>
         </div>
 

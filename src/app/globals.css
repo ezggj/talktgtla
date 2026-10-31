@@ -140,7 +140,23 @@ body {
   100% { transform: scale(1); opacity: 1; }
 }
 
-.chat-msg { animation: msg-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes send-pop {
+  0% { transform: scale(0.92); }
+  45% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+@keyframes jump-in {
+  from { opacity: 0; transform: translate(-50%, 6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes online-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  70% { box-shadow: 0 0 0 5px transparent; }
+}
+
+.chat-msg { animation: msg-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .chat-reply-bar { animation: reply-bar-in 160ms ease-out both; }
 .emoji-picker { animation: emoji-picker-in 150ms ease-out both; }
 .welcome-card { animation: welcome-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both; }
@@ -148,10 +164,24 @@ body {
 .skeleton-pulse { animation: pulse-soft 1.5s ease-in-out infinite; }
 .pr-burst { animation: pr-burst 460ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .success-pop { animation: success-pop 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.send-pop { animation: send-pop 380ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.jump-in { animation: jump-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+.online-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 55%, transparent);
+}
+.online-dot-live {
+  background: var(--accent);
+  animation: online-pulse 2.2s ease-out infinite;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .chat-messages { scroll-behavior: auto; }
-  .chat-msg, .chat-reply-bar, .emoji-picker, .welcome-card, .achievement-toast, .skeleton-pulse, .pr-burst, .success-pop {
+  .chat-msg, .chat-reply-bar, .emoji-picker, .welcome-card, .achievement-toast, .skeleton-pulse, .pr-burst, .success-pop, .send-pop, .jump-in, .online-dot-live {
     animation: none;
   }
 }

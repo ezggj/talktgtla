@@ -134,6 +134,8 @@ export default function Chat() {
   const [showSlang, setShowSlang] = useState(false)
   const [themeMode, setThemeMode] = useState<ThemeMode>('light')
   const [sendError, setSendError] = useState('')
+  const [messagesLoaded, setMessagesLoaded] = useState(!isSupabaseConfigured)
+  const [justSent, setJustSent] = useState(false)
   const [showBanList, setShowBanList] = useState(false)
   const [bannedIps, setBannedIps] = useState<
     { client_ip: string; reason: string | null; created_at: string; source_message_id: number | null }[]
@@ -328,6 +330,7 @@ export default function Chat() {
       if (data) {
         setMessages(data as Message[])
       }
+      setMessagesLoaded(true)
     }
     loadMessages()
 
@@ -524,6 +527,8 @@ export default function Chat() {
         messagesSent: s.messagesSent + 1,
         repliesSent: s.repliesSent + (reply_to != null ? 1 : 0),
       }))
+      setJustSent(true)
+      window.setTimeout(() => setJustSent(false), 420)
       requestAnimationFrame(() => scrollToLatest('smooth'))
     } catch {
       setNewMessage(draft)
@@ -708,12 +713,25 @@ export default function Chat() {
             >
               Talk tgt la
             </h1>
-            <p className="text-[11px] text-accent tabular-nums font-medium" aria-live="polite">
+            <p
+              className="mt-0.5 inline-flex items-center justify-center gap-1.5 text-[11px] text-accent tabular-nums font-medium"
+              aria-live="polite"
+            >
+              <span
+                className={
+                  onlineCount != null && onlineCount > 0
+                    ? 'online-dot online-dot-live'
+                    : 'online-dot'
+                }
+                aria-hidden
+              />
               {onlineCount == null
-                ? '…'
+                ? '連線中…'
                 : onlineCount <= 0
-                  ? '而家冇人'
-                  : `${onlineCount} 人喺度`}
+                  ? '而家靜靜地'
+                  : onlineCount === 1
+                    ? '得你一個'
+                    : `${onlineCount} 人喺度`}
             </p>
           </div>
           <div className="absolute right-0 flex items-center gap-2">
@@ -753,8 +771,31 @@ export default function Chat() {
         <div
           ref={listRef}
           onScroll={onListScroll}
-          className="chat-messages h-full overflow-y-auto p-4 sm:p-5 space-y-3.5"
+          className="chat-messages h-full overflow-y-auto p-4 sm:p-5 space-y-4"
         >
+          {!messagesLoaded && (
+            <div className="space-y-4 pt-2" aria-busy="true" aria-label="載入訊息中">
+              {[0.92, 0.7, 0.84].map((w, i) => (
+                <div key={i} className="flex flex-col gap-1.5" style={{ maxWidth: `${w * 100}%` }}>
+                  <div className="h-2.5 w-16 rounded-full bg-[#f0efee] skeleton-pulse" />
+                  <div className="h-14 rounded-2xl bg-[#f0efee] skeleton-pulse border border-border/50" />
+                </div>
+              ))}
+            </div>
+          )}
+          {messagesLoaded && messages.length === 0 && (
+            <div className="flex h-full min-h-[220px] items-center justify-center px-2">
+              <div className="welcome-card w-full max-w-xs rounded-[20px] border border-border/80 bg-surface px-6 py-10 text-center shadow-soft">
+                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-accent-soft text-accent text-lg" aria-hidden>
+                  💬
+                </div>
+                <h3 className="font-serif text-lg tracking-tight">未有人開波</h3>
+                <p className="mt-2 text-sm text-muted leading-relaxed">
+                  第一句由你嚟。潮語／表情掣喺下面，想匿名都得。
+                </p>
+              </div>
+            </div>
+          )}
           {messages.map((msg) => {
             const parent = msg.reply_to != null ? messagesById.get(msg.reply_to) : null
             const isReplying = replyToId === msg.id
@@ -861,9 +902,9 @@ export default function Chat() {
           <button
             type="button"
             onClick={() => scrollToLatest('smooth')}
-            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-foreground text-background text-xs px-3.5 py-1.5 shadow-hover backdrop-blur-sm active:scale-95 transition-transform"
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-foreground/92 text-background text-xs px-3.5 py-1.5 shadow-hover backdrop-blur-md active:scale-95 transition-transform jump-in"
           >
-            最新訊息 ↓
+            最新 ↓
           </button>
         )}
       </div>
@@ -1004,9 +1045,11 @@ export default function Chat() {
           <button
             type="submit"
             disabled={sending || !newMessage.trim()}
-            className="shrink-0 bg-accent text-white px-4 py-2 rounded-full hover:bg-[#0d6a63] active:scale-95 transition-all disabled:opacity-50 h-10 text-sm shadow-soft"
+            className={`shrink-0 bg-accent text-white px-4 py-2 rounded-full hover:bg-[#0d6a63] active:scale-95 transition-all disabled:opacity-50 h-10 text-sm shadow-soft ${
+              justSent ? 'send-pop' : ''
+            }`}
           >
-            {sending ? '…' : '送'}
+            {sending ? '…' : justSent ? '✓' : '送'}
           </button>
         </div>
         {sendError && (

@@ -10,6 +10,7 @@ export function EmptyState({
   onAction,
   className,
   compact = false,
+  emoji,
 }: {
   title: string
   description: string
@@ -17,6 +18,7 @@ export function EmptyState({
   onAction?: () => void
   className?: string
   compact?: boolean
+  emoji?: string
 }) {
   return (
     <div
@@ -26,6 +28,14 @@ export function EmptyState({
         className
       )}
     >
+      {emoji && (
+        <div
+          className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-accent-soft text-lg"
+          aria-hidden
+        >
+          {emoji}
+        </div>
+      )}
       <h3 className="font-serif text-lg tracking-tight text-foreground">{title}</h3>
       <p className="mt-2 mx-auto max-w-xs text-sm text-muted leading-relaxed">{description}</p>
       {actionLabel && onAction && (

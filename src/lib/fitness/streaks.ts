@@ -92,3 +92,40 @@ export function computeStreak(sessions?: WorkoutSession[]): number {
   }
   return streak
 }
+
+export type WeekDay = {
+  key: string
+  label: string
+  trained: boolean
+  isToday: boolean
+}
+
+/** Soft weekly consistency: last 7 calendar days ending today (local-first). */
+export function weekConsistency(sessions?: WorkoutSession[]): {
+  days: WeekDay[]
+  trainedCount: number
+  streak: number
+} {
+  if (sessions) syncDaysFromSessions(sessions)
+  const set = new Set(readDays())
+  const labels = ['日', '一', '二', '三', '四', '五', '六']
+  const days: WeekDay[] = []
+  const today = todayKey()
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date()
+    d.setHours(12, 0, 0, 0)
+    d.setDate(d.getDate() - i)
+    const key = todayKey(d)
+    days.push({
+      key,
+      label: labels[d.getDay()],
+      trained: set.has(key),
+      isToday: key === today,
+    })
+  }
+  return {
+    days,
+    trainedCount: days.filter((d) => d.trained).length,
+    streak: computeStreak(),
+  }
+}
