@@ -71,6 +71,7 @@ import { analyzeWorkout, formatDelta, type WorkoutAnalysis } from '@/lib/fitness
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
 import { buzzLight, notifyRestDone, flashDocumentTitle, armRestNotification } from '@/lib/fitness/haptic'
+import { buildOverloadTip } from '@/lib/fitness/overload-tip'
 import { InstallPrompt } from '@/components/pwa/install-prompt'
 import {
   DEFAULT_WEEKLY_PPL,
@@ -174,6 +175,7 @@ export function TrainClient() {
   const loggerRef = useRef<HTMLDivElement>(null)
   const restEndedFocus = useRef(false)
   const [restReadyNext, setRestReadyNext] = useState(false)
+  const [overloadDismissedId, setOverloadDismissedId] = useState<string | null>(null)
 
   // Derived / secondary state — must stay above ready/authReady gate (React #310)
   const [todayDone, setTodayDone] = useState<WorkoutSession[]>([])
@@ -213,6 +215,14 @@ export function TrainClient() {
     [sessions]
   )
 
+  const overloadTip = useMemo(() => {
+    if (!selectedEx) return null
+    return buildOverloadTip(selectedEx, sessions, active)
+  }, [selectedEx, sessions, active])
+
+  useEffect(() => {
+    setOverloadDismissedId(null)
+  }, [selectedEx])
 
   useEffect(() => {
     const s = loadSessions()
@@ -1181,6 +1191,39 @@ export function TrainClient() {
                             </div>
                           )
                         })()}
+
+                        {overloadTip && overloadTip.id !== overloadDismissedId && (
+                          <div className="mb-3 flex items-start gap-2.5 rounded-2xl border border-accent/20 bg-accent-soft/40 px-3 py-2.5">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[10px] font-semibold uppercase tracking-wide text-accent/80">
+                                進步節奏
+                              </div>
+                              <p className="mt-0.5 text-[12px] leading-snug text-foreground/90">
+                                {overloadTip.text}
+                              </p>
+                              {typeof overloadTip.suggestedWeightKg === 'number' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setWeight(overloadTip.suggestedWeightKg!)
+                                    setOverloadDismissedId(overloadTip.id)
+                                  }}
+                                  className="mt-1.5 text-[11px] font-semibold text-accent touch-manipulation"
+                                >
+                                  用建議重量 {overloadTip.suggestedWeightKg} kg
+                                </button>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setOverloadDismissedId(overloadTip.id)}
+                              className="shrink-0 rounded-full px-2 py-0.5 text-[11px] text-muted hover:text-foreground touch-manipulation"
+                              aria-label="收起提示"
+                            >
+                              收起
+                            </button>
+                          </div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-3 mb-3">
                           <div>
