@@ -30,13 +30,15 @@ import { PageHeader } from '@/components/ui/page-header'
 import { PageSkeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import {
-  EXERCISES,
   TEMPLATES,
   NEWBIE_QUICK_TEMPLATES,
   NEWBIE_SEARCH_CHIPS,
+  MUSCLE_FILTERS,
+  EQUIPMENT_FILTERS,
   exerciseById,
   matchedAliasLabel,
-  searchExercises,
+  filterExercises,
+  type Equipment,
 } from '@/lib/fitness/exercises'
 import { ExerciseHowTo, ExerciseHowToHint } from '@/components/fitness/exercise-howto'
 import {
@@ -147,6 +149,8 @@ export function TrainClient() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerHowtoId, setPickerHowtoId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [muscleFilter, setMuscleFilter] = useState<string | null>(null)
+  const [equipmentFilter, setEquipmentFilter] = useState<Equipment | null>(null)
   const [selectedEx, setSelectedEx] = useState<string | null>(null)
   const [weight, setWeight] = useState(60)
   const [reps, setReps] = useState(8)
@@ -555,7 +559,15 @@ export function TrainClient() {
     setRestReadyNext(false)
   }
 
-  const filtered = useMemo(() => searchExercises(search), [search])
+  const filtered = useMemo(
+    () =>
+      filterExercises({
+        query: search,
+        muscle: muscleFilter,
+        equipment: equipmentFilter,
+      }),
+    [search, muscleFilter, equipmentFilter]
+  )
 
   const [todayDone, setTodayDone] = useState<WorkoutSession[]>([])
   const [weekVolume, setWeekVolume] = useState(0)
@@ -786,7 +798,7 @@ export function TrainClient() {
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <div className="min-w-0">
                             <p className="text-[11px] font-semibold tracking-wide text-accent mb-0.5">
-                              今日課表 · 一掣開波
+                              今日課表 · 開波
                             </p>
                             <CardTitle className="text-lg leading-snug">
                               {todayHint.slot.templateId
@@ -841,7 +853,7 @@ export function TrainClient() {
                             className="w-full"
                             onClick={() => setTab('templates')}
                           >
-                            睇成週課表／進度
+                            睇課表進度
                           </Button>
                         )}
                         {!todayHint.template && !todayHint.doneToday && (
@@ -862,7 +874,7 @@ export function TrainClient() {
                               className="flex-1"
                               onClick={() => setTab('templates')}
                             >
-                              改週課表
+                              改課表
                             </Button>
                           </div>
                         )}
@@ -893,7 +905,7 @@ export function TrainClient() {
                         </CardTitle>
                       </div>
                       <CardDesc className="mb-3">
-                        搜俗稱就搵到；每個動作有「點做」步驟＋示範。一掣開波用腿日或推拉腿模板。
+                        部位／儀器 chips＋俗稱搜尋一齊用；每個動作有「點做」＋示範。一掣開波用腿日或推拉腿課表。
                       </CardDesc>
                       <div className="flex flex-wrap gap-1.5 mb-3">
                         {NEWBIE_SEARCH_CHIPS.map((chip) => (
@@ -1524,254 +1536,299 @@ export function TrainClient() {
               animate={tabPanel.animate}
               exit={reduce ? undefined : tabPanel.exit}
               transition={springSoft}
-              className="space-y-4"
+              className="space-y-6"
             >
-              <ActivePlanPanel
-                refreshKey={planRefreshKey}
-                onStartDay={(title, ids) => {
-                  if (active && !window.confirm('而家練緊，改用呢個課表？')) return
-                  startSession(`plan:${title}`, ids)
-                }}
-              />
+              <p className="text-[11px] text-muted leading-relaxed px-0.5">
+                用詞統一：<span className="font-semibold text-foreground">開波</span>
+                ＝開始今日場；
+                <span className="font-semibold text-foreground">課表</span>
+                ＝你跟住緊嘅一週安排；下面三欄分開睇。
+              </p>
 
-              <div className="space-y-2">
-                <p className="text-xs text-muted px-0.5">完整週計劃（組數＋進度）· 撳一下跟住</p>
+              {/* —— 1. 跟住緊 —— */}
+              <section className="space-y-3" aria-labelledby="plan-col-following">
+                <div className="flex items-center gap-2 px-0.5">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-white">
+                    1
+                  </span>
+                  <h2 id="plan-col-following" className="text-sm font-semibold">
+                    跟住緊
+                  </h2>
+                  <Badge tone="accent">進度</Badge>
+                </div>
+                <ActivePlanPanel
+                  refreshKey={planRefreshKey}
+                  onStartDay={(title, ids) => {
+                    if (active && !window.confirm('而家練緊，改用呢個課表？')) return
+                    startSession(`plan:${title}`, ids)
+                  }}
+                />
+                <Card className="py-4 border-accent/25 bg-accent-soft/25">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                      <p className="text-[11px] font-semibold text-accent tracking-wide mb-0.5">
+                        簡易週循環
+                      </p>
+                      <CardTitle className="text-lg">跟住轉，唔使每日諗練咩</CardTitle>
+                    </div>
+                    {todayHint && (
+                      <Badge tone="accent">
+                        {todayHint.weekDone}/{todayHint.weekTotal} 日
+                      </Badge>
+                    )}
+                  </div>
+                  <CardDesc className="mb-3">
+                    撳日子一掣開波。可換新手三堂／腿日加強／忙碌兩日。
+                  </CardDesc>
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {SCHEDULE_PRESETS.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          const next = applySchedulePreset(p.id)
+                          setWeekSlots(next)
+                          setTodayHint(getTodayPlanHint(sessions))
+                          setSavedToast(`已套用「${p.name}」`)
+                          window.setTimeout(() => setSavedToast(null), 2200)
+                        }}
+                        className={cn(
+                          'rounded-full px-2.5 py-1 text-[10px] font-semibold border touch-manipulation',
+                          p.newbie
+                            ? 'border-accent/30 bg-accent text-white'
+                            : 'border-border bg-surface text-muted hover:text-foreground'
+                        )}
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = DEFAULT_WEEKLY_PPL.map((s) => ({ ...s }))
+                        saveWeeklySchedule(next)
+                        setWeekSlots(next)
+                        setTodayHint(getTodayPlanHint(sessions))
+                      }}
+                      className="rounded-full px-2.5 py-1 text-[10px] font-medium border border-dashed border-border text-muted"
+                    >
+                      重置
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1.5 mb-3">
+                    {(weekProgress.length
+                      ? weekProgress
+                      : weekSlots.map((slot) => ({
+                          slot,
+                          done: false,
+                          isToday: todayHint?.slot.dayIndex === slot.dayIndex,
+                        }))
+                    ).map(({ slot: s, done: slotDone, isToday }) => {
+                      const tpl = s.templateId
+                        ? TEMPLATES.find((t) => t.id === s.templateId)
+                        : null
+                      return (
+                        <button
+                          key={s.dayIndex}
+                          type="button"
+                          disabled={!tpl}
+                          onClick={() => {
+                            if (!tpl) return
+                            if (active && !window.confirm('而家練緊，改用呢個課表？')) return
+                            startSession(tpl.id, tpl.exerciseIds)
+                          }}
+                          className={cn(
+                            'rounded-xl border px-1 py-2 text-center touch-manipulation transition',
+                            isToday
+                              ? 'border-accent bg-accent text-white'
+                              : slotDone
+                                ? 'border-accent/30 bg-accent-soft text-accent'
+                                : 'border-border bg-surface text-muted',
+                            !tpl && 'opacity-60'
+                          )}
+                          title={s.label}
+                        >
+                          <div className="text-[10px] font-semibold">{s.nameZh}</div>
+                          <div className="text-[9px] mt-0.5 leading-tight line-clamp-2">
+                            {slotDone ? '✓ ' : ''}
+                            {s.label}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {todayHint?.template && !todayHint.doneToday && (
+                    <Button
+                      className="w-full"
+                      onClick={() =>
+                        startSession(
+                          todayHint.template!.id,
+                          todayHint.template!.exerciseIds
+                        )
+                      }
+                    >
+                      <Play className="h-4 w-4" />
+                      開波 · {todayHint.template.name}
+                    </Button>
+                  )}
+                </Card>
+              </section>
+
+              {/* —— 2. 週模板 —— */}
+              <section className="space-y-3" aria-labelledby="plan-col-presets">
+                <div className="flex items-center gap-2 px-0.5">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-white">
+                    2
+                  </span>
+                  <h2 id="plan-col-presets" className="text-sm font-semibold">
+                    週模板
+                  </h2>
+                  <Badge tone="muted">跟住一套</Badge>
+                </div>
+                <p className="text-xs text-muted px-0.5 leading-relaxed">
+                  撳一下就跟住完整週課表（組數＋進度）。單日模板可即刻開波，鍾意就存入「我嘅自訂」。
+                </p>
                 <WeeklyPresets
                   userId={user?.id ?? null}
                   onApplied={() => setPlanRefreshKey((n) => n + 1)}
                 />
-              </div>
-
-              <CustomPlanBuilder
-                userId={user?.id ?? null}
-                onSaved={() => setPlanRefreshKey((n) => n + 1)}
-              />
-
-              <Card className="py-4 border-accent/25 bg-accent-soft/25">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div>
-                    <p className="text-[11px] font-semibold text-accent tracking-wide mb-0.5">
-                      簡易週循環 · 進度
+                <Stagger className="grid gap-3 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <p className="text-[11px] font-medium text-muted px-0.5">
+                      單日模板 · 推拉腿／腿日／全身
                     </p>
-                    <CardTitle className="text-lg">跟住轉，唔使每日諗練咩</CardTitle>
                   </div>
-                  {todayHint && (
-                    <Badge tone="accent">
-                      {todayHint.weekDone}/{todayHint.weekTotal} 日
-                    </Badge>
-                  )}
-                </div>
-                <CardDesc className="mb-3">
-                  預設推拉腿週；下面可換新手三堂／腿日加強／忙碌兩日。撳日子一掣開嗰日課表。
-                </CardDesc>
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {SCHEDULE_PRESETS.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => {
-                        const next = applySchedulePreset(p.id)
-                        setWeekSlots(next)
-                        setTodayHint(getTodayPlanHint(sessions))
-                        setSavedToast(`已套用「${p.name}」`)
-                        window.setTimeout(() => setSavedToast(null), 2200)
-                      }}
-                      className={cn(
-                        'rounded-full px-2.5 py-1 text-[10px] font-semibold border touch-manipulation',
-                        p.newbie
-                          ? 'border-accent/30 bg-accent text-white'
-                          : 'border-border bg-surface text-muted hover:text-foreground'
-                      )}
-                    >
-                      {p.name}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = DEFAULT_WEEKLY_PPL.map((s) => ({ ...s }))
-                      saveWeeklySchedule(next)
-                      setWeekSlots(next)
-                      setTodayHint(getTodayPlanHint(sessions))
-                    }}
-                    className="rounded-full px-2.5 py-1 text-[10px] font-medium border border-dashed border-border text-muted"
-                  >
-                    重置
-                  </button>
-                </div>
-                <div className="grid grid-cols-7 gap-1.5 mb-3">
-                  {(weekProgress.length
-                    ? weekProgress
-                    : weekSlots.map((slot) => ({
-                        slot,
-                        done: false,
-                        isToday: todayHint?.slot.dayIndex === slot.dayIndex,
-                      }))
-                  ).map(({ slot: s, done: slotDone, isToday }) => {
-                    const tpl = s.templateId
-                      ? TEMPLATES.find((t) => t.id === s.templateId)
-                      : null
-                    return (
-                      <button
-                        key={s.dayIndex}
-                        type="button"
-                        disabled={!tpl}
-                        onClick={() => {
-                          if (!tpl) return
-                          if (active && !window.confirm('而家練緊，改用呢個課表？')) return
-                          startSession(tpl.id, tpl.exerciseIds)
-                        }}
+                  {TEMPLATES.map((t) => (
+                    <StaggerItem key={t.id}>
+                      <Card
+                        hover
                         className={cn(
-                          'rounded-xl border px-1 py-2 text-center touch-manipulation transition',
-                          isToday
-                            ? 'border-accent bg-accent text-white'
-                            : slotDone
-                              ? 'border-accent/30 bg-accent-soft text-accent'
-                              : 'border-border bg-surface text-muted',
-                          !tpl && 'opacity-60'
+                          'h-full flex flex-col',
+                          t.newbie && 'border-accent/30 bg-accent-soft/20'
                         )}
-                        title={s.label}
                       >
-                        <div className="text-[10px] font-semibold">{s.nameZh}</div>
-                        <div className="text-[9px] mt-0.5 leading-tight line-clamp-2">
-                          {slotDone ? '✓ ' : ''}
-                          {s.label}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-                {todayHint?.template && !todayHint.doneToday && (
-                  <Button
-                    className="w-full"
-                    onClick={() =>
-                      startSession(
-                        todayHint.template!.id,
-                        todayHint.template!.exerciseIds
-                      )
-                    }
-                  >
-                    <Play className="h-4 w-4" />
-                    開今日 · {todayHint.template.name}
-                  </Button>
-                )}
-              </Card>
-
-              {customPlans.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-2 px-0.5">
-                    <p className="text-xs font-medium text-muted">我存低嘅課表</p>
-                    <Badge tone="muted">{customPlans.length}</Badge>
-                  </div>
-                  <Stagger className="grid gap-3 sm:grid-cols-2">
-                    {customPlans.map((cp) => (
-                      <StaggerItem key={cp.id}>
-                        <Card className="h-full flex flex-col border-accent/20">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge tone="accent">{cp.badge || '自訂'}</Badge>
-                            <CardTitle className="text-lg">{cp.name}</CardTitle>
-                          </div>
-                          {cp.desc && (
-                            <CardDesc className="mt-1 mb-3 flex-1">{cp.desc}</CardDesc>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {t.badge && (
+                            <Badge tone={t.newbie ? 'accent' : 'muted'}>{t.badge}</Badge>
                           )}
-                          <div className="flex flex-wrap gap-1 mb-3">
-                            {cp.exerciseIds.slice(0, 4).map((id) => (
-                              <Badge key={id} tone="muted">
-                                {exerciseById(id)?.nameZh || id}
-                              </Badge>
-                            ))}
-                          </div>
-                          <div className="flex gap-2 mt-auto">
-                            <Button
-                              size="sm"
-                              className="flex-1"
-                              onClick={() => {
-                                if (active && !window.confirm('而家練緊，改用呢個課表？'))
-                                  return
-                                startSession(`custom:${cp.id}`, cp.exerciseIds)
-                              }}
-                            >
-                              用呢個開波
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => {
-                                deleteCustomDayPlan(cp.id)
-                                setCustomPlans(loadCustomDayPlans())
-                              }}
-                            >
-                              刪
-                            </Button>
-                          </div>
-                        </Card>
-                      </StaggerItem>
-                    ))}
-                  </Stagger>
-                </div>
-              )}
+                          <CardTitle className="text-xl">{t.name}</CardTitle>
+                        </div>
+                        <CardDesc className="mt-1 mb-4 flex-1">{t.desc}</CardDesc>
+                        <div className="flex flex-wrap gap-1 mb-4">
+                          {t.exerciseIds.slice(0, 4).map((id) => (
+                            <Badge key={id} tone="muted">
+                              {exerciseById(id)?.nameZh}
+                            </Badge>
+                          ))}
+                          {t.exerciseIds.length > 4 && (
+                            <Badge tone="muted">+{t.exerciseIds.length - 4}</Badge>
+                          )}
+                        </div>
+                        <div className="flex gap-2 mt-auto">
+                          <Button
+                            size="sm"
+                            variant="soft"
+                            className="flex-1"
+                            onClick={() => {
+                              if (active && !window.confirm('而家練緊，改用呢個課表？')) return
+                              startSession(t.id, t.exerciseIds)
+                            }}
+                          >
+                            開波
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => {
+                              saveTemplateAsCustom(t)
+                              setCustomPlans(loadCustomDayPlans())
+                              setSavedToast(`已存「${t.name}」入我嘅自訂`)
+                              window.setTimeout(() => setSavedToast(null), 2200)
+                            }}
+                          >
+                            存
+                          </Button>
+                        </div>
+                      </Card>
+                    </StaggerItem>
+                  ))}
+                </Stagger>
+              </section>
 
-              <Stagger className="grid gap-3 sm:grid-cols-2">
-                <div className="sm:col-span-2 mb-1">
-                  <p className="text-xs text-muted leading-relaxed">
-                    推拉腿（PPL）＝推日／拉日／腿日輪流。新手可先用「新手腿日」——入面有 RDL、保加利亞，撳動作就睇點做。鍾意就「存做我嘅課表」。
-                  </p>
+              {/* —— 3. 我嘅自訂 —— */}
+              <section className="space-y-3" aria-labelledby="plan-col-custom">
+                <div className="flex items-center gap-2 px-0.5">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-white">
+                    3
+                  </span>
+                  <h2 id="plan-col-custom" className="text-sm font-semibold">
+                    我嘅自訂
+                  </h2>
+                  <Badge tone="muted">儲存</Badge>
                 </div>
-                {TEMPLATES.map((t) => (
-                  <StaggerItem key={t.id}>
-                    <Card
-                      hover
-                      className={cn(
-                        'h-full flex flex-col',
-                        t.newbie && 'border-accent/30 bg-accent-soft/20'
-                      )}
-                    >
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {t.badge && (
-                          <Badge tone={t.newbie ? 'accent' : 'muted'}>{t.badge}</Badge>
-                        )}
-                        <CardTitle className="text-xl">{t.name}</CardTitle>
-                      </div>
-                      <CardDesc className="mt-1 mb-4 flex-1">{t.desc}</CardDesc>
-                      <div className="flex flex-wrap gap-1 mb-4">
-                        {t.exerciseIds.slice(0, 4).map((id) => (
-                          <Badge key={id} tone="muted">
-                            {exerciseById(id)?.nameZh}
-                          </Badge>
-                        ))}
-                        {t.exerciseIds.length > 4 && (
-                          <Badge tone="muted">+{t.exerciseIds.length - 4}</Badge>
-                        )}
-                      </div>
-                      <div className="flex gap-2 mt-auto">
-                        <Button
-                          size="sm"
-                          variant="soft"
-                          className="flex-1"
-                          onClick={() => {
-                            if (active && !window.confirm('而家練緊，改用呢個課表？')) return
-                            startSession(t.id, t.exerciseIds)
-                          }}
-                        >
-                          用呢個開波
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => {
-                            saveTemplateAsCustom(t)
-                            setCustomPlans(loadCustomDayPlans())
-                            setSavedToast(`已存「${t.name}」`)
-                            window.setTimeout(() => setSavedToast(null), 2200)
-                          }}
-                        >
-                          存
-                        </Button>
-                      </div>
-                    </Card>
-                  </StaggerItem>
-                ))}
-              </Stagger>
+                <CustomPlanBuilder
+                  userId={user?.id ?? null}
+                  onSaved={() => setPlanRefreshKey((n) => n + 1)}
+                />
+                {customPlans.length > 0 ? (
+                  <div>
+                    <div className="flex items-center justify-between mb-2 px-0.5">
+                      <p className="text-xs font-medium text-muted">已存低嘅單日課表</p>
+                      <Badge tone="muted">{customPlans.length}</Badge>
+                    </div>
+                    <Stagger className="grid gap-3 sm:grid-cols-2">
+                      {customPlans.map((cp) => (
+                        <StaggerItem key={cp.id}>
+                          <Card className="h-full flex flex-col border-accent/20">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge tone="accent">{cp.badge || '自訂'}</Badge>
+                              <CardTitle className="text-lg">{cp.name}</CardTitle>
+                            </div>
+                            {cp.desc && (
+                              <CardDesc className="mt-1 mb-3 flex-1">{cp.desc}</CardDesc>
+                            )}
+                            <div className="flex flex-wrap gap-1 mb-3">
+                              {cp.exerciseIds.slice(0, 4).map((id) => (
+                                <Badge key={id} tone="muted">
+                                  {exerciseById(id)?.nameZh || id}
+                                </Badge>
+                              ))}
+                            </div>
+                            <div className="flex gap-2 mt-auto">
+                              <Button
+                                size="sm"
+                                className="flex-1"
+                                onClick={() => {
+                                  if (active && !window.confirm('而家練緊，改用呢個課表？'))
+                                    return
+                                  startSession(`custom:${cp.id}`, cp.exerciseIds)
+                                }}
+                              >
+                                開波
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => {
+                                  deleteCustomDayPlan(cp.id)
+                                  setCustomPlans(loadCustomDayPlans())
+                                }}
+                              >
+                                刪
+                              </Button>
+                            </div>
+                          </Card>
+                        </StaggerItem>
+                      ))}
+                    </Stagger>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-muted px-0.5 leading-relaxed">
+                    未有自訂——上面週模板撳「存」，或者用砌課表整一套。
+                  </p>
+                )}
+              </section>
+
               {savedToast && (
                 <div className="above-nav-gap fixed left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#0f766e] text-white text-sm px-4 py-2 shadow-lg">
                   {savedToast}
@@ -1811,7 +1868,7 @@ export function TrainClient() {
                   labels={historyCurve.map((d) => d.label)}
                 />
                 <p className="mt-2 text-[11px] text-muted">
-                  同課表打通：喺「我」頁出計劃後一掣開波，完場會計入呢度。
+                  同課表打通：跟住一套課表之後一掣開波，完場會計入呢度。
                 </p>
               </Card>
 
@@ -1992,40 +2049,112 @@ export function TrainClient() {
                     onClick={() => {
                       setPickerOpen(false)
                       setPickerHowtoId(null)
+                      setSearch('')
+                      setMuscleFilter(null)
+                      setEquipmentFilter(null)
                     }}
                     aria-label="關閉"
                   >
                     <X className="h-5 w-5 text-muted" />
                   </button>
                 </div>
-                <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 -mx-1 px-1">
-                  {NEWBIE_SEARCH_CHIPS.map((chip) => (
-                    <button
-                      key={chip}
-                      type="button"
-                      onClick={() => setSearch(chip)}
-                      className={cn(
-                        'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium touch-manipulation',
-                        search === chip
-                          ? 'border-accent bg-accent text-white'
-                          : 'border-border text-accent hover:bg-accent-soft'
-                      )}
-                    >
-                      {chip}
-                    </button>
-                  ))}
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted mb-1 px-0.5">部位</p>
+                    <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 -mx-1 px-1">
+                      <button
+                        type="button"
+                        onClick={() => setMuscleFilter(null)}
+                        className={cn(
+                          'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium touch-manipulation',
+                          !muscleFilter
+                            ? 'border-accent bg-accent text-white'
+                            : 'border-border text-muted hover:text-foreground'
+                        )}
+                      >
+                        全部
+                      </button>
+                      {MUSCLE_FILTERS.map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setMuscleFilter((cur) => (cur === m ? null : m))}
+                          className={cn(
+                            'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium touch-manipulation',
+                            muscleFilter === m
+                              ? 'border-accent bg-accent text-white'
+                              : 'border-border text-muted hover:text-foreground'
+                          )}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted mb-1 px-0.5">儀器</p>
+                    <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 -mx-1 px-1">
+                      <button
+                        type="button"
+                        onClick={() => setEquipmentFilter(null)}
+                        className={cn(
+                          'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium touch-manipulation',
+                          !equipmentFilter
+                            ? 'border-accent bg-accent text-white'
+                            : 'border-border text-muted hover:text-foreground'
+                        )}
+                      >
+                        全部
+                      </button>
+                      {EQUIPMENT_FILTERS.filter((e) => e !== '其他').map((eq) => (
+                        <button
+                          key={eq}
+                          type="button"
+                          onClick={() => setEquipmentFilter((cur) => (cur === eq ? null : eq))}
+                          className={cn(
+                            'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium touch-manipulation',
+                            equipmentFilter === eq
+                              ? 'border-accent bg-accent text-white'
+                              : 'border-border text-muted hover:text-foreground'
+                          )}
+                        >
+                          {eq}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted mb-1 px-0.5">俗稱</p>
+                    <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 -mx-1 px-1">
+                      {NEWBIE_SEARCH_CHIPS.map((chip) => (
+                        <button
+                          key={chip}
+                          type="button"
+                          onClick={() => setSearch(chip)}
+                          className={cn(
+                            'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium touch-manipulation',
+                            search === chip
+                              ? 'border-accent bg-accent text-white'
+                              : 'border-border text-accent hover:bg-accent-soft'
+                          )}
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 <p className="text-[10px] text-muted leading-relaxed">
-                  撳動作＝加入今日訓練；「點做」睇步驟／GIF。未開波都會自動幫你開場。
+                  部位＋儀器＋俗稱一齊篩。撳動作＝加入今日；「點做」睇步驟／GIF。未開波會自動幫你開場。
                 </p>
               </div>
               <ul className="overflow-y-auto p-2 flex-1">
-                {(search ? filtered : EXERCISES).length === 0 ? (
+                {filtered.length === 0 ? (
                   <li className="px-3 py-8 text-center text-sm text-muted">
-                    搵唔到「{search}」——試吓 RDL、保加利亞、後腿、硬拉
+                    搵唔到——試換部位／儀器，或者搜 RDL、保加利亞、後腿
                   </li>
                 ) : (
-                  (search ? filtered : EXERCISES).map((ex) => {
+                  filtered.map((ex) => {
                     const aliasHit = search ? matchedAliasLabel(ex, search) : null
                     const howtoOpen = pickerHowtoId === ex.id
                     return (
@@ -2045,7 +2174,7 @@ export function TrainClient() {
                                   </span>
                                 </div>
                                 <div className="text-[11px] text-muted">
-                                  {ex.nameEn} · {ex.muscle}
+                                  {ex.nameEn} · {ex.muscle} · {ex.equipment}
                                   {aliasHit ? ` · 又叫「${aliasHit}」` : ''}
                                 </div>
                               </div>

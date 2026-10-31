@@ -160,7 +160,7 @@ export function CustomPlanBuilder({ userId, onSaved }: Props) {
       >
         <div className="flex items-center gap-2">
           <Plus className="h-4 w-4 text-accent" />
-          <span className="text-sm font-semibold">自訂課表</span>
+          <span className="text-sm font-semibold">我嘅自訂</span>
           <Badge tone="muted">儲存</Badge>
         </div>
         <p className="mt-1 text-[11px] text-muted leading-relaxed">
@@ -175,7 +175,7 @@ export function CustomPlanBuilder({ userId, onSaved }: Props) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <Badge tone="accent">自訂</Badge>
-          <CardTitle className="mt-2 text-lg">砌你嘅週課表</CardTitle>
+          <CardTitle className="mt-2 text-lg">砌你嘅自訂課表</CardTitle>
           <CardDesc className="mt-1">開／關日子 → 揀部位 → 加動作 → 儲存跟住</CardDesc>
         </div>
         <button
@@ -318,7 +318,7 @@ export function CustomPlanBuilder({ userId, onSaved }: Props) {
       )}
 
       <Button className="w-full" disabled={busy} onClick={() => void save()}>
-        {busy ? '儲存緊…' : '儲存並跟住'}
+        {busy ? '儲存緊…' : '儲存並跟住呢套課表'}
       </Button>
     </Card>
   )

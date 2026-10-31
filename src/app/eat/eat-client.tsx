@@ -12,7 +12,9 @@ import {
   ImagePlus,
   Loader2,
   Pencil,
+  PenLine,
   RefreshCw,
+  Salad,
   Trash2,
   Utensils,
   X,
@@ -37,6 +39,7 @@ import {
   HK_DISH_ESTIMATES,
   DISH_CATEGORY_LABEL,
   dishesByCategory,
+  clubProteinDishes,
   estimateFromFoodName,
   mockEstimateFromFile,
   scaleMacros,
@@ -143,6 +146,41 @@ export function EatClient() {
   const [cloudNote, setCloudNote] = useState<string | null>(null)
   const [syncToast, setSyncToast] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [eatFocus, setEatFocus] = useState<'photo' | 'hk' | 'club' | 'manual' | null>(null)
+  const manualRef = useRef<HTMLDivElement>(null)
+  const hkRef = useRef<HTMLDivElement>(null)
+  const clubRef = useRef<HTMLDivElement>(null)
+
+  const scrollEat = (id: 'photo' | 'hk' | 'club' | 'manual') => {
+    setEatFocus(id)
+    window.setTimeout(() => {
+      const el =
+        id === 'photo'
+          ? document.getElementById('eat-camera')
+          : id === 'hk'
+            ? hkRef.current
+            : id === 'club'
+              ? clubRef.current
+              : manualRef.current
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 40)
+  }
+
+  const openManualEntry = () => {
+    setEatFocus('manual')
+    setDraft({
+      previewUrl: '',
+      file: null,
+      fileName: 'manual',
+      status: 'ready',
+      name: '',
+      baseMacros: { kcal: 0, protein: 0, carbs: 0, fat: 0 },
+      portion: 1,
+      estimated: false,
+      source: 'manual',
+      note: '自己入數字 · 唔使影相',
+    })
+  }
 
   const range = useMemo(() => rangeForPeriod(period, anchor), [period, anchor])
 
@@ -670,8 +708,8 @@ export function EatClient() {
     const entry: MealEntry = {
       id: newId(),
       createdAt: new Date().toISOString(),
-      name: draft.name,
-      imageDataUrl: draft.previewUrl,
+      name: draft.name.trim() || '手動記錄',
+      imageDataUrl: draft.previewUrl || undefined,
       macros: liveMacros,
       portion: draft.portion,
       estimated: draft.estimated,
@@ -781,7 +819,7 @@ export function EatClient() {
           className="mb-6"
           eyebrow="飲食"
           title="影低呢餐"
-          description="卡路里、蛋白、碳水、脂肪一齊估。登入之後歷史會留低，隨時翻睇日／週／月總計。"
+          description="四條入數路：影相 AI、港式快加、會所蛋白、手動。登入之後歷史會留低，可睇日／週／月。"
         />
 
         {!user && (
@@ -796,6 +834,67 @@ export function EatClient() {
             {syncing ? 'sync 緊…' : cloudNote || '飲食已上雲'}
           </div>
         )}
+
+        {/* Four entry paths */}
+        <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {(
+            [
+              {
+                id: 'photo' as const,
+                title: '影相 AI',
+                desc: '影一餐估營養',
+                icon: Camera,
+                onClick: () => scrollEat('photo'),
+              },
+              {
+                id: 'hk' as const,
+                title: '港式快加',
+                desc: '茶記／小食',
+                icon: Utensils,
+                onClick: () => {
+                  setDishCat('茶記')
+                  scrollEat('hk')
+                },
+              },
+              {
+                id: 'club' as const,
+                title: '會所蛋白',
+                desc: 'gym 食堂模板',
+                icon: Salad,
+                onClick: () => {
+                  setDishCat('會所蛋白')
+                  scrollEat('club')
+                },
+              },
+              {
+                id: 'manual' as const,
+                title: '手動',
+                desc: '自己填數字',
+                icon: PenLine,
+                onClick: () => {
+                  scrollEat('manual')
+                  openManualEntry()
+                },
+              },
+            ] as const
+          ).map(({ id, title, desc, icon: Icon, onClick }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={onClick}
+              className={cn(
+                'rounded-2xl border bg-surface p-3 text-left shadow-soft transition touch-manipulation hover:shadow-hover',
+                eatFocus === id
+                  ? 'border-accent ring-1 ring-accent/30 bg-accent-soft/40'
+                  : 'border-border'
+              )}
+            >
+              <Icon className="h-4 w-4 text-accent mb-1.5" />
+              <div className="text-sm font-semibold leading-tight">{title}</div>
+              <div className="text-[10px] text-muted mt-0.5 leading-snug">{desc}</div>
+            </button>
+          ))}
+        </div>
 
         {/* Period switcher */}
         <div className="mb-3 flex items-center gap-2 min-w-0">
@@ -1053,7 +1152,7 @@ export function EatClient() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--accent-soft),_transparent_50%)] pointer-events-none" />
           <div className="relative">
             <div className="flex items-start justify-between gap-3 mb-1">
-              <CardTitle className="text-xl">影相估營養</CardTitle>
+              <CardTitle className="text-xl">影相 AI</CardTitle>
               {quotaRemaining != null && (
                 <div
                   className="flex items-center gap-1 pt-1"
@@ -1118,31 +1217,39 @@ export function EatClient() {
           </div>
         </Card>
 
-        {/* HK dishes + club protein templates */}
-        <div className="mb-8">
+        {/* 港式快加 */}
+        <div id="eat-hk" ref={hkRef} className="mb-6 scroll-mt-24">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-serif text-xl">港餐／會所快加</h2>
-            <Badge tone="muted">一掣入帳</Badge>
+            <h2 className="font-serif text-xl">港式快加</h2>
+            <Badge tone="muted">茶記／小食</Badge>
           </div>
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1 mb-2">
-            {(['全部', '會所蛋白', '茶記', '小食', '早餐'] as const).map((c) => (
+            {(['全部', '茶記', '小食', '早餐'] as const).map((c) => {
+              const active =
+                c === '全部'
+                  ? dishCat === '全部' || dishCat === '會所蛋白'
+                  : dishCat === c
+              return (
               <button
                 key={c}
                 type="button"
-                onClick={() => setDishCat(c)}
+                onClick={() => setDishCat(c === '全部' ? '全部' : c)}
                 className={cn(
                   'shrink-0 rounded-full px-3 py-1.5 text-[11px] border touch-manipulation',
-                  dishCat === c
+                  active
                     ? 'border-accent bg-accent-soft text-accent font-semibold'
                     : 'border-border text-muted hover:text-foreground'
                 )}
               >
-                {c === '全部' ? '全部' : DISH_CATEGORY_LABEL[c]}
+                {c === '全部' ? '全部港式' : DISH_CATEGORY_LABEL[c]}
               </button>
-            ))}
+            )})}
           </div>
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
-            {dishesByCategory(dishCat).map((d) => {
+            {(dishCat === '茶記' || dishCat === '小食' || dishCat === '早餐'
+              ? dishesByCategory(dishCat)
+              : dishesByCategory('茶記').concat(dishesByCategory('小食'), dishesByCategory('早餐'))
+            ).map((d) => {
               const i = HK_DISH_ESTIMATES.findIndex((x) => x.name === d.name)
               return (
               <motion.button
@@ -1163,6 +1270,58 @@ export function EatClient() {
               </motion.button>
             )})}
           </div>
+        </div>
+
+        {/* 會所蛋白 */}
+        <div id="eat-club" ref={clubRef} className="mb-6 scroll-mt-24">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-serif text-xl">會所蛋白</h2>
+            <Badge tone="accent">gym 食堂</Badge>
+          </div>
+          <p className="text-[11px] text-muted mb-2 px-0.5 leading-relaxed">
+            練完一掣入蛋白餐模板——配一週蛋白口語總結更好用。
+          </p>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+            {clubProteinDishes().map((d) => {
+              const i = HK_DISH_ESTIMATES.findIndex((x) => x.name === d.name)
+              return (
+              <motion.button
+                key={d.name}
+                type="button"
+                whileHover={reduce ? undefined : { scale: 1.02 }}
+                whileTap={reduce ? undefined : { scale: 0.98 }}
+                transition={springSnappy}
+                onClick={() => addDemoDish(i)}
+                className="shrink-0 w-[148px] rounded-[20px] border border-accent/25 bg-accent-soft/20 p-3.5 text-left shadow-soft hover:shadow-hover transition"
+              >
+                <div className="text-[10px] text-accent mb-0.5">{DISH_CATEGORY_LABEL[d.category]}</div>
+                <div className="text-sm font-medium mb-0.5">{d.name}</div>
+                <div className="text-[10px] text-muted mb-2 line-clamp-1">{d.hint}</div>
+                <div className="text-xs text-accent font-semibold tabular-nums">
+                  {d.macros.protein}g 蛋白 · {d.macros.kcal} kcal
+                </div>
+              </motion.button>
+            )})}
+          </div>
+        </div>
+
+        {/* 手動入數 */}
+        <div id="eat-manual" ref={manualRef} className="mb-8 scroll-mt-24">
+          <Card className="py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-xl">手動入數</CardTitle>
+                <CardDesc className="mt-1.5 mb-3">
+                  唔使影相——自己填名同卡路里／蛋白／碳水／脂肪。
+                </CardDesc>
+                <Button size="lg" variant="secondary" onClick={openManualEntry}>
+                  <PenLine className="h-4 w-4" />
+                  開手動表格
+                </Button>
+              </div>
+              <PenLine className="h-5 w-5 text-accent shrink-0 mt-1" />
+            </div>
+          </Card>
         </div>
 
         {/* History list for selected period */}
@@ -1186,7 +1345,7 @@ export function EatClient() {
             }
             description={
               period === 'day'
-                ? '影低一餐，或者用「香港常見／會所蛋白」快加。登入之後會入雲端。'
+                ? '上面四條路：影相 AI、港式快加、會所蛋白、手動。登入之後會入雲端。'
                 : '換去「日」影一餐，或者撳箭嘴睇其他日子。登入之後週／月總計會齊啲。'
             }
             actionLabel="影一餐"
@@ -1357,8 +1516,15 @@ export function EatClient() {
               transition={springSoft}
             >
               <div className="relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={draft.previewUrl} alt="" className="w-full h-48 object-cover" />
+                {draft.previewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={draft.previewUrl} alt="" className="w-full h-48 object-cover" />
+                ) : (
+                  <div className="w-full h-36 bg-accent-soft/50 flex flex-col items-center justify-center gap-2 border-b border-border">
+                    <PenLine className="h-7 w-7 text-accent" />
+                    <span className="text-xs font-medium text-accent">手動入數</span>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => setDraft(null)}
@@ -1373,7 +1539,7 @@ export function EatClient() {
                     : draft.source === 'ai'
                       ? 'AI 估嘅 · 可以改'
                       : draft.source === 'manual'
-                        ? '自己改數字'
+                        ? '手動 · 自己填'
                         : '示範估算 · 可以改'}
                 </Badge>
               </div>

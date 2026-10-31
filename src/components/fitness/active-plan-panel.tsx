@@ -45,16 +45,16 @@ export function ActivePlanPanel({ onStartDay, refreshKey = 0, compact, className
     return (
       <Card className={cn('border-dashed', className)}>
         <Badge tone="muted">我嘅課表</Badge>
-        <CardTitle className="mt-2 text-lg">未跟緊任何週計劃</CardTitle>
+        <CardTitle className="mt-2 text-lg">未跟緊任何課表</CardTitle>
         <CardDesc className="mt-2 mb-3">
-          揀下面預設一週模板，或者去「我」頁用目標出一套。跟住之後呢度會顯示進度同「開始今日」。
+          揀下面「週模板」跟住一套，或者去「我」頁用目標出課表。跟住之後呢度有進度，撳掣就開波。
         </CardDesc>
         <Link
           href="/me"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:underline"
         >
           <Sparkles className="h-3.5 w-3.5" />
-          去出我嘅課表
+          去出課表
         </Link>
       </Card>
     )
@@ -83,7 +83,7 @@ export function ActivePlanPanel({ onStartDay, refreshKey = 0, compact, className
       <div className="relative space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <Badge tone="accent">跟緊 · 週計劃</Badge>
+            <Badge tone="accent">跟住緊</Badge>
             <CardTitle className="mt-2 text-lg leading-snug truncate">{meta.plan.title}</CardTitle>
             {!compact && (
               <CardDesc className="mt-1.5 line-clamp-2">{meta.plan.summary}</CardDesc>
@@ -121,8 +121,8 @@ export function ActivePlanPanel({ onStartDay, refreshKey = 0, compact, className
             {progress.doneCount >= progress.total
               ? '再練一堂'
               : isTodaySlot
-                ? `開始今日 · ${startDay.focus}`
-                : `下一堂 · ${startDay.nameZh} ${startDay.focus}`}
+                ? `開波 · 今日 ${startDay.focus}`
+                : `開波 · ${startDay.nameZh} ${startDay.focus}`}
           </Button>
         )}
 

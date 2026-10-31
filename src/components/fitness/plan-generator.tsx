@@ -192,7 +192,7 @@ export function PlanGenerator({ userId }: Props) {
             <Badge tone="accent">課表</Badge>
             <CardTitle className="mt-2 text-xl">一星期點練？</CardTitle>
             <CardDesc className="mt-2">
-              現成一週模板、自訂，或者填目標出課表。跟住之後訓練頁有進度同「開始今日」。
+              週模板、自訂，或者填目標出課表。跟住之後訓練頁有進度，撳掣就開波。
               {!userId ? '（訪客存本機；登入可上雲）' : ''}
             </CardDesc>
           </div>
@@ -281,7 +281,7 @@ export function PlanGenerator({ userId }: Props) {
                       className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-semibold bg-accent text-white shadow-soft hover:bg-[#0d6a63] transition-colors"
                     >
                       <Play className="h-3.5 w-3.5" />
-                      一掣開波
+                      開波
                     </Link>
                   </div>
                   <ul className="space-y-2">
@@ -417,7 +417,7 @@ function PlanWeekProgress({ plan }: { plan: GeneratedPlan }) {
           className="inline-flex w-full items-center justify-center gap-1.5 h-10 rounded-xl text-xs font-semibold bg-accent text-white shadow-soft hover:bg-[#0d6a63] transition-colors"
         >
           <Play className="h-3.5 w-3.5" />
-          {next.isToday ? '繼續今日課表' : `繼續 · ${next.day.nameZh}`}
+          {next.isToday ? '開波 · 今日課表' : `繼續 · ${next.day.nameZh}`}
         </Link>
       )}
       {!next && progress.doneCount > 0 && (

@@ -1,11 +1,20 @@
 /** Curated gym exercise library — HK Cantonese form cues + demo links + 俗稱 aliases. */
 
+export type Equipment = '槓鈴' | '啞鈴' | '機械' | '自重' | 'Cable' | '其他'
+
+export const EQUIPMENT_FILTERS: Equipment[] = ['槓鈴', '啞鈴', '機械', '自重', 'Cable', '其他']
+
+/** 部位 chips — 香港人常用叫法 */
+export const MUSCLE_FILTERS = ['胸', '背', '腿', '肩', '手臂', '臀', '核心', '臀腿', '小腿'] as const
+
 export type ExerciseGuide = {
   id: string
   nameZh: string
   nameEn: string
   aliases: string[]
   muscle: string
+  /** 儀器／場景：槓鈴／啞鈴／機械／自重／Cable */
+  equipment: Equipment
   /** 2–4 short 廣東話 form cues: setup / movement / common mistakes */
   cues: string[]
   /** Public demo (YouTube / reputable). Opens in new tab. */
@@ -35,6 +44,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '平板臥推', '槓鈴卧推', '槓鈴臥推', 'benchpress', '平推', '胸推槓',
     ],
     muscle: '胸',
+    equipment: '槓鈴',
     cues: [
       '仰躺凳上，腳踩實、肩胛骨夾實貼凳，槓大概喺眼上方。',
       '下放時手肘約 45°，槓落到胸口中下；推起時呼氣，唔好彈胸借力。',
@@ -53,6 +63,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '斜板卧推', '斜板推',
     ],
     muscle: '胸',
+    equipment: '槓鈴',
     cues: [
       '凳調約 30–45°，肩胛夾實，槓由鎖骨／上胸上方推。',
       '下放落到上胸，手肘約 45°；唔好凳太斜變咗肩推。',
@@ -70,6 +81,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '啞鈴卧推', '啞鈴臥推', 'db bench', 'dumbbell press', '啞鈴胸推', '啞鈴推胸', '雙啞鈴卧推',
     ],
     muscle: '胸',
+    equipment: '啞鈴',
     cues: [
       '雙手各持啞鈴仰躺，啞鈴喺胸口兩側，掌心向前或微內旋。',
       '推起到手臂伸直但唔撞鈴；下放有控制感到胸口伸展。',
@@ -88,6 +100,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '槓鈴深蹲', '背蹲槓', '蹲', '深蹲日', '腿日深蹲', 'high bar', 'low bar',
     ],
     muscle: '腿',
+    equipment: '槓鈴',
     cues: [
       '腳大約與肩同寬、腳尖微向外；槓坐上斜方肌，胸挺、望前。',
       '臀向後坐落去，膝跟住腳尖方向；大腿至少到平行，再踩地站起。',
@@ -103,6 +116,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Front Squat',
     aliases: ['前蹲', 'front squat', '前深蹲', '前槓深蹲', 'frontsquat'],
     muscle: '腿',
+    equipment: '槓鈴',
     cues: [
       '槓放鎖骨前／前三角，手肘抬高（前架姿），胸挺企直。',
       '臀後坐蹲下，保持軀幹較直；比起背蹲更考核心同活動度。',
@@ -122,6 +136,7 @@ export const EXERCISES: ExerciseGuide[] = [
       'conventional deadlift', 'conv dl', '地板硬拉',
     ],
     muscle: '背',
+    equipment: '槓鈴',
     cues: [
       '槓貼小腿，髖向後推彎腰握槓；背打直、核心收實，肩喺槓微前方——呢個就係 Threads 成日講嘅 deadlift／硬拉。',
       '用腳踩地「推地板」起身，槓一路貼大腿；到頂髖向前夾，唔好過度後仰或者甩腰。',
@@ -137,6 +152,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Sumo Deadlift',
     aliases: ['相撲硬拉', 'sumo', 'sumo deadlift', '相撲拉', '闊站硬拉'],
     muscle: '背',
+    equipment: '槓鈴',
     cues: [
       '腳開闊、腳尖外，手喺兩腿之間握槓，髖較低、胸挺。',
       '推地起槓，膝蓋向外打開；槓仍然貼身。',
@@ -155,6 +171,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '槓鈴肩推', 'Standing press', 'military press', '推頭',
     ],
     muscle: '肩',
+    equipment: '槓鈴',
     cues: [
       '站姿核心收實，槓由鎖骨前方推起，頭微後讓路再開前穿出。',
       '推到手臂伸直但唔鎖死；下放有控制落到鎖骨附近。',
@@ -172,6 +189,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '啞鈴肩推', 'db press', 'dumbbell shoulder press', '坐姿肩推', '啞鈴推舉', '肩推啞鈴',
     ],
     muscle: '肩',
+    equipment: '啞鈴',
     cues: [
       '坐穩或企直，啞鈴喺耳側，掌心向前或微相對。',
       '向上推到頭頂上方，唔好撞鈴；下放有控制。',
@@ -190,6 +208,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '俯身划船', '槓划', '划背',
     ],
     muscle: '背',
+    equipment: '槓鈴',
     cues: [
       '髖鉸鏈微屈膝，背打直接近水平，槓垂喺腳前。',
       '將槓拉向肚臍／下胸，肩胛骨夾實；下放伸直但唔鬆背。',
@@ -207,6 +226,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '坐姿划船', 'seated row', '繩索划船', '坐划', 'cable row', '低拉划船', '坐姿拉背',
     ],
     muscle: '背',
+    equipment: '機械',
     cues: [
       '坐穩腳踩踏板，背微直，手臂伸直握住握把。',
       '拉向肚臍，肩胛夾實，軀幹唔好大力前後甩。',
@@ -224,6 +244,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '單臂划船', '啞鈴划船', 'db row', 'one arm row', '單手划', '啞鈴划背', '三點划船',
     ],
     muscle: '背',
+    equipment: '啞鈴',
     cues: [
       '一手一膝撑凳，另一手持啞鈴自然下垂，背打直。',
       '將啞鈴拉向髖側，肘貼身；下放有控制。',
@@ -242,6 +263,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '引體', '拉上', '做單槓',
     ],
     muscle: '背',
+    equipment: '自重',
     cues: [
       '正手握槓略闊於肩，身體垂直、核心收，由完全懸垂開始。',
       '拉到下巴過槓，想像手肘向下收；下放有控制到手臂伸直。',
@@ -257,6 +279,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Chin-up',
     aliases: ['反手引體', 'chin-up', 'chinup', '反握引體', '反手單槓', '二頭引體'],
     muscle: '背',
+    equipment: '自重',
     cues: [
       '反手（掌心向自己）握槓約肩寬，由懸垂開始。',
       '拉到下巴過槓；二頭同背都會出力。',
@@ -275,6 +298,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '闊背下拉', 'lat pull', '高位拉',
     ],
     muscle: '背',
+    equipment: '機械',
     cues: [
       '坐穩夾住大腿墊，握距略闊於肩，胸微挺。',
       '將槓拉到鎖骨／上胸，手肘向下向後；唔好大力後仰借力。',
@@ -292,6 +316,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '腿舉', 'leg press', '腿推', '蹬腿', '腿機', '推腿', '腿推機', '腿部推舉', '斜蹬',
     ],
     muscle: '腿',
+    equipment: '機械',
     cues: [
       '背貼實椅背，腳放踏板中間約肩寬，腳尖微外。',
       '下放至膝約 90°（腰唔離背墊），再踩出但膝唔鎖死。',
@@ -307,6 +332,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Leg Extension',
     aliases: ['腿伸展', 'leg extension', '伸膝', '前腿機', '踢腿機', '股四頭機', '腿彎伸'],
     muscle: '腿',
+    equipment: '機械',
     cues: [
       '坐穩，護墊喺腳踝上方，背貼椅。',
       '伸膝踢直到大腿前側收緊，頂峰稍停；下放慢。',
@@ -325,6 +351,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '後腿', '後髀', '腘繩', '腿後側', '腿後', 'hamstring curl', 'ham curl',
     ],
     muscle: '腿',
+    equipment: '機械',
     cues: [
       '機位趴／坐穩，護墊喺腳踝上方。',
       '彎膝將腳跟拉向臀，感到後髀收緊；下放有控制。',
@@ -344,6 +371,7 @@ export const EXERCISES: ExerciseGuide[] = [
       'romanian', 'straight leg deadlift', 'SLDL', 'sldl',
     ],
     muscle: '腿',
+    equipment: '槓鈴',
     cues: [
       '企直微屈膝（角度全程唔變），槓／啞鈴貼大腿，髖向後推——好似關車門用臀頂。',
       '背打直落到感到後髀（腿後側）拉緊就停；再用臀夾返企起，唔好圓背拗腰。',
@@ -361,6 +389,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '弓步', 'lunge', '箭步蹲', '弓箭步', '分腿蹲', '前箭步', '弓步蹲', '行走弓步', 'walking lunge',
     ],
     muscle: '腿',
+    equipment: '啞鈴',
     cues: [
       '一步跨出，前後腳穩定；前膝大約喺腳踝上方，後膝輕落地。',
       '軀幹企直，踩前腳跟站起；左右交替或者行弓步都得。',
@@ -380,6 +409,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '腿日分腿', '後腳凳',
     ],
     muscle: '腿',
+    equipment: '啞鈴',
     cues: [
       '後腳腳背／腳尖搁矮凳或臥推凳，前腳踩實向前約一大步，軀幹微前傾。',
       '前膝慢慢彎落（膝跟腳尖方向），後膝向下；身體重量主要喺前腳——好似單腳深蹲。',
@@ -398,6 +428,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '啞鈴彎舉', '槓鈴彎舉', '二頭肌', '手瓜', '練手瓜',
     ],
     muscle: '手臂',
+    equipment: '啞鈴',
     cues: [
       '手肘貼身側，掌心向上（或啞鈴中立），只郁前臂。',
       '彎起到肩前，頂峰稍停；下放有控制，唔好擺動借腰。',
@@ -413,6 +444,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Hammer Curl',
     aliases: ['錘式', 'hammer curl', '錘式彎舉', '中立彎舉', '錘彎', '繩索錘式'],
     muscle: '手臂',
+    equipment: '啞鈴',
     cues: [
       '啞鈴中立握（掌心相對），手肘貼身。',
       '彎起如錘擊動作，頂峰稍停；下放慢。',
@@ -431,6 +463,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '三頭肌', '下壓', 'cable pushdown',
     ],
     muscle: '手臂',
+    equipment: 'Cable',
     cues: [
       '繩索／直槓高位，手肘貼腰側固定，只郁前臂下壓。',
       '下壓到手臂伸直，感受三頭收緊；上放有控制唔要彈。',
@@ -448,6 +481,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '仰臥臂屈伸', 'skull crusher', '躺姿三頭', '槓鈴臂屈伸', '法式推舉', 'skullcrusher', '碎頭',
     ],
     muscle: '手臂',
+    equipment: '槓鈴',
     cues: [
       '仰躺，槓／啞鈴由胸口上方開始，手肘向上固定。',
       '彎肘將重量放到額前／頭後，再伸直；上臂盡量唔郁。',
@@ -465,6 +499,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '過頭三頭', 'overhead extension', '啞鈴過頭三頭', '頸後臂屈伸', '三頭過頭',
     ],
     muscle: '手臂',
+    equipment: '啞鈴',
     cues: [
       '坐或企，啞鈴／繩索過頭，手肘朝天。',
       '彎肘落到腦後，再伸直；夾實三頭長頭。',
@@ -483,6 +518,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '側飛', '練中束',
     ],
     muscle: '肩',
+    equipment: '啞鈴',
     cues: [
       '微屈肘，啞鈴由身側舉起至大約與肩平行（唔好高過耳）。',
       '想像倒水壺：微微傾啞鈴，主力用中束肩；下放慢。',
@@ -498,6 +534,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Front Raise',
     aliases: ['前平舉', 'front raise', '前舉', '前飛', '練前束'],
     muscle: '肩',
+    equipment: '啞鈴',
     cues: [
       '啞鈴或槓片由大腿前舉起至約肩高，微屈肘。',
       '控制下放；唔好借腰甩。',
@@ -515,6 +552,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '反向飛鳥', '後束', 'rear delt', '面拉', 'face pull 後束', '後飛鳥', '練後束', 'bent over fly',
     ],
     muscle: '肩',
+    equipment: '啞鈴',
     cues: [
       '俯身或機上，微屈肘向外打開，夾肩胛同後束。',
       '想像手肘向後上「插」；唔好聳肩。',
@@ -530,6 +568,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Face Pull',
     aliases: ['面拉', 'face pull', 'facepull', '繩索面拉', '拉面', '肩外旋'],
     muscle: '肩',
+    equipment: 'Cable',
     cues: [
       '繩索約面高，繩端拉向面／額，手肘向外高開。',
       '頂峰外旋（拇指向後），夾後束同肩袖。',
@@ -548,6 +587,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '蝴蝶機',
     ],
     muscle: '胸',
+    equipment: '啞鈴',
     cues: [
       '繩索／啞鈴飛鳥：微屈肘固定角度，胸肌主導夾向中間。',
       '打開時有控制感到胸口伸展，唔好過度後拉傷肩。',
@@ -565,6 +605,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '掌上壓', 'pushup', 'push-up', '俯卧撑', '俯臥撑', '伏地挺身', '掌壓', '趴地推', '做掌',
     ],
     muscle: '胸',
+    equipment: '自重',
     cues: [
       '掌約肩寬、指尖微朝外；身體頭到腳踝成一直線，核心同臀輕夾。',
       '下放胸口接近地再推起；肘約 45°，唔好聳肩甩勢。',
@@ -580,6 +621,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Dip',
     aliases: ['雙槓', 'dip', '臂屈伸', '雙槓臂屈伸', '雙槓撐體', 'dip bar', '椅撑'],
     muscle: '胸',
+    equipment: '自重',
     cues: [
       '雙槓撑起，肩下壓，微前傾偏胸、企直偏三頭。',
       '下放至上臂約平行，再推起；唔好過度沉肩。',
@@ -598,6 +640,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '抬臀',
     ],
     muscle: '臀',
+    equipment: '槓鈴',
     cues: [
       '上背靠凳，槓／墊放髖前，腳踩地約與肩同寬。',
       '用臀把髖推到同膝肩成一直線，頂峰夾臀稍停；下放有控制。',
@@ -613,6 +656,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Glute Bridge',
     aliases: ['臀橋', 'glute bridge', '橋式', '仰臥抬臀', '地板臀推'],
     muscle: '臀',
+    equipment: '自重',
     cues: [
       '仰躺屈膝，腳踩地，手臂放側。',
       '夾臀抬髖到身體成斜線，頂峰停；下放慢。',
@@ -630,6 +674,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '小腿', '提踵', 'calf', '練小腿', '站姿提踵', '踮腳', '小腿舉', 'calf raise',
     ],
     muscle: '腿',
+    equipment: '機械',
     cues: [
       '腳掌前掌踩實，膝微直（站姿）或機上屈膝版都得。',
       '踮起至最高，頂峰稍停；慢慢落到腳跟有伸展感。',
@@ -647,6 +692,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '平板', 'core', 'plank', '撐體', '平板撐', '棒式', 'core plank', '撐平板', '平板support',
     ],
     muscle: '核心',
+    equipment: '自重',
     cues: [
       '肘或掌撐地，頭、肩、髖、腳踝成一直線——想像身下夾住支棍。',
       '核心同臀輕夾，正常呼吸；唔好塌腰、唔好抬臀太高。',
@@ -663,6 +709,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '捲腹', '腹', 'crunch', '仰臥起坐', '腹肌', '練腹', 'situp', 'sit-up', '仰臥起坐',
     ],
     muscle: '核心',
+    equipment: '自重',
     cues: [
       '仰躺屈膝，下背貼地；用腹肌把肩胛骨捲離地，唔使坐直。',
       '頂峰呼氣收腹，下放慢；手可輕放耳側，唔好用力拉頸。',
@@ -680,6 +727,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '懸垂抬腿', 'hanging leg raise', '吊單槓抬腿', '抬腿', '懸垂舉腿', 'leg raise', '單槓抬腿',
     ],
     muscle: '核心',
+    equipment: '自重',
     cues: [
       '吊單槓，肩下沉穩定，核心收。',
       '屈髖將腿抬到至少平行（進階伸直腿）；下放有控制。',
@@ -695,6 +743,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Cable Crunch',
     aliases: ['繩索捲腹', 'cable crunch', '跪姿捲腹', '繩索腹', '下跪捲腹'],
     muscle: '核心',
+    equipment: 'Cable',
     cues: [
       '跪地，繩索高位拉到頭側，屈身用腹捲下。',
       '想像肋骨搣向骨盆；臀部位置大致固定。',
@@ -710,6 +759,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Shrug',
     aliases: ['聳肩', 'shrug', '斜方', '練斜方', '啞鈴聳肩', '槓鈴聳肩'],
     muscle: '背',
+    equipment: '啞鈴',
     cues: [
       '啞鈴或槓垂於身側，手臂伸直。',
       '向上聳肩（耳朵方向），頂峰稍停；下放慢。',
@@ -725,6 +775,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: "Farmer's Walk",
     aliases: ['農夫行走', 'farmer', "farmer's walk", 'farmer carry', '負重行走', '提壺走'],
     muscle: '核心',
+    equipment: '啞鈴',
     cues: [
       '雙手各提重物，肩下沉、核心收、企直。',
       '小步穩定向前走，呼吸自然。',
@@ -740,6 +791,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Goblet Squat',
     aliases: ['高腳杯深蹲', 'goblet', 'goblet squat', '啞鈴深蹲', '杯蹲', '胸前啞鈴蹲'],
     muscle: '腿',
+    equipment: '啞鈴',
     cues: [
       '啞鈴或壺鈴抱喺胸前，肘向下，腳約肩寬。',
       '臀後坐蹲下，肘可喺膝內側輕推打開；踩地站起。',
@@ -755,6 +807,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Kettlebell Swing',
     aliases: ['壺鈴擺盪', 'swing', 'kettlebell swing', 'KB swing', '擺盪', '壺鈴甩'],
     muscle: '臀',
+    equipment: '其他',
     cues: [
       '髖鉸鏈將壺鈴向後擺，再爆發伸髖向前甩到約胸高。',
       '动力嚟自臀同髖，唔係用手抬；到頂夾臀。',
@@ -770,6 +823,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Chest Press Machine',
     aliases: ['胸推機', 'chest press', '器械胸推', '坐姿胸推', '器械推胸', '推胸機'],
     muscle: '胸',
+    equipment: '機械',
     cues: [
       '坐穩背貼墊，握把約胸口高度。',
       '推出至手臂伸直但唔鎖死；收回有控制。',
@@ -785,6 +839,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Machine Lateral Raise',
     aliases: ['器械側平舉', '側平舉機', '肩飛鳥機', '器械側舉'],
     muscle: '肩',
+    equipment: '機械',
     cues: [
       '坐穩，手肘抵住護墊，向外抬至約肩高。',
       '頂峰稍停，慢放；唔好聳肩。',
@@ -800,6 +855,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Ab Wheel Rollout',
     aliases: ['健腹輪', 'ab wheel', '滾輪', '腹輪', 'rollout', '腹肌輪'],
     muscle: '核心',
+    equipment: '自重',
     cues: [
       '跪姿雙手握輪，由身體下方慢慢向前滾。',
       '核心死撑唔好塌腰，再拉返起身。',
@@ -815,6 +871,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Good Morning',
     aliases: ['早安式', 'good morning', '早安運動', '髖鉸鏈早安'],
     muscle: '背',
+    equipment: '槓鈴',
     cues: [
       '槓放背蹲位置，微屈膝，髖向後推至軀幹接近平行。',
       '背打直，再伸髖站起；重量要輕過硬拉好多。',
@@ -830,6 +887,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Hack Squat',
     aliases: ['哈克深蹲', 'hack squat', 'hack', '機上深蹲', '倒踏深蹲機'],
     muscle: '腿',
+    equipment: '機械',
     cues: [
       '背貼墊，肩抵墊，腳踏板中下位置。',
       '下放至大腿約平行，再踩起；膝跟腳尖方向。',
@@ -845,6 +903,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Cable Lateral Raise',
     aliases: ['繩索側平舉', 'cable lateral', '繩索側舉', '交叉側平舉'],
     muscle: '肩',
+    equipment: 'Cable',
     cues: [
       '繩索低位，對側手拉起至肩高，微屈肘。',
       '頂峰稍停，慢放；張力全程不斷。',
@@ -860,6 +919,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Preacher Curl',
     aliases: ['牧師凳', 'preacher curl', '傾斜彎舉', '牧師彎舉', '二頭凳'],
     muscle: '手臂',
+    equipment: '機械',
     cues: [
       '上臂貼實牧師凳墊，腋下卡住。',
       '彎舉到頂，下放至手臂接近伸直但唔鬆韌帶。',
@@ -875,6 +935,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Wrist Curl',
     aliases: ['腕彎舉', 'wrist curl', '前臂', '練前臂', '手腕彎舉'],
     muscle: '手臂',
+    equipment: '啞鈴',
     cues: [
       '前臂搁凳上，手腕伸出，握槓／啞鈴。',
       '只郁手腕向上彎；下放伸展。',
@@ -890,6 +951,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Pec Deck',
     aliases: ['蝴蝶機', '夾胸機', 'pec deck', 'chest fly machine', '飛鳥機'],
     muscle: '胸',
+    equipment: '機械',
     cues: [
       '座位調到手肘同肩大致同一高度，背貼墊。',
       '手臂呈微彎，夾到中間稍停，慢放。',
@@ -905,6 +967,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Hip Abduction Machine',
     aliases: ['外展機', '開髖機', 'hip abduction', '側臀機', '練側臀'],
     muscle: '臀腿',
+    equipment: '機械',
     cues: [
       '背貼墊，墊板頂住大腿外側。',
       '向外打開到舒服幅度，慢夾返。',
@@ -920,6 +983,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Hip Adduction Machine',
     aliases: ['內收機', '夾腿機', 'hip adduction', '夾大腿'],
     muscle: '臀腿',
+    equipment: '機械',
     cues: [
       '墊板頂住大腿內側，背貼好。',
       '夾向中間，控制下放。',
@@ -935,6 +999,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Seated Calf Raise',
     aliases: ['坐姿小腿', '坐姿提踵', 'seated calf', '小腿機坐'],
     muscle: '小腿',
+    equipment: '機械',
     cues: [
       '大腿墊壓住，腳掌踩板上，腳跟伸出。',
       '踮起到頂稍停，下放拉長比目魚肌。',
@@ -950,6 +1015,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'T-Bar Row',
     aliases: ['T槓划船', 'T-bar', 'tbar row', '地雷划船', 'landmine row'],
     muscle: '背',
+    equipment: '槓鈴',
     cues: [
       '髖鉸鏈，背平，胸口略挺。',
       '拉到腹／下胸，夾肩胛，慢放。',
@@ -965,6 +1031,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Cable Fly',
     aliases: ['繩索飛鳥', 'cable fly', 'cable crossover', '交叉夾胸', '飛鳥繩'],
     muscle: '胸',
+    equipment: 'Cable',
     cues: [
       '雙側滑輪約胸高或略高，微向前踏。',
       '手肘微彎夾到胸前，像抱大樹。',
@@ -980,6 +1047,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Box Squat',
     aliases: ['箱蹲', 'box squat', '坐箱深蹲', '凳蹲'],
     muscle: '臀腿',
+    equipment: '槓鈴',
     cues: [
       '箱高約平行或略高，腳略闊。',
       '坐到箱上稍停再站起——學髖鉸同深度。',
@@ -995,6 +1063,7 @@ export const EXERCISES: ExerciseGuide[] = [
     nameEn: 'Reverse Lunge',
     aliases: ['後箭步', '後退弓箭步', 'reverse lunge', '向後弓步'],
     muscle: '臀腿',
+    equipment: '啞鈴',
     cues: [
       '一腳向後踏，前後膝約 90°，前腳跟出力站返。',
       '軀幹企直，前膝唔好過度內扣。',
@@ -1064,7 +1133,22 @@ function expandQueryTokens(q: string): string[] {
 }
 
 function exerciseHaystack(e: ExerciseGuide) {
-  return normalizeQuery([e.id, e.nameZh, e.nameEn, e.muscle, ...e.aliases].join(' '))
+  return normalizeQuery([e.id, e.nameZh, e.nameEn, e.muscle, e.equipment, ...e.aliases].join(' '))
+}
+
+export type ExerciseFilter = {
+  query?: string
+  muscle?: string | null
+  equipment?: Equipment | null
+}
+
+/** 部位 + 儀器 + 俗稱搜尋一齊用 */
+export function filterExercises(opts: ExerciseFilter = {}) {
+  const { query = '', muscle = null, equipment = null } = opts
+  let list = query.trim() ? searchExercises(query) : EXERCISES
+  if (muscle) list = list.filter((e) => e.muscle === muscle || e.muscle.includes(muscle))
+  if (equipment) list = list.filter((e) => e.equipment === equipment)
+  return list
 }
 
 export function searchExercises(q: string) {

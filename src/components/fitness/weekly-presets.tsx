@@ -50,7 +50,7 @@ export function WeeklyPresets({ userId, onApplied }: Props) {
     <div className="space-y-2">
       <div className="flex items-center gap-2 px-0.5">
         <Sparkles className="h-3.5 w-3.5 text-accent" />
-        <span className="text-xs font-medium text-muted">一週模板 · 撳一下跟住</span>
+        <span className="text-xs font-medium text-muted">週模板 · 撳一下跟住呢套課表</span>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         {WEEKLY_PRESETS.map((p) => (
@@ -81,7 +81,7 @@ export function WeeklyPresets({ userId, onApplied }: Props) {
               {p.blurb} · {p.plan.days.length} 日 · {p.plan.summary}
             </p>
             <div className="mt-2 text-[11px] font-semibold text-accent">
-              {busyId === p.id ? '設定緊…' : '用呢套'}
+              {busyId === p.id ? '設定緊…' : '跟住呢套'}
             </div>
           </button>
         ))}
@@ -94,9 +94,9 @@ export function WeeklyPresets({ userId, onApplied }: Props) {
 export function WeeklyPresetsCard(props: Props) {
   return (
     <Card>
-      <CardTitle className="text-lg">現成一週課表</CardTitle>
+      <CardTitle className="text-lg">週模板</CardTitle>
       <CardDesc className="mt-1 mb-3">
-        唔想慢慢填？直接跟推拉腿、腿日加強或新手全身。
+        唔想慢慢砌？直接跟推拉腿、腿日加強或新手全身課表。
       </CardDesc>
       <WeeklyPresets {...props} />
     </Card>

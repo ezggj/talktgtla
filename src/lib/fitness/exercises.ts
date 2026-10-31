@@ -2,11 +2,16 @@ export {
   EXERCISES,
   GENERIC_CUES,
   NEWBIE_SEARCH_CHIPS,
+  MUSCLE_FILTERS,
+  EQUIPMENT_FILTERS,
   exerciseById,
   searchExercises,
+  filterExercises,
   matchedAliasLabel,
   resolveExerciseGuide,
   type ExerciseGuide,
+  type Equipment,
+  type ExerciseFilter,
 } from '@/lib/exercises/library'
 
 /** @deprecated Prefer ExerciseGuide — kept for older imports */
