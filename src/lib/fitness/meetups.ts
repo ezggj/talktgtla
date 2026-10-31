@@ -125,6 +125,25 @@ export function popularMeetupBranches(limit = 10): string[] {
   return out.slice(0, limit)
 }
 
+
+/** Count open meetups per area for "現場" chips (today + upcoming open). */
+export function meetupAreaCounts(meetups: GymMeetup[]): { area: string; count: number; gymName: string }[] {
+  const map = new Map<string, { area: string; count: number; gymName: string }>()
+  for (const m of meetups) {
+    if (m.status !== 'open') continue
+    const key = `${m.gym_id}::${m.area}`
+    const cur = map.get(key)
+    if (cur) cur.count += 1
+    else map.set(key, { area: m.area, count: 1, gymName: m.gym_name })
+  }
+  return [...map.values()].sort((a, b) => b.count - a.count || a.area.localeCompare(b.area, 'zh-HK'))
+}
+
+export function filterMeetupsByArea(meetups: GymMeetup[], area: string | null): GymMeetup[] {
+  if (!area) return meetups
+  return meetups.filter((m) => m.area === area)
+}
+
 export function formatMeetupSlot(iso: string): string {
   try {
     const d = new Date(iso)
