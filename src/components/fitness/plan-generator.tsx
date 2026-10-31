@@ -22,6 +22,7 @@ import {
   type PlanInputs,
 } from '@/lib/fitness/plan-generator'
 import { cn } from '@/lib/utils'
+import { ExerciseHowTo } from '@/components/fitness/exercise-howto'
 
 type Props = {
   userId: string | null
@@ -223,16 +224,18 @@ export function PlanGenerator({ userId }: Props) {
                       開波
                     </Link>
                   </div>
-                  <ul className="space-y-1">
+                  <ul className="space-y-2">
                     {d.exercises.map((e) => (
-                      <li
-                        key={e.exerciseId + e.nameZh}
-                        className="text-xs flex justify-between gap-2 text-muted"
-                      >
-                        <span className="text-foreground">{e.nameZh}</span>
-                        <span className="tabular-nums shrink-0">
-                          {e.sets} × {e.reps}
-                        </span>
+                      <li key={e.exerciseId + e.nameZh} className="text-xs">
+                        <div className="flex justify-between gap-2 text-muted">
+                          <span className="text-foreground font-medium">{e.nameZh}</span>
+                          <span className="tabular-nums shrink-0">
+                            {e.sets} × {e.reps}
+                          </span>
+                        </div>
+                        <div className="mt-1">
+                          <ExerciseHowTo exerciseId={e.exerciseId} exerciseName={e.nameZh} />
+                        </div>
                       </li>
                     ))}
                   </ul>

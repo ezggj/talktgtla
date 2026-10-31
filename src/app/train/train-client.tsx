@@ -31,6 +31,7 @@ import {
   exerciseById,
   searchExercises,
 } from '@/lib/fitness/exercises'
+import { ExerciseHowTo, ExerciseHowToHint } from '@/components/fitness/exercise-howto'
 import {
   type WorkoutSession,
   type WorkoutSet,
@@ -573,7 +574,7 @@ export function TrainClient() {
 
                     {selectedEx ? (
                       <>
-                        <div className="mb-4">
+                        <div className="mb-3">
                           <div className="font-serif text-2xl tracking-tight">
                             {exerciseById(selectedEx)?.nameZh}
                           </div>
@@ -584,6 +585,9 @@ export function TrainClient() {
                                 · PR {prs[selectedEx].weightKg}kg × {prs[selectedEx].reps}
                               </span>
                             )}
+                          </div>
+                          <div className="mt-2.5">
+                            <ExerciseHowTo exerciseId={selectedEx} />
                           </div>
                         </div>
 
@@ -679,7 +683,10 @@ export function TrainClient() {
                       </div>
                       {setsByExercise.map((group) => (
                         <div key={group.id}>
-                          <div className="text-sm font-medium mb-2">{group.name}</div>
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="text-sm font-medium">{group.name}</div>
+                            <ExerciseHowTo exerciseId={group.id} exerciseName={group.name} />
+                          </div>
                           <ul className="space-y-1.5">
                             {group.sets.map((s) => (
                               <li
@@ -883,23 +890,28 @@ export function TrainClient() {
               <ul className="overflow-y-auto p-2 flex-1">
                 {(search ? filtered : EXERCISES).map((ex) => (
                   <li key={ex.id}>
-                    <button
-                      type="button"
-                      onClick={() => pickExercise(ex.id)}
-                      className="w-full text-left rounded-2xl px-3 py-3 hover:bg-accent-soft/60 transition flex items-center justify-between"
-                    >
-                      <div>
-                        <div className="text-sm font-medium">{ex.nameZh}</div>
-                        <div className="text-[11px] text-muted">
-                          {ex.nameEn} · {ex.muscle}
+                    <div className="flex items-center gap-1 rounded-2xl hover:bg-accent-soft/60 transition">
+                      <button
+                        type="button"
+                        onClick={() => pickExercise(ex.id)}
+                        className="flex-1 text-left rounded-2xl px-3 py-3 flex items-center justify-between min-w-0"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium">{ex.nameZh}</div>
+                          <div className="text-[11px] text-muted">
+                            {ex.nameEn} · {ex.muscle}
+                          </div>
                         </div>
+                        {prs[ex.id] && (
+                          <span className="text-[11px] text-accent tabular-nums ml-2 shrink-0">
+                            {prs[ex.id].weightKg}kg
+                          </span>
+                        )}
+                      </button>
+                      <div className="pr-2.5 shrink-0">
+                        <ExerciseHowToHint exercise={ex} />
                       </div>
-                      {prs[ex.id] && (
-                        <span className="text-[11px] text-accent tabular-nums">
-                          {prs[ex.id].weightKg}kg
-                        </span>
-                      )}
-                    </button>
+                    </div>
                   </li>
                 ))}
               </ul>
