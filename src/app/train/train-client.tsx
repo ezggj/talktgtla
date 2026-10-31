@@ -610,6 +610,11 @@ export function TrainClient() {
     }))
   }, [active])
 
+  const coachTip = useMemo(
+    () => buildTrainCoachBlurb(sessions).lines[0] || '',
+    [sessions]
+  )
+
   if (!ready || !authReady) {
     return (
       <AppShell>
@@ -623,8 +628,6 @@ export function TrainClient() {
       ? [...active.sets].reverse().find((s) => s.exerciseId === selectedEx) ||
         lastSetForExercise(sessions, selectedEx)
       : null
-
-  const coachTip = useMemo(() => buildTrainCoachBlurb(sessions).lines[0] || '', [sessions])
 
   const nextPlanExercise = planQueue.find((id) => id !== selectedEx) || null
 
