@@ -79,7 +79,7 @@ export function ShareCardButton(props: Props) {
         {props.label ?? '分享卡'}
       </Button>
       {note && (
-        <p className="absolute -bottom-5 left-0 right-0 text-center text-[10px] text-muted">{note}</p>
+        <p className="absolute -bottom-7 left-1/2 -translate-x-1/2 rounded-full border border-border bg-surface px-2.5 py-0.5 text-[10px] font-medium text-accent shadow-soft whitespace-nowrap jump-in">{note}</p>
       )}
     </div>
   )

@@ -1,7 +1,7 @@
 /** Fitness + chat-adjacent achievements (localStorage). */
 
 import type { MealEntry, WorkoutSession, PRMap } from './storage'
-import { computeStreak } from './streaks'
+import { computeStreak, weekConsistency } from './streaks'
 
 export const FITNESS_ACH_KEY = 'talktgtla-fitness-achievements-v1'
 
@@ -14,6 +14,8 @@ export type FitnessAchievementId =
   | 'first_meal'
   | 'protein_goal_day'
   | 'plan_week_half'
+  | 'ten_workouts'
+  | 'heatmap_week'
 
 export type FitnessAchievement = {
   id: FitnessAchievementId
@@ -71,6 +73,18 @@ export const FITNESS_ACHIEVEMENTS: FitnessAchievement[] = [
     description: '一星期課表完成一半或以上',
     emoji: '✨',
   },
+  {
+    id: 'ten_workouts',
+    title: '十場達人',
+    description: '累積完成 10 次訓練',
+    emoji: '🚀',
+  },
+  {
+    id: 'heatmap_week',
+    title: '熱圖點亮',
+    description: '一星期內有 3 日或以上訓練',
+    emoji: '🟩',
+  },
 ]
 
 function safeParse<T>(raw: string | null, fallback: T): T {
@@ -113,9 +127,11 @@ export function evaluateFitnessAchievements(input: {
 
   tryUnlock('first_workout', finished.length >= 1)
   tryUnlock('five_workouts', finished.length >= 5)
+  tryUnlock('ten_workouts', finished.length >= 10)
   tryUnlock('first_pr', Object.keys(input.prs).length >= 1)
   tryUnlock('streak_3', streak >= 3)
   tryUnlock('streak_7', streak >= 7)
+  tryUnlock('heatmap_week', weekConsistency(input.sessions).trainedCount >= 3)
   tryUnlock('first_meal', input.meals.length >= 1)
 
   if (input.proteinGoal && input.proteinGoal > 0) {

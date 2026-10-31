@@ -95,6 +95,11 @@ export function TrainHeatmap({
           ))}
         </div>
       </div>
+      {trainedDays === 0 && (
+        <p className="mb-2 text-[11px] text-muted leading-relaxed">
+          未有訓練紀錄——完場之後呢度會逐格點亮。
+        </p>
+      )}
       <div className="mt-2 flex items-center justify-between text-[10px] text-muted">
         <span>
           近 {weeks} 週 · {trainedDays} 日有練
