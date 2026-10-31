@@ -99,14 +99,14 @@ export function FeedbackSheet({ fab = false, card = false, userId, className }: 
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError(typeof data?.error === 'string' ? data.error : '交唔到，請再試')
+        setError(typeof data?.error === 'string' ? data.error : '交唔到，再試多次')
         return
       }
       setDone(true)
       setBody('')
       setContact('')
     } catch {
-      setError('網絡錯誤，請再試')
+      setError('網絡唔得，再試多次')
     } finally {
       setBusy(false)
     }

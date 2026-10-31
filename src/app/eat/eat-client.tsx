@@ -249,7 +249,7 @@ export function EatClient() {
           setSyncToast(result.note)
         }
       } catch (e) {
-        if (!cancelled) setCloudNote(e instanceof Error ? e.message : 'sync 唔到')
+        if (!cancelled) setCloudNote(e instanceof Error ? e.message : '同步唔到')
       } finally {
         if (!cancelled) setSyncing(false)
       }
@@ -586,7 +586,7 @@ export function EatClient() {
     try {
       if (typeof navigator !== 'undefined' && navigator.onLine === false && changed) {
         enqueueMeal(changed)
-        setCloudNote('離線中——已暫存，有網會上雲')
+        setCloudNote('暫時冇網，已留喺呢部機，有網會同步')
         return
       }
       const supabase = createClient()
@@ -601,7 +601,7 @@ export function EatClient() {
       }
     } catch (e) {
       if (changed) enqueueMeal(changed)
-      setCloudNote(e instanceof Error ? `${e.message} · 已暫存離線` : '存雲端唔到 · 已暫存離線')
+      setCloudNote(e instanceof Error ? `${e.message} · 已留喺呢部機` : '同步唔到 · 已留喺呢部機')
     }
   }
 
@@ -635,7 +635,7 @@ export function EatClient() {
     if (!draft || draft.status !== 'ready') return
     const name = draft.name.trim()
     if (!name) {
-      showToast('請先寫食物名稱')
+      showToast('先寫個名先')
       return
     }
     setReEstimating(true)
@@ -699,7 +699,7 @@ export function EatClient() {
   const reEstimateSavedMeal = async (id: string, name: string) => {
     const trimmed = name.trim()
     if (!trimmed) {
-      showToast('請先寫食物名稱')
+      showToast('先寫個名先')
       return
     }
     setReEstimating(true)
@@ -914,7 +914,7 @@ export function EatClient() {
           compact
           eyebrow="飲食"
           title="影低呢餐"
-          description="影相 · 港式快加 · 補劑 · gym撚常食 · 手動"
+          description="記低呢餐幾多卡路里同蛋白。"
         />
 
         {/* Four entry paths — 第一屏主入口 */}
@@ -986,7 +986,7 @@ export function EatClient() {
         {user && (
           <div className="mb-3 flex items-center gap-2 text-[11px] text-muted">
             <Cloud className={cn('h-3.5 w-3.5 text-accent', syncing && 'animate-pulse')} />
-            {syncing ? 'sync 緊…' : cloudNote || '飲食已上雲'}
+            {syncing ? '同步緊…' : cloudNote || '飲食已同步去你個帳戶'}
           </div>
         )}
 
@@ -2065,8 +2065,8 @@ export function EatClient() {
                     )}
                     <p className="text-[11px] text-muted text-center mt-3 leading-relaxed">
                       {draft.source === 'manual'
-                        ? 'AI 額用晒或者暫時唔得都冇問題——自己改完數字再入日記就得。數字仍係你負責，唔係營養師建議。'
-                        : 'AI／示範估算可有誤差，唔係營養師或醫療飲食建議。登入後入雲端歷史；過敏或疾病請咨詢專業人士。'}{' '}
+                        ? '自己改完數字，再入日記就得。'
+                        : '呢個數可以改。登入之後呢餐會跟住你個帳戶。'}{' '}
                       <a href="/disclaimer" className="text-accent font-medium hover:underline">
                         免責
                       </a>

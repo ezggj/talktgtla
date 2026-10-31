@@ -103,7 +103,7 @@ export async function POST(req: Request) {
     if (m.includes('invalid_body')) {
       return NextResponse.json({ error: '寫多少少啦（4–2000 字）' }, { status: 400 })
     }
-    return NextResponse.json({ error: '交唔到，請再試一次' }, { status: 500 })
+    return NextResponse.json({ error: '交唔到，再試多次' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true, id: data })

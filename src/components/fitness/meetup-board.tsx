@@ -332,7 +332,7 @@ export function MeetupBoard({ className }: { className?: string }) {
       }
       await refresh()
     } catch {
-      setError('開台失敗，請再試')
+      setError('開台唔到，再試多次')
     } finally {
       setBusy(false)
     }
@@ -371,7 +371,7 @@ export function MeetupBoard({ className }: { className?: string }) {
       }
       await refresh()
     } catch {
-      setError('入台失敗，請再試')
+      setError('入台唔到，再試多次')
     } finally {
       setBusy(false)
     }
@@ -443,7 +443,7 @@ export function MeetupBoard({ className }: { className?: string }) {
           <div>
             <CardTitle className="text-lg leading-snug">開台凑局</CardTitle>
             <CardDesc className="mt-1">
-              揀分店睇邊度有人開台——街坊凑埋練同一部位。線下見面請小心人身安全，風險自負；平台唔擔保對方身份。
+              睇邊度有人開台，一齊練。線下見面自己小心。
             </CardDesc>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">

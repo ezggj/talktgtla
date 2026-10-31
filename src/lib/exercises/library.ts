@@ -522,7 +522,7 @@ export const EXERCISES: ExerciseGuide[] = [
     cues: [
       '微屈肘，啞鈴由身側舉起至大約與肩平行（唔好高過耳）。',
       '想像倒水壺：微微傾啞鈴，主力用中束肩；下放慢。',
-      '常見錯：聳肩、甩勢太重——呢個動作宜輕重量高質量。',
+      '常見錯：聳肩、甩勢太重——呢個宜輕、做得準。',
     ],
     demoUrl: 'https://www.youtube.com/watch?v=3VcKaXpzqRo',
     demoLabel: 'YouTube 側平舉教學',
@@ -609,7 +609,7 @@ export const EXERCISES: ExerciseGuide[] = [
     cues: [
       '掌約肩寬、指尖微朝外；身體頭到腳踝成一直線，核心同臀輕夾。',
       '下放胸口接近地再推起；肘約 45°，唔好聳肩甩勢。',
-      '做唔到就膝着地或者斜掌（手撑檯／牆）打底——質量好過硬撐。',
+      '做唔到就膝着地或者斜掌（手撑檯／牆）打底——做得準好過硬撐。',
     ],
     demoUrl: 'https://www.youtube.com/watch?v=IODxDxX7oi4',
     demoLabel: 'YouTube 掌上壓',
@@ -696,7 +696,7 @@ export const EXERCISES: ExerciseGuide[] = [
     cues: [
       '肘或掌撐地，頭、肩、髖、腳踝成一直線——想像身下夾住支棍。',
       '核心同臀輕夾，正常呼吸；唔好塌腰、唔好抬臀太高。',
-      '抖震或者塌腰就停——短時間高質量好過硬撐變形；新手可以由膝撑開始。',
+      '抖震或者塌腰就停——做得準好過硬撐到走樣。新手可以由膝撑開始。',
     ],
     demoUrl: 'https://www.youtube.com/watch?v=ASdvN_XEl_c',
     demoLabel: 'YouTube 平板教學',

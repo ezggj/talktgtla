@@ -28,7 +28,7 @@ export default function DisclaimerPage() {
           compact
           eyebrow="法律同使用"
           title={DISCLAIMER_TITLE}
-          description="傾偈 · 訓練 · 飲食／AI · 會所 · 凑局 · 數據"
+          description="傾偈、訓練、飲食、會所、凑局"
         />
         <div className="rounded-[20px] border border-border bg-surface shadow-soft p-5">
           <DisclaimerFull />

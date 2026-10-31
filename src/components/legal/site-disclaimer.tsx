@@ -54,7 +54,7 @@ export function DisclaimerFull() {
   return (
     <article className="space-y-5 text-[13px] leading-relaxed text-foreground/90">
       <p className="text-[12px] text-muted">
-        Talk tgt la 涵蓋傾偈、訓練、飲食（含 AI 影餐）、健身房比較同凑局。用之前請睇清楚以下說明。最後更新：
+        Talk tgt la 有傾偈、訓練、飲食（包括影餐估營養）、會所比較同凑局。用之前睇清楚以下說明。最後更新：
         {DISCLAIMER_UPDATED}。
       </p>
       {DISCLAIMER_SECTIONS.map((section) => (

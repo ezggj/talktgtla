@@ -192,8 +192,7 @@ export function PlanGenerator({ userId }: Props) {
             <Badge tone="accent">課表</Badge>
             <CardTitle className="mt-2 text-xl">一星期點練？</CardTitle>
             <CardDesc className="mt-2">
-              週模板、自訂，或者填目標出課表。跟住之後訓練頁有進度，撳掣就開波。
-              {!userId ? '（訪客存本機；登入可上雲）' : ''}
+              答幾條，出一星期課表，撳開波就去練。
             </CardDesc>
           </div>
           <Sparkles className="h-5 w-5 text-accent shrink-0" />
@@ -257,7 +256,7 @@ export function PlanGenerator({ userId }: Props) {
               <div className="font-serif text-lg">{plan.title}</div>
               <p className="text-xs text-muted mt-1 leading-relaxed">{plan.summary}</p>
               <p className="text-[10px] text-muted mt-1">
-                {planId ? `已存上雲 · ${planId.slice(0, 8)}` : '已存呢部機——換機請登入上雲'}
+                {planId ? '已同步去你個帳戶' : '已留喺呢部機。登入先可以喺第部機睇返。'}
               </p>
             </div>
             {plan.days.map((d) => {

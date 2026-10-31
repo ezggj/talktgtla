@@ -314,7 +314,7 @@ export default function AdminPage() {
           value: stats.meals_total,
           hint: `今日 +${stats.meals_today}`,
         },
-        { label: '訓練方案', value: stats.plans_total, hint: '雲端方案總數' },
+        { label: '訓練方案', value: stats.plans_total, hint: '帳戶入面嘅課表' },
         { label: '封鎖 IP', value: stats.banned_ips, hint: '被 ban 嘅位址' },
       ]
     : []

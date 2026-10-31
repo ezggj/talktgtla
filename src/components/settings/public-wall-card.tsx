@@ -130,7 +130,7 @@ export function PublicWallCard() {
             </Link>
           </div>
           <p className="text-[10px] text-muted leading-relaxed">
-            而家係本機 stub：連結入面帶一週摘要 snapshot，未上雲社交牆。正式好友牆之後再加。
+            呢條連結只係呢部機出嘅一週摘要，未有公開牆。
           </p>
         </div>
       )}

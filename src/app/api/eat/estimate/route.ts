@@ -153,7 +153,7 @@ export async function POST(req: Request) {
   const dataUrl = body.imageDataUrl?.trim()
   if (!dataUrl || dataUrl.length > MAX_DATA_URL_CHARS) {
     return NextResponse.json(
-      { error: '相片太大或者缺失，請再影細啲', code: 'bad_image' },
+      { error: '相片太大或者冇影到，再影細啲', code: 'bad_image' },
       { status: 400 }
     )
   }

@@ -38,7 +38,7 @@ function authErrorMessage(raw: string, kind: 'otp' | 'verify' | 'oauth' = 'otp')
     return '驗證碼過期喇——撳「再寄一次」，或者改用 Google。'
   }
   if (lower.includes('network') || lower.includes('fetch') || lower.includes('failed to fetch')) {
-    return '網絡唔穩——檢查吓 Wi‑Fi／數據，陣間再試。'
+    return '網絡唔穩——睇吓 Wi‑Fi 定手機數據，陣間再試。'
   }
   if (lower.includes('provider') || lower.includes('not enabled')) {
     return 'Google 登入仲未喺後台開好——試下用電郵啦。'
@@ -104,7 +104,7 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
     }
   }
 
-  const sendLink = async () => {
+  const sendCode = async () => {
     setErr(null)
     setMsg(null)
     const trimmed = email.trim().toLowerCase()
@@ -117,14 +117,11 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
       const supabase = createClient()
       const { error } = await supabase.auth.signInWithOtp({
         email: trimmed,
-        options: {
-          emailRedirectTo: authRedirectTo(),
-          shouldCreateUser: true,
-        },
+        options: { shouldCreateUser: true },
       })
       if (error) throw error
       setPhase('sent')
-      setMsg('登入連結（同 6 位碼）寄咗喇。撳電郵入面條 link，或者喺下面填碼。')
+      setMsg('六位數字寄咗去你電郵。喺下面填，唔使撳連結。')
     } catch (e) {
       const raw = e instanceof Error ? e.message : '寄唔到，陣間再試'
       setErr(authErrorMessage(raw, 'otp'))
@@ -138,8 +135,8 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
     setErr(null)
     const trimmed = email.trim().toLowerCase()
     const token = otp.trim()
-    if (!trimmed || token.length < 6) {
-      setErr('電郵同 6 位碼都要填吓')
+    if (!trimmed || !/^\d{6}$/.test(token)) {
+      setErr('填電郵同六位數字')
       return
     }
     setBusy(true)
@@ -178,10 +175,10 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
       <Card className={compact ? 'py-4' : undefined}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <Badge tone="accent">已登入 · 雲端開咗</Badge>
+            <Badge tone="accent">已登入</Badge>
             <CardTitle className="mt-2 text-xl">資料跟住你走</CardTitle>
             <CardDesc className="mt-2 break-all">{user.email}</CardDesc>
-            <p className="mt-2 text-xs text-muted">訓練／飲食／目標會 sync 上雲；呢部機都有本地 cache，離線都睇到。</p>
+            <p className="mt-2 text-xs text-muted">訓練、飲食、目標會同步去你個帳戶。冇網都睇到呢部機嘅紀錄。</p>
           </div>
           <Button
             variant="secondary"
@@ -203,16 +200,10 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
       <div className="relative space-y-5">
         <div>
           <Badge tone="muted">訪客模式</Badge>
-          <CardTitle className="mt-2 text-xl">登入好處 · 一屏講清楚</CardTitle>
+          <CardTitle className="mt-2 text-xl">登入，換手機都睇到</CardTitle>
           <CardDesc className="mt-2">
-            而家資料淨係喺呢部機。登入之後：
+            而家紀錄淨係喺呢部機。登入先可以喺第部機睇返。
           </CardDesc>
-          <ul className="mt-3 space-y-1.5 text-[12px] text-foreground leading-relaxed">
-            <li className="flex gap-2"><span className="text-accent font-bold">✓</span><span>訓練／飲食／目標<strong className="font-semibold">上雲</strong>，換機都跟住</span></li>
-            <li className="flex gap-2"><span className="text-accent font-bold">✓</span><span>睇齊<strong className="font-semibold">日／週／月</strong>總計同連練</span></li>
-            <li className="flex gap-2"><span className="text-accent font-bold">✓</span><span>本機仍然有 cache，<strong className="font-semibold">離線都睇到</strong></span></li>
-            <li className="flex gap-2"><span className="text-accent font-bold">✓</span><span>傾偈照舊可以<strong className="font-semibold">匿名</strong>——帳戶唔綁花名</span></li>
-          </ul>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -237,8 +228,9 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
           <div className="h-px flex-1 bg-border/70" />
         </div>
 
+        <p className="text-[12px] text-muted leading-relaxed">次選：寄六位數字去電郵，唔使撳連結。</p>
         <label className="block text-xs text-muted">
-          電郵（次選）
+          電郵
           <Input
             type="email"
             autoComplete="email"
@@ -251,13 +243,15 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
         </label>
         {phase === 'sent' && (
           <label className="block text-xs text-muted">
-            6 位驗證碼（電郵有顯示就填）
+            六位數字
             <Input
               inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
               className="mt-1.5 tracking-widest"
               placeholder="123456"
               value={otp}
-              onChange={(e) => setOtp(e.target.value)}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
               disabled={oauthLocked}
             />
           </label>
@@ -266,7 +260,7 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
           <Button
             variant="secondary"
             className="flex-1"
-            onClick={() => void sendLink()}
+            onClick={() => void sendCode()}
             disabled={oauthLocked}
           >
             {busy ? (
@@ -274,7 +268,7 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
             ) : (
               <Mail className="h-4 w-4" />
             )}
-            {phase === 'sent' ? '再寄一次' : '寄登入連結'}
+            {phase === 'sent' ? '再寄六位數字' : '寄六位數字'}
           </Button>
           {phase === 'sent' && (
             <Button
@@ -332,7 +326,7 @@ export function LoginPromptBanner({ href = '/me' }: { href?: string }) {
   return (
     <div className="rounded-2xl border border-border/80 bg-surface px-4 py-3.5 shadow-soft flex items-center justify-between gap-3">
       <p className="text-muted text-xs sm:text-[13px] leading-relaxed">
-        本機模式。登入＝上雲＋日週月總計；傾偈照舊匿名。
+        而家淨係呢部機。登入先可以喺第部機睇返。
       </p>
       <Link
         href={href}

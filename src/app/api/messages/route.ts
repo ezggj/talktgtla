@@ -34,13 +34,13 @@ function mapRpcError(message: string): { status: number; error: string } {
     return {
       status: 403,
       error:
-        '偵測到洗版（1 分鐘超過 20 句），你嘅 IP 已被自動封鎖。如有誤會請聯絡管理員解除。',
+        '講得太密，暫時封咗你。如果封錯，搵管理員開返。',
     }
   }
   if (m.includes('ip_banned') || m.includes('banned')) {
     return {
       status: 403,
-      error: '你嘅 IP 已被封鎖，暫時唔可以發言。如有誤會請聯絡管理員。',
+      error: '你暫時講唔到嘢。如果封錯，搵管理員。',
     }
   }
   if (m.includes('rate_limited')) {
@@ -50,7 +50,7 @@ function mapRpcError(message: string): { status: number; error: string } {
     }
   }
   if (m.includes('unauthorized')) {
-    return { status: 503, error: '暫時傳送唔到，請稍後再試' }
+    return { status: 503, error: '暫時送唔出，陣間再試' }
   }
   if (m.includes('invalid_username')) {
     return { status: 400, error: '暱稱唔妥當' }
@@ -58,7 +58,7 @@ function mapRpcError(message: string): { status: number; error: string } {
   if (m.includes('invalid_content')) {
     return { status: 400, error: '訊息唔妥當' }
   }
-  return { status: 500, error: '傳送失敗，請再試一次' }
+  return { status: 500, error: '送唔出，再試多次' }
 }
 
 export async function POST(req: Request) {

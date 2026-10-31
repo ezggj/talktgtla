@@ -87,7 +87,7 @@ export async function flushOfflineQueue(
   const q = readQueue()
   if (q.length === 0) return { ok: 0, left: 0, note: null }
   if (isProbablyOffline()) {
-    return { ok: 0, left: q.length, note: `離線暫存 ${q.length} 項 · 上網再 sync` }
+    return { ok: 0, left: q.length, note: `暫時冇網，${q.length} 項留喺呢部機，有網會再同步` }
   }
 
   const sessions = loadSessions()
@@ -116,8 +116,8 @@ export async function flushOfflineQueue(
   const note =
     ok > 0
       ? remaining.length
-        ? `已 sync ${ok} 項 · 仲有 ${remaining.length} 項等返`
-        : `離線暫存已全部上雲（${ok}）`
+        ? `已同步 ${ok} 項，仲有 ${remaining.length} 項等返`
+        : `冇網嗰陣留低嘅 ${ok} 項已同步去你個帳戶`
       : remaining.length
         ? `仲有 ${remaining.length} 項暫存 · 稍後再試`
         : null

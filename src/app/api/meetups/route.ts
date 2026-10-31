@@ -19,7 +19,7 @@ function mapError(message: string): { status: number; error: string } {
   if (m.includes('already_joined')) return { status: 409, error: '你已經入咗呢台' }
   if (m.includes('not_found')) return { status: 404, error: '搵唔到呢台' }
   if (m.includes('not_open') || m.includes('expired')) return { status: 409, error: '呢台已經唔再收' }
-  return { status: 500, error: '開台失敗，請再試一次' }
+  return { status: 500, error: '開台唔到，再試多次' }
 }
 
 export async function GET() {
