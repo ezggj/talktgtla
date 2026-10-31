@@ -99,6 +99,32 @@ self.addEventListener('message', (event) => {
     if (self.__restTimer) clearTimeout(self.__restTimer)
     self.__restTimer = null
   }
+  if (data.type === 'SCHEDULE_PING') {
+    const endAt = Number(data.endAt)
+    const delay = Math.max(0, endAt - Date.now())
+    const tag = data.tag || 'talktgtla-ping'
+    if (!self.__pingTimers) self.__pingTimers = {}
+    if (self.__pingTimers[tag]) clearTimeout(self.__pingTimers[tag])
+    self.__pingTimers[tag] = setTimeout(() => {
+      self.registration.showNotification(data.title || 'Talk tgt la', {
+        body: data.body || '',
+        tag,
+        icon: '/icons/icon-192.png',
+        badge: '/icons/favicon-32.png',
+        lang: 'zh-HK',
+        renotify: true,
+        data: { url: data.url || '/train' },
+      })
+      delete self.__pingTimers[tag]
+    }, delay)
+  }
+  if (data.type === 'CANCEL_PING') {
+    const tag = data.tag
+    if (tag && self.__pingTimers && self.__pingTimers[tag]) {
+      clearTimeout(self.__pingTimers[tag])
+      delete self.__pingTimers[tag]
+    }
+  }
 })
 
 self.addEventListener('notificationclick', (event) => {

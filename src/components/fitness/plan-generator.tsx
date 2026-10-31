@@ -54,6 +54,8 @@ export function PlanGenerator({ userId }: Props) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
+  const [step, setStep] = useState(0)
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -167,12 +169,41 @@ export function PlanGenerator({ userId }: Props) {
         cloudId,
       })
       if (!cloudId) setPlanId(meta.id)
+      setEditing(false)
+      setStep(0)
     } catch (e) {
       setErr(e instanceof Error ? e.message : '出唔到課表，試多次')
     } finally {
       setBusy(false)
     }
   }
+
+  const steps = [
+    {
+      label: '目標',
+      hint: '想變成點？揀一個就得，之後可以改。',
+    },
+    {
+      label: '經驗',
+      hint: '照實講。新手課表會少啲動作、多啲休息。',
+    },
+    {
+      label: '一週幾日',
+      hint: '寫你真係去到嘅日數，唔好寫理想。',
+    },
+    {
+      label: '每次幾耐',
+      hint: '連熱身計。趕時間就揀 30 或 45。',
+    },
+    {
+      label: '器材',
+      hint: '場地決定動作。屋企練就唔好揀健身房。',
+    },
+  ] as const
+  const showWizard = !plan || editing
+  const choiceLine = `${GOAL_OPTIONS.find((o) => o.id === goal)?.label ?? ''} · ${
+    EXP_OPTIONS.find((o) => o.id === experience)?.label ?? ''
+  } · 一週 ${days} 日 · ${minutes} 分 · ${EQ_OPTIONS.find((o) => o.id === equipment)?.label ?? ''}`
 
   if (!loaded) {
     return (
@@ -192,62 +223,126 @@ export function PlanGenerator({ userId }: Props) {
             <Badge tone="accent">課表</Badge>
             <CardTitle className="mt-2 text-xl">一星期點練？</CardTitle>
             <CardDesc className="mt-2">
-              答幾條，出一星期課表，撳開波就去練。
+              答五步，出一星期課表，撳開波就去練。
             </CardDesc>
           </div>
           <Sparkles className="h-5 w-5 text-accent shrink-0" />
         </div>
 
-        <Field label="目標">
-          <ChipRow
-            options={GOAL_OPTIONS.map((o) => ({ id: o.id, label: o.label }))}
-            value={goal}
-            onChange={(v) => setGoal(v as PlanGoal)}
-          />
-        </Field>
-        <Field label="經驗">
-          <ChipRow
-            options={EXP_OPTIONS.map((o) => ({ id: o.id, label: o.label }))}
-            value={experience}
-            onChange={(v) => setExperience(v as PlanExperience)}
-          />
-        </Field>
-        <Field label="一週幾日">
-          <ChipRow
-            options={[2, 3, 4, 5, 6].map((d) => ({ id: String(d), label: `${d} 日` }))}
-            value={String(days)}
-            onChange={(v) => setDays(Number(v) as 2 | 3 | 4 | 5 | 6)}
-          />
-        </Field>
-        <Field label="每次幾耐">
-          <ChipRow
-            options={[30, 45, 60, 75].map((m) => ({ id: String(m), label: `${m} 分` }))}
-            value={String(minutes)}
-            onChange={(v) => setMinutes(Number(v) as 30 | 45 | 60 | 75)}
-          />
-        </Field>
-        <Field label="器材">
-          <ChipRow
-            options={EQ_OPTIONS.map((o) => ({ id: o.id, label: o.label }))}
-            value={equipment}
-            onChange={(v) => setEquipment(v as PlanEquipment)}
-          />
-        </Field>
-        <label className="block text-xs text-muted">
-          傷患／備註（唔填都得）
-          <Input
-            className="mt-1.5"
-            placeholder="例如：右膝唔好深蹲太深"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </label>
+        {showWizard ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold text-accent">
+                第 {step + 1} / {steps.length} 步 · {steps[step].label}
+              </p>
+              <div className="flex gap-1" aria-hidden>
+                {steps.map((s, i) => (
+                  <span
+                    key={s.label}
+                    className={cn(
+                      'h-1.5 w-5 rounded-full',
+                      i <= step ? 'bg-accent' : 'bg-border'
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
+            <p className="text-sm text-muted leading-relaxed">{steps[step].hint}</p>
 
-        <Button className="w-full" onClick={() => void run()} disabled={busy}>
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {plan ? '重新出一套' : '出我嘅課表'}
-        </Button>
-        {err && <p className="text-xs text-red-600">{err}</p>}
+            {step === 0 && (
+              <ChipRow
+                options={GOAL_OPTIONS.map((o) => ({ id: o.id, label: o.label }))}
+                value={goal}
+                onChange={(v) => setGoal(v as PlanGoal)}
+              />
+            )}
+            {step === 1 && (
+              <ChipRow
+                options={EXP_OPTIONS.map((o) => ({ id: o.id, label: o.label }))}
+                value={experience}
+                onChange={(v) => setExperience(v as PlanExperience)}
+              />
+            )}
+            {step === 2 && (
+              <ChipRow
+                options={[2, 3, 4, 5, 6].map((d) => ({ id: String(d), label: `${d} 日` }))}
+                value={String(days)}
+                onChange={(v) => setDays(Number(v) as 2 | 3 | 4 | 5 | 6)}
+              />
+            )}
+            {step === 3 && (
+              <ChipRow
+                options={[30, 45, 60, 75].map((m) => ({ id: String(m), label: `${m} 分` }))}
+                value={String(minutes)}
+                onChange={(v) => setMinutes(Number(v) as 30 | 45 | 60 | 75)}
+              />
+            )}
+            {step === 4 && (
+              <div className="space-y-3">
+                <ChipRow
+                  options={EQ_OPTIONS.map((o) => ({ id: o.id, label: o.label }))}
+                  value={equipment}
+                  onChange={(v) => setEquipment(v as PlanEquipment)}
+                />
+                <label className="block text-xs text-muted">
+                  傷患／備註（唔填都得）
+                  <Input
+                    className="mt-1.5"
+                    placeholder="例如：右膝唔好深蹲太深"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
+                </label>
+                <p className="rounded-2xl bg-surface-muted px-3 py-2 text-[12px] leading-relaxed text-muted">
+                  而家係：{choiceLine}
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                disabled={step === 0 && !plan}
+                onClick={() => {
+                  if (step === 0 && plan) {
+                    setEditing(false)
+                    setErr(null)
+                    return
+                  }
+                  setStep((s) => Math.max(0, s - 1))
+                }}
+              >
+                {step === 0 && plan ? '返去課表' : '上一步'}
+              </Button>
+              {step < steps.length - 1 ? (
+                <Button className="flex-[1.4]" onClick={() => setStep((s) => s + 1)}>
+                  下一步
+                </Button>
+              ) : (
+                <Button className="flex-[1.4]" onClick={() => void run()} disabled={busy}>
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  {plan ? '重新出一套' : '出我嘅課表'}
+                </Button>
+              )}
+            </div>
+            {err && <p className="text-xs text-red-600">{err}</p>}
+          </div>
+        ) : (
+          plan && (
+            <Button
+              variant="soft"
+              className="w-full"
+              onClick={() => {
+                setEditing(true)
+                setStep(0)
+                setErr(null)
+              }}
+            >
+              改答案 · 重新出
+            </Button>
+          )
+        )}
 
         {plan && (
           <div className="space-y-3 pt-2 border-t border-border">
@@ -255,6 +350,7 @@ export function PlanGenerator({ userId }: Props) {
             <div>
               <div className="font-serif text-lg">{plan.title}</div>
               <p className="text-xs text-muted mt-1 leading-relaxed">{plan.summary}</p>
+              <p className="text-[11px] text-muted mt-1">每日右邊「開波」會帶晒動作去訓練頁，唔使再揀一次。</p>
               <p className="text-[10px] text-muted mt-1">
                 {planId ? '已同步去你個帳戶' : '已留喺呢部機。登入先可以喺第部機睇返。'}
               </p>
@@ -305,15 +401,6 @@ export function PlanGenerator({ userId }: Props) {
         )}
       </div>
     </Card>
-  )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="text-xs text-muted mb-1.5">{label}</div>
-      {children}
-    </div>
   )
 }
 

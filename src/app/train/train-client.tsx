@@ -888,7 +888,7 @@ export function TrainClient() {
           }
         />
 
-        <div className="mb-3 flex gap-1.5 p-1 rounded-2xl bg-[#f0efee] border border-border">
+        <div className="mb-3 flex gap-1.5 p-1 rounded-2xl bg-surface-muted border border-border">
           {(
             [
               { id: 'today' as const, label: '今日', icon: Play },
@@ -1181,12 +1181,14 @@ export function TrainClient() {
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <Flame className="h-3.5 w-3.5 text-accent shrink-0" />
-                          <span className="text-sm font-semibold truncate">
+                          <span
+                            className="text-sm font-semibold truncate"
+                            title={streak > 0 ? '聽日再練就續到條連練' : '完場之後先計連練'}
+                          >
                             {streak > 0 ? `連練 ${streak} 日` : `本週 ${weekTrainCount}/7`}
                           </span>
                           <span className="text-[10px] text-muted truncate">
-                            · 今日 {todayDone.length} ·{' '}
-                            {Math.round(weekVolume).toLocaleString()} 容量
+                            · {streak > 0 ? '聽日再嚟就續' : '完一場就開始計'} · 今日 {todayDone.length}
                           </span>
                         </div>
                         <button
@@ -2267,17 +2269,26 @@ export function TrainClient() {
                     onSecondary={() => setTab('templates')}
                   />
                 ) : (
-                  <ul className="space-y-2">
+                  <ul className="max-h-80 space-y-2 overflow-y-auto">
                     {Object.entries(prs)
                       .sort((a, b) => b[1].weightKg - a[1].weightKg)
-                      .slice(0, 8)
                       .map(([id, pr]) => (
                         <li
                           key={id}
-                          className="flex items-center justify-between rounded-xl border border-border px-3 py-2.5"
+                          className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5"
                         >
-                          <span className="text-sm font-medium">{exerciseById(id)?.nameZh || id}</span>
-                          <span className="text-sm tabular-nums text-accent font-semibold">
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-medium">
+                              {exerciseById(id)?.nameZh || id}
+                            </span>
+                            <span className="text-[10px] text-muted">
+                              {new Date(pr.at).toLocaleDateString('zh-HK', {
+                                month: 'numeric',
+                                day: 'numeric',
+                              })}
+                            </span>
+                          </span>
+                          <span className="text-sm tabular-nums text-accent font-semibold shrink-0">
                             {pr.weightKg} kg × {pr.reps}
                           </span>
                         </li>

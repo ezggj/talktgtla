@@ -10,7 +10,7 @@ const STEPS = [
     id: 'chat',
     icon: MessageCircle,
     title: '傾偈',
-    body: '首頁係香港人傾偈室。入個花名就可以講嘢；唔知開波講咩，撳「今日話題」就得。',
+    body: '首頁係香港人傾偈室。入個花名就可以講嘢；唔知講咩，撳今日話題或者上面嘅主題 chips。',
     href: '/',
     cta: '留喺傾偈',
   },
@@ -18,7 +18,7 @@ const STEPS = [
     id: 'train',
     icon: Dumbbell,
     title: '訓練',
-    body: '記組、休息倒數完自動跳下一組、動作有短片／GIF、日曆熱圖睇練幾密。下面 tabs 撳「訓練」就入。',
+    body: '記一組就開休息倒數，完場有容量同 PR。動作可以搜俗稱，再撳「點做」。下面 tabs 撳「訓練」。',
     href: '/train',
     cta: '去訓練睇下',
   },
@@ -26,7 +26,7 @@ const STEPS = [
     id: 'eat',
     icon: Utensils,
     title: '飲食',
-    body: '影餐或者打字，估卡路里同蛋白。登入之後，訓練同飲食可以喺第部機睇返。',
+    body: '影餐、港式快加或者手動入數。日、週、月有合計。登入先可以喺第部機睇返。',
     href: '/eat',
     cta: '去飲食睇下',
   },
@@ -116,7 +116,7 @@ export function NewbieGuide({ open, onClose }: Props) {
                 <Link
                   href={current.href}
                   onClick={onClose}
-                  className="inline-flex h-9 flex-1 items-center justify-center rounded-xl border border-border bg-surface px-3.5 text-xs font-medium shadow-soft hover:bg-[#f5f5f4] transition-colors"
+                  className="inline-flex h-9 flex-1 items-center justify-center rounded-xl border border-border bg-surface px-3.5 text-xs font-medium shadow-soft hover:bg-surface-muted transition-colors"
                 >
                   {current.cta}
                 </Link>

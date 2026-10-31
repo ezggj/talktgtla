@@ -79,7 +79,7 @@ export function ProgressBar({
   return (
     <div
       className={cn(
-        'w-full rounded-full bg-[#f0efee] overflow-hidden',
+        'w-full rounded-full bg-border overflow-hidden',
         height === 'sm' && 'h-1.5',
         height === 'md' && 'h-2',
         height === 'lg' && 'h-2.5',
