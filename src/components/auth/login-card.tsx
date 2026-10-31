@@ -115,13 +115,17 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
     setBusy(true)
     try {
       const supabase = createClient()
+      // Code flow: do not pass emailRedirectTo. That flag makes Supabase send a magic link
+      // ("Your sign-in link") instead of the 6-digit email OTP.
       const { error } = await supabase.auth.signInWithOtp({
         email: trimmed,
-        options: { shouldCreateUser: true },
+        options: {
+          shouldCreateUser: true,
+        },
       })
       if (error) throw error
       setPhase('sent')
-      setMsg('六位數字寄咗去你電郵。喺下面填，唔使撳連結。')
+      setMsg('六位數字寄咗去你電郵。喺下面填，唔使撳電郵入面個連結。')
     } catch (e) {
       const raw = e instanceof Error ? e.message : '寄唔到，陣間再試'
       setErr(authErrorMessage(raw, 'otp'))
