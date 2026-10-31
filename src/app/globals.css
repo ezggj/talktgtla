@@ -340,3 +340,27 @@ body {
 html[data-font-scale='sm'] { font-size: 15px; }
 html[data-font-scale='md'] { font-size: 16px; }
 html[data-font-scale='lg'] { font-size: 18px; }
+
+
+/* 橫屏記組：矮螢幕並排重量／組列表 */
+@media (orientation: landscape) and (max-height: 520px) {
+  .train-landscape-log {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 0.75rem;
+    align-items: start;
+  }
+  .train-landscape-log .thumb-cta {
+    grid-column: 1 / -1;
+  }
+}
+.train-landscape-log {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+@media (min-width: 768px) {
+  .train-landscape-log {
+    grid-template-columns: 1.1fr 0.9fr;
+  }
+}

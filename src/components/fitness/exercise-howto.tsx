@@ -1,8 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ChevronDown, ExternalLink, Lightbulb, Play } from 'lucide-react'
+import { ChevronDown, ExternalLink, Lightbulb, Play, Star } from 'lucide-react'
 import {
   GENERIC_CUES,
   resolveExerciseGuide,
@@ -10,6 +10,7 @@ import {
 } from '@/lib/exercises/library'
 import { springSoft, springSnappy } from '@/components/motion/presets'
 import { cn } from '@/lib/utils'
+import { isHowtoFav, toggleHowtoFav } from '@/lib/fitness/howto-favs'
 
 function youtubeIdFromUrl(url?: string | null): string | null {
   if (!url) return null
@@ -52,13 +53,18 @@ export function ExerciseHowTo({
   const reduce = useReducedMotion()
   const [open, setOpen] = useState(defaultOpen || alwaysOpen)
   const [gifFailed, setGifFailed] = useState(false)
+  const [fav, setFav] = useState(false)
   const shown = alwaysOpen || open
   const guide =
     resolveExerciseGuide(exerciseId) || resolveExerciseGuide(exerciseName || undefined)
+  const favId = guide?.id || exerciseId || ''
 
   const cues = guide?.cues?.length ? guide.cues : [...GENERIC_CUES]
   const title = guide ? `${guide.nameZh} · 點做` : '點做'
   const ytId = useMemo(() => youtubeIdFromUrl(guide?.demoUrl), [guide?.demoUrl])
+  useEffect(() => {
+    if (favId) setFav(isHowtoFav(favId))
+  }, [favId])
   const thumb = ytId ? `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg` : null
   const gifUrl = guide?.demoGifUrl && !gifFailed ? guide.demoGifUrl : null
 
@@ -109,7 +115,28 @@ export function ExerciseHowTo({
                 variant === 'inline' && 'mt-2'
               )}
             >
-              <div className="text-xs font-semibold text-accent mb-2">{title}</div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="text-xs font-semibold text-accent">{title}</div>
+                {favId ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = toggleHowtoFav(favId)
+                      setFav(next.includes(favId))
+                    }}
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold touch-manipulation',
+                      fav
+                        ? 'border-accent/40 bg-accent-soft text-accent'
+                        : 'border-border text-muted hover:text-accent'
+                    )}
+                    aria-label={fav ? '移出常睇' : '加入常睇'}
+                  >
+                    <Star className={cn('h-3 w-3', fav && 'fill-current')} />
+                    {fav ? '常睇' : '收藏'}
+                  </button>
+                ) : null}
+              </div>
 
               {/* Demo GIF / short video preview */}
               {(gifUrl || thumb) && (

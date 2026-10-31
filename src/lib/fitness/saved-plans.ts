@@ -158,6 +158,25 @@ export function saveWeeklySchedule(slots: WeeklySlot[]) {
   writeJson(WEEKLY_KEY, slots)
 }
 
+/** Swap training content between two calendar days (nameZh stays). */
+export function moveWeeklySlot(slots: WeeklySlot[], dayIndex: number, dir: -1 | 1): WeeklySlot[] {
+  const target = dayIndex + dir
+  if (target < 0 || target > 6) return slots.map((s) => ({ ...s }))
+  const next = slots.map((s) => ({ ...s }))
+  const a = next.find((s) => s.dayIndex === dayIndex)
+  const b = next.find((s) => s.dayIndex === target)
+  if (!a || !b) return next
+  const tmp = { templateId: a.templateId, label: a.label, hint: a.hint }
+  a.templateId = b.templateId
+  a.label = b.label
+  a.hint = b.hint
+  b.templateId = tmp.templateId
+  b.label = tmp.label
+  b.hint = tmp.hint
+  return next
+}
+
+
 export function resetWeeklySchedule() {
   try {
     localStorage.removeItem(WEEKLY_KEY)

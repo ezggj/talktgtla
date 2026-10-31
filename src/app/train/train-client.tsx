@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   Check,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Flame,
   History,
@@ -11,7 +13,9 @@ import {
   Play,
   Plus,
   Search,
+  Smartphone,
   Sparkles,
+  Star,
   Timer,
   Trophy,
   Users,
@@ -95,6 +99,7 @@ import {
   loadCustomDayPlans,
   loadWeeklySchedule,
   saveWeeklySchedule,
+  moveWeeklySlot,
   saveTemplateAsCustom,
   deleteCustomDayPlan,
   computeWeeklySlotProgress,
@@ -104,6 +109,8 @@ import {
 } from '@/lib/fitness/saved-plans'
 import { ActivePlanPanel } from '@/components/fitness/active-plan-panel'
 import { WeeklyPresets } from '@/components/fitness/weekly-presets'
+import { suggestSubstitutes } from '@/lib/fitness/substitutes'
+import { loadHowtoFavs } from '@/lib/fitness/howto-favs'
 import { CustomPlanBuilder } from '@/components/fitness/custom-plan-builder'
 import { hydrateActivePlanFromCloud, loadActivePlan } from '@/lib/fitness/plan-store'
 import {
@@ -194,6 +201,9 @@ export function TrainClient() {
   const [restFullscreen, setRestFullscreen] = useState(true)
   const [pendingOutcome, setPendingOutcome] = useState<SetOutcome>('ok')
   const [showFirstGuide, setShowFirstGuide] = useState(false)
+  const [howtoFavs, setHowtoFavs] = useState<string[]>([])
+  const [landscapeLog, setLandscapeLog] = useState(false)
+  const [avoidEquip, setAvoidEquip] = useState<Equipment | null>(null)
 
   // Derived / secondary state — must stay above ready/authReady gate (React #310)
   const [todayDone, setTodayDone] = useState<WorkoutSession[]>([])
@@ -238,6 +248,15 @@ export function TrainClient() {
     return buildOverloadTip(selectedEx, sessions, active)
   }, [selectedEx, sessions, active])
 
+  const subTips = useMemo(() => {
+    if (!selectedEx) return []
+    return suggestSubstitutes(selectedEx, {
+      avoidEquipment: avoidEquip || undefined,
+      preferEquipment: equipmentFilter,
+      limit: 3,
+    })
+  }, [selectedEx, avoidEquip, equipmentFilter])
+
   useEffect(() => {
     setOverloadDismissedId(null)
   }, [selectedEx])
@@ -249,7 +268,23 @@ export function TrainClient() {
     const a = loadActiveSession()
     setActive(a)
     setSfxOn(loadTrainSfxEnabled())
+    setHowtoFavs(loadHowtoFavs())
     setReady(true)
+  }, [])
+
+  useEffect(() => {
+    if (!pickerOpen) return
+    setHowtoFavs(loadHowtoFavs())
+  }, [pickerOpen])
+
+  // 橫屏記組：矮高度 landscape 自動開；亦可手動
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(orientation: landscape) and (max-height: 520px)')
+    const apply = () => setLandscapeLog(mq.matches)
+    apply()
+    mq.addEventListener?.('change', apply)
+    return () => mq.removeEventListener?.('change', apply)
   }, [])
 
   useEffect(() => {
@@ -752,6 +787,35 @@ export function TrainClient() {
             >
               {!active ? (
                 <Stagger className="space-y-3">
+                  {/* 示範腿日 — 最醒目一掣開波 */}
+                  <StaggerItem>
+                    <Card className="py-4 border-accent/50 bg-gradient-to-br from-accent via-accent to-[#0d9488] text-white shadow-hover ring-2 ring-accent/30">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-semibold tracking-wide text-white/80 mb-1">
+                            示範課表 · Threads 成日問
+                          </p>
+                          <div className="font-serif text-2xl tracking-tight leading-tight">新手腿日</div>
+                          <p className="mt-1.5 text-[12px] text-white/85 leading-relaxed">
+                            深蹲／RDL／保加利亞＋腿機——每動作有「點做」。第一次練腿跟呢套就得。
+                          </p>
+                        </div>
+                        <Badge className="shrink-0 bg-white/20 text-white border-0">推介</Badge>
+                      </div>
+                      <Button
+                        size="lg"
+                        className="mt-3 w-full h-12 bg-white text-accent hover:bg-white/90 font-semibold touch-manipulation"
+                        onClick={() => {
+                          const t = TEMPLATES.find((x) => x.id === 'newbie-leg-day')
+                          if (!t) return
+                          startSession(t.id, t.exerciseIds)
+                        }}
+                      >
+                        <Play className="h-4 w-4" />
+                        開波 · 示範腿日
+                      </Button>
+                    </Card>
+                  </StaggerItem>
                   {/* ① 第一屏：今日 + 主 CTA（週日子 chips 收埋，少堆高） */}
                   <StaggerItem>
                     {loadActivePlan()?.plan?.days?.length ? (
@@ -1113,7 +1177,10 @@ export function TrainClient() {
                   )}
 
                   {/* Logger */}
-                  <div ref={loggerRef}>
+                  <div
+                    ref={loggerRef}
+                    className={cn(landscapeLog && 'train-landscape-log grid gap-3 md:grid-cols-2')}
+                  >
                   <Card
                     className={cn(restReadyNext && 'ring-2 ring-accent/30 rest-done-glow')}
                   >
@@ -1255,6 +1322,52 @@ export function TrainClient() {
                             </div>
                           )
                         })()}
+
+                        {subTips.length > 0 && (
+                          <div className="mb-3 rounded-2xl border border-border bg-surface-muted px-3 py-2.5">
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                              <div className="text-[10px] font-semibold text-muted tracking-wide">
+                                器械替代
+                              </div>
+                              <div className="flex gap-1 flex-wrap justify-end">
+                                {(['槓鈴', '啞鈴', '機械'] as const).map((eq) => (
+                                  <button
+                                    key={eq}
+                                    type="button"
+                                    onClick={() =>
+                                      setAvoidEquip((v) => (v === eq ? null : eq))
+                                    }
+                                    className={cn(
+                                      'rounded-full px-2 py-0.5 text-[10px] border touch-manipulation',
+                                      avoidEquip === eq
+                                        ? 'border-accent bg-accent-soft text-accent font-semibold'
+                                        : 'border-border text-muted'
+                                    )}
+                                  >
+                                    冇{eq}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {subTips.map(({ exercise: ex, reason }) => (
+                                <button
+                                  key={ex.id}
+                                  type="button"
+                                  onClick={() => pickExercise(ex.id)}
+                                  className="rounded-full border border-accent/25 bg-accent-soft/50 px-2.5 py-1.5 text-[11px] font-medium text-accent touch-manipulation"
+                                  title={reason}
+                                >
+                                  {ex.nameZh}
+                                  <span className="text-muted font-normal"> · {ex.equipment}</span>
+                                </button>
+                              ))}
+                            </div>
+                            {avoidEquip && (
+                              <p className="mt-1.5 text-[10px] text-muted">按「冇{avoidEquip}」篩替代 · 撳動作即換</p>
+                            )}
+                          </div>
+                        )}
 
                         {overloadTip && overloadTip.id !== overloadDismissedId && (
                           <div className="mb-3 flex items-start gap-2.5 rounded-2xl border border-accent/20 bg-accent-soft/40 px-3 py-2.5">
@@ -1484,7 +1597,6 @@ export function TrainClient() {
                       </button>
                     )}
                   </Card>
-                  </div>
 
                   {/* Sets list */}
                   {setsByExercise.length > 0 && (
@@ -1548,6 +1660,8 @@ export function TrainClient() {
                       ))}
                     </Card>
                   )}
+
+                  </div>
 
                   <div className={`thumb-cta sticky z-20 -mx-1 px-1 pt-2 pb-1 bg-gradient-to-t from-background via-background to-transparent ${selectedEx ? 'above-nav-stack' : 'above-nav-gap'}`}>
                     <div className="flex gap-2">
@@ -1657,7 +1771,7 @@ export function TrainClient() {
                       重置
                     </button>
                   </div>
-                  <div className="grid grid-cols-7 gap-1.5 mb-3">
+                  <div className="grid grid-cols-7 gap-1.5 mb-2">
                     {(weekProgress.length
                       ? weekProgress
                       : weekSlots.map((slot) => ({
@@ -1698,6 +1812,48 @@ export function TrainClient() {
                         </button>
                       )
                     })}
+                  </div>
+                  <div className="mb-3 space-y-1">
+                    <p className="text-[10px] text-muted px-0.5">調日：上／下移對調訓練內容（日子名唔變）</p>
+                    {weekSlots.map((s) => (
+                      <div
+                        key={`reorder-${s.dayIndex}`}
+                        className="flex items-center gap-2 rounded-xl border border-border bg-surface px-2.5 py-1.5"
+                      >
+                        <span className="w-6 text-[11px] font-semibold text-muted">星期{s.nameZh}</span>
+                        <span className="flex-1 text-[12px] font-medium truncate">{s.label}</span>
+                        <button
+                          type="button"
+                          disabled={s.dayIndex === 0}
+                          aria-label="上移"
+                          onClick={() => {
+                            const next = moveWeeklySlot(weekSlots, s.dayIndex, -1)
+                            saveWeeklySchedule(next)
+                            setWeekSlots(next)
+                            setWeekProgress(computeWeeklySlotProgress(sessions))
+                            setTodayHint(getTodayPlanHint(sessions))
+                          }}
+                          className="rounded-lg border border-border p-1.5 text-muted disabled:opacity-30 touch-manipulation"
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={s.dayIndex === 6}
+                          aria-label="下移"
+                          onClick={() => {
+                            const next = moveWeeklySlot(weekSlots, s.dayIndex, 1)
+                            saveWeeklySchedule(next)
+                            setWeekSlots(next)
+                            setWeekProgress(computeWeeklySlotProgress(sessions))
+                            setTodayHint(getTodayPlanHint(sessions))
+                          }}
+                          className="rounded-lg border border-border p-1.5 text-muted disabled:opacity-30 touch-manipulation"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                   {todayHint?.template && !todayHint.doneToday && (
                     <Button
@@ -1740,13 +1896,15 @@ export function TrainClient() {
                       單日模板 · 推拉腿／腿日／全身
                     </p>
                   </div>
-                  {TEMPLATES.map((t) => (
+                  {[...TEMPLATES].sort((a, b) => (a.id === 'newbie-leg-day' ? -1 : b.id === 'newbie-leg-day' ? 1 : 0)).map((t) => (
                     <StaggerItem key={t.id}>
                       <Card
                         hover
                         className={cn(
                           'h-full flex flex-col',
-                          t.newbie && 'border-accent/30 bg-accent-soft/20'
+                          t.id === 'newbie-leg-day'
+                            ? 'border-accent/50 bg-gradient-to-br from-accent-soft via-surface to-surface ring-2 ring-accent/25'
+                            : t.newbie && 'border-accent/30 bg-accent-soft/20'
                         )}
                       >
                         <div className="flex items-center gap-2 flex-wrap">
@@ -2341,7 +2499,35 @@ export function TrainClient() {
                     搵唔到——試換部位／儀器，或者搜 RDL、保加利亞、後腿
                   </li>
                 ) : (
-                  filtered.map((ex) => {
+                  <>
+                    {howtoFavs.length > 0 && (
+                      <li className="list-none mb-3 px-1">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <Star className="h-3 w-3 text-accent fill-accent" />
+                          <span className="text-[10px] font-semibold text-accent">我常睇</span>
+                        </div>
+                        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                          {howtoFavs.map((id) => {
+                            const ex = exerciseById(id)
+                            if (!ex) return null
+                            return (
+                              <button
+                                key={id}
+                                type="button"
+                                onClick={() => {
+                                  pickExercise(id)
+                                  setPickerOpen(false)
+                                }}
+                                className="shrink-0 rounded-full border border-accent/30 bg-accent-soft px-3 py-1.5 text-[11px] font-medium text-accent touch-manipulation"
+                              >
+                                {ex.nameZh}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </li>
+                    )}
+                  {filtered.map((ex) => {
                     const aliasHit = search ? matchedAliasLabel(ex, search) : null
                     const howtoOpen = pickerHowtoId === ex.id
                     return (
@@ -2406,7 +2592,8 @@ export function TrainClient() {
                         </div>
                       </li>
                     )
-                  })
+                  })}
+                  </>
                 )}
               </ul>
             </motion.div>
