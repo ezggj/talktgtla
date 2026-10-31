@@ -2,13 +2,14 @@ import type { MealMacros } from './storage'
 
 /** HK-flavoured quick-add presets + demo estimates when AI Gateway unavailable */
 
-export type DishCategory = '茶記' | 'gym撚常食' | '小食' | '早餐'
+export type DishCategory = '茶記' | 'gym撚常食' | '小食' | '早餐' | '補劑'
 
 export const DISH_CATEGORY_LABEL: Record<DishCategory, string> = {
   '茶記': '茶記／街坊',
   'gym撚常食': 'gym撚常食',
   '小食': '高蛋白小食',
   '早餐': '早餐',
+  '補劑': '補劑／乳清',
 }
 
 export const HK_DISH_ESTIMATES: {
@@ -198,6 +199,129 @@ export const HK_DISH_ESTIMATES: {
     macros: { kcal: 520, protein: 38, carbs: 58, fat: 14, fiber: 3 },
     category: 'gym撚常食',
   },
+
+  // —— 更多港式街坊 ——
+  {
+    name: '乾炒牛河',
+    hint: '茶記 · 一份',
+    macros: { kcal: 780, protein: 32, carbs: 88, fat: 32, fiber: 3 },
+    category: '茶記',
+  },
+  {
+    name: '炒蛋叉燒飯',
+    hint: '茶記經典',
+    macros: { kcal: 750, protein: 34, carbs: 80, fat: 28, fiber: 2 },
+    category: '茶記',
+  },
+  {
+    name: '海南雞飯',
+    hint: '油飯偏多 · 粗估',
+    macros: { kcal: 700, protein: 36, carbs: 75, fat: 26, fiber: 2 },
+    category: '茶記',
+  },
+  {
+    name: '豉油雞腿飯',
+    hint: '茶記 · 連汁',
+    macros: { kcal: 690, protein: 38, carbs: 72, fat: 24, fiber: 2 },
+    category: '茶記',
+  },
+  {
+    name: '通粉餐（火腿蛋）',
+    hint: '茶記早餐／晏',
+    macros: { kcal: 520, protein: 22, carbs: 58, fat: 20, fiber: 2 },
+    category: '早餐',
+  },
+  {
+    name: '公仔麵加蛋',
+    hint: '一包 · 加隻蛋',
+    macros: { kcal: 480, protein: 16, carbs: 62, fat: 18, fiber: 2 },
+    category: '茶記',
+  },
+  {
+    name: '腸粉（蝦米／叉燒）',
+    hint: '兩條粗估',
+    macros: { kcal: 360, protein: 14, carbs: 52, fat: 10, fiber: 1 },
+    category: '早餐',
+  },
+  {
+    name: '粥＋油條',
+    hint: '皮蛋瘦肉粥連油條',
+    macros: { kcal: 420, protein: 18, carbs: 55, fat: 14, fiber: 1 },
+    category: '早餐',
+  },
+  {
+    name: '車仔麵兩餸',
+    hint: '街坊 · 兩餸一湯底',
+    macros: { kcal: 550, protein: 28, carbs: 60, fat: 20, fiber: 3 },
+    category: '茶記',
+  },
+  {
+    name: '菠蘿油＋奶茶',
+    hint: '茶記甜品套',
+    macros: { kcal: 520, protein: 10, carbs: 68, fat: 22, fiber: 2 },
+    category: '小食',
+  },
+  {
+    name: '雞扒意粉',
+    hint: '茶記西餐',
+    macros: { kcal: 680, protein: 36, carbs: 78, fat: 22, fiber: 3 },
+    category: '茶記',
+  },
+  {
+    name: '吞拿魚沙律',
+    hint: '便利店／咖啡店',
+    macros: { kcal: 320, protein: 28, carbs: 18, fat: 14, fiber: 4 },
+    category: '小食',
+  },
+  // —— 補劑／乳清快加 ——
+  {
+    name: '乳清一勺（水沖）',
+    hint: '約 25–30g 粉 · 水沖',
+    macros: { kcal: 120, protein: 24, carbs: 3, fat: 1, fiber: 0 },
+    category: '補劑',
+  },
+  {
+    name: '乳清一勺（奶沖）',
+    hint: '一勺 + 250ml 低脂奶',
+    macros: { kcal: 240, protein: 32, carbs: 15, fat: 5, fiber: 0 },
+    category: '補劑',
+  },
+  {
+    name: '乳清＋燕麥',
+    hint: '訓練後 · 一勺+40g燕麥',
+    macros: { kcal: 280, protein: 28, carbs: 32, fat: 4, fiber: 4 },
+    category: '補劑',
+  },
+  {
+    name: '酪蛋白睡前奶昔',
+    hint: '慢蛋白 · 一勺',
+    macros: { kcal: 130, protein: 24, carbs: 4, fat: 2, fiber: 0 },
+    category: '補劑',
+  },
+  {
+    name: '肌酸 5g',
+    hint: '一茶匙 · 熱量可忽略',
+    macros: { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
+    category: '補劑',
+  },
+  {
+    name: 'BCAA／EAA 一 scoop',
+    hint: '訓練中 · 粗估',
+    macros: { kcal: 20, protein: 5, carbs: 0, fat: 0, fiber: 0 },
+    category: '補劑',
+  },
+  {
+    name: '高蛋白乳酪杯',
+    hint: '便利店常見 · 一杯',
+    macros: { kcal: 160, protein: 20, carbs: 12, fat: 2, fiber: 0 },
+    category: '補劑',
+  },
+  {
+    name: '即食雞胸包',
+    hint: '便利店／會所 · 一包',
+    macros: { kcal: 150, protein: 28, carbs: 2, fat: 3, fiber: 0 },
+    category: '補劑',
+  },
 ]
 
 
@@ -208,6 +332,10 @@ export function dishesByCategory(cat?: DishCategory | '全部') {
 
 export function clubProteinDishes() {
   return HK_DISH_ESTIMATES.filter((d) => d.category === 'gym撚常食')
+}
+
+export function supplementDishes() {
+  return HK_DISH_ESTIMATES.filter((d) => d.category === '補劑')
 }
 
 export function mockEstimateFromFile(fileName: string): { name: string; macros: MealMacros } {

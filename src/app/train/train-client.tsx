@@ -77,6 +77,10 @@ import { buzzLight, notifyRestDone, flashDocumentTitle, armRestNotification } fr
 import { buildOverloadTip } from '@/lib/fitness/overload-tip'
 import { InstallPrompt } from '@/components/pwa/install-prompt'
 import {
+  TrainFirstGuide,
+  shouldShowTrainFirstGuide,
+} from '@/components/fitness/train-first-guide'
+import {
   loadTrainSfxEnabled,
   saveTrainSfxEnabled,
   sfxLogSet,
@@ -189,6 +193,7 @@ export function TrainClient() {
   const [sfxOn, setSfxOn] = useState(true)
   const [restFullscreen, setRestFullscreen] = useState(true)
   const [pendingOutcome, setPendingOutcome] = useState<SetOutcome>('ok')
+  const [showFirstGuide, setShowFirstGuide] = useState(false)
 
   // Derived / secondary state — must stay above ready/authReady gate (React #310)
   const [todayDone, setTodayDone] = useState<WorkoutSession[]>([])
@@ -429,6 +434,7 @@ export function TrainClient() {
   }, [])
 
   const startSession = (templateId?: string, exerciseIds?: string[]) => {
+    if (shouldShowTrainFirstGuide()) setShowFirstGuide(true)
     const sess: WorkoutSession = {
       id: newId(),
       startedAt: new Date().toISOString(),
@@ -1150,8 +1156,25 @@ export function TrainClient() {
                           <div className="text-xs text-muted mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                             <span>{exerciseById(selectedEx)?.nameEn}</span>
                             {prs[selectedEx] && (
-                              <span className="text-accent">
-                                PR {prs[selectedEx].weightKg}kg × {prs[selectedEx].reps}
+                              <span className="inline-flex items-center gap-1.5 flex-wrap">
+                                <span className="text-accent">
+                                  PR {prs[selectedEx].weightKg}kg × {prs[selectedEx].reps}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const pr = prs[selectedEx!]
+                                    if (!pr) return
+                                    const nextW = Math.round((pr.weightKg + 2.5) * 2) / 2
+                                    setWeight(nextW)
+                                    setReps(pr.reps)
+                                    setPendingOutcome('ok')
+                                    weightRef.current?.focus()
+                                  }}
+                                  className="rounded-full border border-accent/35 bg-accent-soft px-2.5 py-0.5 text-[10px] font-semibold text-accent touch-manipulation"
+                                >
+                                  挑戰 PR +2.5
+                                </button>
                               </span>
                             )}
                             {lastLoggedForSelected && (
@@ -2575,7 +2598,8 @@ export function TrainClient() {
           </motion.div>
         )}
       </AnimatePresence>
-          <SyncToast message={syncToast} onDismiss={() => setSyncToast(null)} />
+          <TrainFirstGuide open={showFirstGuide} onClose={() => setShowFirstGuide(false)} />
+      <SyncToast message={syncToast} onDismiss={() => setSyncToast(null)} />
     </AppShell>
   )
 }

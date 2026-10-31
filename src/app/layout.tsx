@@ -4,6 +4,7 @@ import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import './globals.css'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
+import { FONT_SCALE_BOOT_SCRIPT } from '@/lib/a11y/font-scale'
 import { PwaBootstrap } from '@/components/pwa/pwa-bootstrap'
 
 const fraunces = Fraunces({
@@ -57,6 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className={`${GeistSans.className} bg-background text-foreground antialiased`}>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: FONT_SCALE_BOOT_SCRIPT }} />
         <PwaBootstrap />
         {children}
       </body>

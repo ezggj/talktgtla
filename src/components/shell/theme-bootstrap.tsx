@@ -8,6 +8,7 @@ import {
   readThemePreference,
   resolveTheme,
 } from '@/lib/theme'
+import { checkProteinEveningReminder } from '@/lib/fitness/protein-reminder'
 
 /** Apply stored / system theme + accent on mount; listen for OS changes. */
 export function ThemeBootstrap() {
@@ -22,7 +23,12 @@ export function ThemeBootstrap() {
       if (readThemePreference() === 'system') apply()
     }
     mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
+    void checkProteinEveningReminder()
+    const tick = window.setInterval(() => void checkProteinEveningReminder(), 20 * 60 * 1000)
+    return () => {
+      mq.removeEventListener('change', onChange)
+      window.clearInterval(tick)
+    }
   }, [])
   return null
 }

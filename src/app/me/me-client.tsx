@@ -19,6 +19,7 @@ import { LoginCard } from '@/components/auth/login-card'
 import { SyncToast } from '@/components/ui/sync-toast'
 import { FeedbackSheet } from '@/components/feedback/feedback-sheet'
 import { ThemeToggleCard } from '@/components/shell/theme-toggle'
+import { FontScaleCard } from '@/components/shell/font-scale-card'
 import { InstallPrompt } from '@/components/pwa/install-prompt'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
@@ -442,6 +443,10 @@ export function MeClient() {
 
           <StaggerItem>
             <ThemeToggleCard />
+          </StaggerItem>
+
+          <StaggerItem>
+            <FontScaleCard />
           </StaggerItem>
 
           <StaggerItem>

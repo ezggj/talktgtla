@@ -40,12 +40,14 @@ import {
   DISH_CATEGORY_LABEL,
   dishesByCategory,
   clubProteinDishes,
+  supplementDishes,
   estimateFromFoodName,
   mockEstimateFromFile,
   scaleMacros,
   type DishCategory,
 } from '@/lib/fitness/meals-demo'
 import { ProteinWeekCard } from '@/components/fitness/protein-week-card'
+import { ProteinReminderCard } from '@/components/fitness/protein-reminder-card'
 import { compressMealImage } from '@/lib/fitness/compress-image'
 import { getOrCreateEatGuestId } from '@/lib/fitness/eat-guest-id'
 import {
@@ -85,6 +87,7 @@ import {
   fitnessAchievementById,
 } from '@/lib/fitness/achievements'
 import { cn } from '@/lib/utils'
+import { checkProteinEveningReminder } from '@/lib/fitness/protein-reminder'
 
 type Draft = {
   previewUrl: string
@@ -800,6 +803,23 @@ export function EatClient() {
     setAnchor(startOfDay(new Date(isoDay + 'T12:00:00')))
   }
 
+
+  useEffect(() => {
+    if (!ready) return
+    void checkProteinEveningReminder()
+    const id = window.setInterval(() => {
+      void checkProteinEveningReminder()
+    }, 15 * 60 * 1000)
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void checkProteinEveningReminder()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      window.clearInterval(id)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [ready])
+
   if (!ready || !authReady) {
     return (
       <AppShell>
@@ -819,7 +839,7 @@ export function EatClient() {
           compact
           eyebrow="飲食"
           title="影低呢餐"
-          description="影相 · 港式快加 · gym撚常食 · 手動"
+          description="影相 · 港式快加 · 補劑 · gym撚常食 · 手動"
         />
 
         {/* Four entry paths — 第一屏主入口 */}
@@ -1063,6 +1083,10 @@ export function EatClient() {
               el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
             }}
           />
+
+          <div className="mb-4">
+            <ProteinReminderCard />
+          </div>
         </div>
 
         {/* Gentle nudges */}
@@ -1220,10 +1244,10 @@ export function EatClient() {
         <div id="eat-hk" ref={hkRef} className="mb-6 scroll-mt-24">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-serif text-xl">港式快加</h2>
-            <Badge tone="muted">茶記／小食</Badge>
+            <Badge tone="muted">茶記／小食／補劑</Badge>
           </div>
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1 mb-2">
-            {(['全部', '茶記', '小食', '早餐'] as const).map((c) => {
+            {(['全部', '茶記', '小食', '早餐', '補劑'] as const).map((c) => {
               const active =
                 c === '全部'
                   ? dishCat === '全部' || dishCat === 'gym撚常食'
@@ -1245,7 +1269,7 @@ export function EatClient() {
             )})}
           </div>
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
-            {(dishCat === '茶記' || dishCat === '小食' || dishCat === '早餐'
+            {(dishCat === '茶記' || dishCat === '小食' || dishCat === '早餐' || dishCat === '補劑'
               ? dishesByCategory(dishCat)
               : dishesByCategory('茶記').concat(dishesByCategory('小食'), dishesByCategory('早餐'))
             ).map((d) => {
@@ -1292,6 +1316,40 @@ export function EatClient() {
                 transition={springSnappy}
                 onClick={() => addDemoDish(i)}
                 className="shrink-0 w-[148px] rounded-[20px] border border-accent/25 bg-accent-soft/20 p-3.5 text-left shadow-soft hover:shadow-hover transition"
+              >
+                <div className="text-[10px] text-accent mb-0.5">{DISH_CATEGORY_LABEL[d.category]}</div>
+                <div className="text-sm font-medium mb-0.5">{d.name}</div>
+                <div className="text-[10px] text-muted mb-2 line-clamp-1">{d.hint}</div>
+                <div className="text-xs text-accent font-semibold tabular-nums">
+                  {d.macros.protein}g 蛋白 · {d.macros.kcal} kcal
+                </div>
+              </motion.button>
+            )})}
+          </div>
+        </div>
+
+
+        {/* 補劑／乳清 */}
+        <div id="eat-supp" className="mb-6 scroll-mt-24">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-serif text-xl">補劑／乳清</h2>
+            <Badge tone="accent">一掣加</Badge>
+          </div>
+          <p className="text-[11px] text-muted mb-2 px-0.5 leading-relaxed">
+            訓練後乳清、肌酸、蛋白棒——唔使自己計。
+          </p>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+            {supplementDishes().map((d) => {
+              const i = HK_DISH_ESTIMATES.findIndex((x) => x.name === d.name)
+              return (
+              <motion.button
+                key={d.name}
+                type="button"
+                whileHover={reduce ? undefined : { scale: 1.02 }}
+                whileTap={reduce ? undefined : { scale: 0.98 }}
+                transition={springSnappy}
+                onClick={() => addDemoDish(i)}
+                className="shrink-0 w-[148px] rounded-[20px] border border-border bg-surface p-3.5 text-left shadow-soft hover:shadow-hover transition"
               >
                 <div className="text-[10px] text-accent mb-0.5">{DISH_CATEGORY_LABEL[d.category]}</div>
                 <div className="text-sm font-medium mb-0.5">{d.name}</div>
