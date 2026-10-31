@@ -8,6 +8,7 @@ export {
   searchExercises,
   filterExercises,
   matchedAliasLabel,
+  displayNicknames,
   resolveExerciseGuide,
   type ExerciseGuide,
   type Equipment,

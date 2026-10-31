@@ -8,6 +8,8 @@ export type WorkoutSharePayload = {
   topExercises: string[]
   dateLabel: string
   tip?: string
+  /** e.g. "深蹲 100×5" */
+  prs?: string[]
 }
 
 export type MealSharePayload = {
@@ -64,6 +66,7 @@ export function workoutShareCaption(payload: WorkoutSharePayload): string {
   const vol = Math.round(payload.volume).toLocaleString()
   const focus = payload.topExercises[0]
   const bits = [`今日${day}打完 ✅`, `${payload.sets} 組 · ${vol} 容量 · ${formatDur(payload.durationSec)}`]
+  if (payload.prs?.length) bits.push(`PR：${payload.prs.slice(0, 3).join('、')}`)
   if (focus) bits.push(`重點：${focus}`)
   bits.push('Talk tgt la 記組')
   bits.push(SITE)
@@ -172,14 +175,24 @@ export function drawWorkoutShareCard(payload: WorkoutSharePayload): HTMLCanvasEl
     ctx.fillText(s.label, x + 28, 590)
   })
 
+  let focusY = 720
+  if (payload.prs?.length) {
+    ctx.fillStyle = '#0F766E'
+    ctx.font = '600 30px system-ui, "PingFang HK", sans-serif'
+    const prLine = `PR  ${payload.prs.slice(0, 3).join(' · ')}`
+    ctx.fillText(prLine.length > 36 ? `${prLine.slice(0, 36)}…` : prLine, 112, 690)
+    focusY = 760
+  }
+
   ctx.fillStyle = '#1A1A1A'
   ctx.font = '600 36px system-ui, "PingFang HK", sans-serif'
-  ctx.fillText('今日重點', 112, 720)
+  ctx.fillText('今日重點', 112, focusY)
   ctx.font = '400 32px system-ui, "PingFang HK", sans-serif'
   ctx.fillStyle = '#3D3D3D'
   const lines = payload.topExercises.slice(0, 5)
+  const lineBase = (payload.prs?.length ? 820 : 780)
   lines.forEach((line, i) => {
-    ctx.fillText(`· ${line}`, 112, 780 + i * 52)
+    ctx.fillText(`· ${line}`, 112, lineBase + i * 52)
   })
 
   if (payload.tip) {
