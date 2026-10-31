@@ -42,6 +42,9 @@
 - 成功：`meals.source = 'ai'`；失敗會 toast 並 fallback 示範估算（`mock`）
 - UI 一律標「估算」，份量滑桿即時重算四大營養素
 
+> **注意：** AI Gateway 免費 Credits 需要 team 已加有效信用卡（`customer_verification_required`）。未開通時影相會 toast 並 fallback 示範估算。
+
+
 ## 環境變數
 
 見 `.env.example`。Production 已有 `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`。

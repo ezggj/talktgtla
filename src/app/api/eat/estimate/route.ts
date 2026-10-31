@@ -145,8 +145,22 @@ export async function POST(req: Request) {
   } catch (e) {
     const message = e instanceof Error ? e.message : 'AI 估算失敗'
     console.error('[eat/estimate]', message)
+    const lower = message.toLowerCase()
+    let userError = 'AI 暫時估唔到'
+    let code = 'ai_failed'
+    if (
+      lower.includes('credit card') ||
+      lower.includes('customer_verification') ||
+      lower.includes('add-credit-card')
+    ) {
+      userError = 'AI Gateway 未開通（要喺 Vercel 加信用卡先有 Credits）'
+      code = 'gateway_billing'
+    } else if (lower.includes('insufficient_funds') || lower.includes('quota')) {
+      userError = 'AI Credits 用晒或者超咗預算'
+      code = 'gateway_quota'
+    }
     return NextResponse.json(
-      { error: 'AI 暫時估唔到', code: 'ai_failed', detail: message.slice(0, 160) },
+      { error: userError, code, detail: message.slice(0, 160) },
       { status: 502 }
     )
   }
