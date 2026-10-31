@@ -96,6 +96,35 @@ export function featuredMeetupGyms(): HkGym[] {
   return [...featured, ...rest]
 }
 
+
+/** Hot 247 branches for empty-state quick open — HK-popular corridors. */
+export function popularMeetupBranches(limit = 10): string[] {
+  const gym = HK_GYMS.find((g) => g.id === '247-fitness')
+  const preferred = [
+    '旺角',
+    '觀塘',
+    '銅鑼灣',
+    '尖沙咀',
+    '荃灣',
+    '沙田',
+    '將軍澳',
+    '小西灣',
+    '長沙灣',
+    '屯門',
+    '元朗',
+    '北角',
+  ]
+  const areas = new Set(gym?.areas || [])
+  const out = preferred.filter((a) => areas.has(a))
+  if (out.length < limit && gym) {
+    for (const a of gym.areas) {
+      if (!out.includes(a)) out.push(a)
+      if (out.length >= limit) break
+    }
+  }
+  return out.slice(0, limit)
+}
+
 export function formatMeetupSlot(iso: string): string {
   try {
     const d = new Date(iso)

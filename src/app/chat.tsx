@@ -785,19 +785,33 @@ export default function Chat() {
           )}
           {messagesLoaded && messages.length === 0 && (
             <div className="flex h-full min-h-[220px] items-center justify-center px-2">
-              <div className="welcome-card w-full max-w-sm rounded-[20px] border border-border/80 bg-surface px-6 py-8 text-center shadow-soft">
+              <div className="welcome-card w-full max-w-sm rounded-[20px] border border-border/80 bg-surface px-6 py-7 text-center shadow-soft">
                 <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-accent-soft text-accent text-lg" aria-hidden>
                   💬
                 </div>
-                <h3 className="font-serif text-lg tracking-tight">房暫時靜靜地</h3>
+                <h3 className="font-serif text-xl tracking-tight">歡迎嚟 Talk tgt la</h3>
                 <p className="mt-2 text-sm text-muted leading-relaxed">
-                  而家靜靜地——入個花名，用今日話題開波就得。
+                  呢度係香港人傾偈室——下面 tabs 仲可以記訓練、影餐估營養。而家房靜靜地，入個花名就可以開波。
                 </p>
+                <div className="mt-3 flex gap-2 justify-center">
+                  <Link
+                    href="/train"
+                    className="inline-flex items-center rounded-full border border-border px-3 py-1.5 text-[11px] font-medium text-foreground hover:border-accent hover:bg-accent-soft hover:text-accent transition touch-manipulation"
+                  >
+                    去訓練
+                  </Link>
+                  <Link
+                    href="/eat"
+                    className="inline-flex items-center rounded-full border border-border px-3 py-1.5 text-[11px] font-medium text-foreground hover:border-accent hover:bg-accent-soft hover:text-accent transition touch-manipulation"
+                  >
+                    去飲食
+                  </Link>
+                </div>
                 {(() => {
                   const topic = getDailyTopic()
                   return (
-                    <div className="mt-4 rounded-2xl border border-border/80 bg-[#fafaf9] px-3.5 py-3 text-left">
-                      <div className="text-[10px] font-medium text-muted uppercase tracking-wide mb-1">今日話題</div>
+                    <div className="mt-4 rounded-2xl border border-accent/20 bg-accent-soft/40 px-3.5 py-3 text-left">
+                      <div className="text-[10px] font-semibold text-accent tracking-wide mb-1">今日話題 · 一掣開波</div>
                       <div className="flex items-start gap-2">
                         <span className="text-lg leading-none" aria-hidden>{topic.emoji}</span>
                         <div className="min-w-0">
@@ -807,7 +821,7 @@ export default function Chat() {
                       </div>
                       <button
                         type="button"
-                        className="mt-3 w-full inline-flex items-center justify-center rounded-xl bg-accent px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-[#0d6a63] transition"
+                        className="mt-3 w-full inline-flex items-center justify-center rounded-xl bg-accent px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-[#0d6a63] transition touch-manipulation"
                         onClick={() => {
                           const line = topicStarterLine(topic)
                           setNewMessage(line)
@@ -1282,7 +1296,7 @@ function DailyTopicBanner({ onUseTopic }: { onUseTopic: (line: string) => void }
         {topic.emoji}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-[10px] font-medium text-muted uppercase tracking-wide">今日話題</div>
+        <div className="text-[10px] font-semibold text-accent tracking-wide">今日話題</div>
         <div className="text-sm font-medium truncate">{topic.title}</div>
         <div className="text-[11px] text-muted truncate">{topic.hint}</div>
       </div>

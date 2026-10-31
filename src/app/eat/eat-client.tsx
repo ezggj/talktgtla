@@ -955,6 +955,18 @@ export function EatClient() {
           <MacroBars macros={todaySum} goals={goals} />
         </Card>
 
+        {/* Weekly protein — high visibility near top */}
+        <div className="mb-5">
+          <ProteinWeekCard
+            meals={meals}
+            proteinGoal={goals.proteinG}
+            onLogMeal={() => {
+              const el = document.getElementById('eat-camera')
+              el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }}
+          />
+        </div>
+
         {/* Gentle nudges */}
         {period === 'day' &&
           todayKey(anchor) === todayKey() &&
@@ -1037,7 +1049,7 @@ export function EatClient() {
         )}
 
         {/* Camera CTA */}
-        <Card className="mb-6 relative overflow-hidden">
+        <Card id="eat-camera" className="mb-6 relative overflow-hidden scroll-mt-24">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--accent-soft),_transparent_50%)] pointer-events-none" />
           <div className="relative">
             <div className="flex items-start justify-between gap-3 mb-1">
@@ -1105,10 +1117,6 @@ export function EatClient() {
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPick} />
           </div>
         </Card>
-
-        <div className="mb-6">
-          <ProteinWeekCard meals={meals} proteinGoal={goals.proteinG} />
-        </div>
 
         {/* HK dishes + club protein templates */}
         <div className="mb-8">

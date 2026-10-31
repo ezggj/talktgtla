@@ -22,11 +22,11 @@ export function BottomNav() {
     <>
       {/* Mobile bottom */}
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border/80 bg-surface/92 backdrop-blur-xl"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border/80 bg-surface/95 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/90"
         style={{ paddingBottom: 'var(--safe-bottom)' }}
         aria-label="主導航"
       >
-        <ul className="grid grid-cols-4 h-[var(--nav-h)] min-h-[3.75rem] max-w-lg mx-auto px-1.5">
+        <ul className="grid grid-cols-4 h-[var(--nav-h)] min-h-[3.75rem] max-w-lg mx-auto px-1.5 pt-0.5">
           {items.map(({ href, label, icon: Icon }) => {
             const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
             return (
@@ -39,7 +39,7 @@ export function BottomNav() {
                   <Link
                     href={href}
                     className={cn(
-                      'relative flex flex-1 flex-col items-center justify-center gap-1 text-[11px] leading-none',
+                      'relative flex flex-1 flex-col items-center justify-center gap-1 text-[11px] leading-none min-h-[44px]',
                       active ? 'text-accent' : 'text-muted'
                     )}
                     aria-current={active ? 'page' : undefined}

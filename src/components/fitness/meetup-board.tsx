@@ -7,7 +7,6 @@ import { Card, CardDesc, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { EmptyState } from '@/components/ui/empty-state'
 import { springSoft, springSnappy } from '@/components/motion/presets'
 import { useUser } from '@/lib/auth/use-user'
 import {
@@ -17,6 +16,7 @@ import {
   getMeetupGuestId,
   loadMeetupDisplayName,
   meetupSlotPresets,
+  popularMeetupBranches,
   saveMeetupDisplayName,
   type GymMeetup,
 } from '@/lib/fitness/meetups'
@@ -36,6 +36,7 @@ export function MeetupBoard({ className }: { className?: string }) {
   const [composer, setComposer] = useState(false)
 
   const gyms = useMemo(() => featuredMeetupGyms(), [])
+  const hotBranches = useMemo(() => popularMeetupBranches(10), [])
   const [hostName, setHostName] = useState('')
   const [gymId, setGymId] = useState(gyms[0]?.id || '247-fitness')
   const selectedGym = gyms.find((g) => g.id === gymId) || gyms[0]
@@ -320,13 +321,49 @@ export function MeetupBoard({ className }: { className?: string }) {
           載入開台板…
         </Card>
       ) : meetups.length === 0 ? (
-        <EmptyState
-          emoji="🤝"
-          title="而家未有人開台"
-          description="你做第一個——揀 247 或者附近分店，寫低時段等人凑同一部位。"
-          actionLabel="我開台"
-          onAction={() => setComposer(true)}
-        />
+        <Card className="py-5">
+          <div className="text-center mb-4 px-1">
+            <div
+              className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-accent-soft text-lg"
+              aria-hidden
+            >
+              🤝
+            </div>
+            <h3 className="font-serif text-lg tracking-tight">而家未有人開台</h3>
+            <p className="mt-2 mx-auto max-w-sm text-sm text-muted leading-relaxed">
+              你做第一個——撳下面 247 熱門分店，寫低時段等人凑同一部位。
+            </p>
+          </div>
+          <div className="mb-1.5 px-0.5 text-[11px] font-medium text-muted">附近／熱門 247 分店</div>
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {hotBranches.map((branch) => (
+              <button
+                key={branch}
+                type="button"
+                onClick={() => {
+                  setGymId('247-fitness')
+                  setArea(branch)
+                  setComposer(true)
+                  setError(null)
+                }}
+                className="rounded-full px-3 py-1.5 text-[11px] border border-border text-foreground hover:border-accent hover:bg-accent-soft hover:text-accent touch-manipulation transition"
+              >
+                {branch}
+              </button>
+            ))}
+          </div>
+          <Button
+            type="button"
+            className="w-full"
+            onClick={() => {
+              setComposer(true)
+              setError(null)
+            }}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            我開台
+          </Button>
+        </Card>
       ) : (
         <ul className="space-y-2.5">
           {meetups.map((m) => {
@@ -392,7 +429,7 @@ export function MeetupBoard({ className }: { className?: string }) {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
-            className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#0f766e] text-white text-sm px-4 py-2 shadow-lg"
+            className="above-nav-gap fixed left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#0f766e] text-white text-sm px-4 py-2 shadow-lg"
           >
             {toast}
           </motion.div>
