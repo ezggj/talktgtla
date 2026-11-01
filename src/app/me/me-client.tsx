@@ -18,6 +18,8 @@ import { Badge } from '@/components/ui/badge'
 import { LoginCard } from '@/components/auth/login-card'
 import { SyncToast } from '@/components/ui/sync-toast'
 import { FeedbackSheet } from '@/components/feedback/feedback-sheet'
+import { WeekOneCard } from '@/components/fitness/week-one-card'
+import { markWeekOneGoal, mealIsHkQuickAdd } from '@/lib/fitness/week-one'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -33,7 +35,7 @@ import { migrateLocalFitnessToCloud } from '@/lib/fitness/migrate'
 import { PlanGenerator } from '@/components/fitness/plan-generator'
 import { GymNudgeCard } from '@/components/fitness/gym-nudge-card'
 import { HkGymEntryCard } from '@/components/fitness/hk-gym-entry-card'
-import { applyStreakRepair, computeStreak, getStreakRepairInfo, trainedToday, weekConsistency, type StreakRepairInfo, type WeekDay } from '@/lib/fitness/streaks'
+import { applyStreakRepair, computeStreak, getStreakRepairInfo, streakComebackLine, trainedToday, weekConsistency, type StreakRepairInfo, type WeekDay } from '@/lib/fitness/streaks'
 import { MonthlyReviewCard } from '@/components/fitness/monthly-review-card'
 import { WeekDots } from '@/components/fitness/week-dots'
 import { WeeklySummaryCard } from '@/components/fitness/weekly-summary-card'
@@ -134,6 +136,7 @@ export function MeClient() {
 
   const persist = async () => {
     saveGoals(goals)
+    markWeekOneGoal()
     if (user) {
       try {
         const supabase = createClient()
@@ -179,6 +182,13 @@ export function MeClient() {
             <LoginCard user={user} configured={configured} onSignOut={signOut} />
           </StaggerItem>
 
+          <StaggerItem>
+            <WeekOneCard
+              finishedWorkouts={sessionsLocal.filter((s) => s.endedAt).length}
+              hkQuickMeals={meals.filter((m) => mealIsHkQuickAdd(m)).length}
+            />
+          </StaggerItem>
+
           {syncNote && (
             <StaggerItem>
               <div className="flex items-start gap-2 rounded-2xl border border-accent/25 bg-accent-soft px-4 py-3 text-xs text-accent">
@@ -204,11 +214,12 @@ export function MeClient() {
               </div>
               <WeekDots days={weekDays} />
               <p className="mt-3 text-[11px] text-muted leading-relaxed">
-                {streak > 0
-                  ? `連練 ${streak} 日${didTrain ? ' · 今日已打卡' : ' · 今日未開波，去訓練維持'}。`
-                  : didTrain
-                    ? '今日打咗卡——聽日再嚟就開始連練。'
-                    : '練完一日就會喺度亮；唔使日日爆機，一星期一兩日都得。'}
+                {streakComebackLine(streak, didTrain) ||
+                  (streak > 0
+                    ? `連練 ${streak} 日，今日打咗卡。`
+                    : didTrain
+                      ? '今日打咗卡——聽日再嚟就開始連練。'
+                      : '練完一日就會喺度亮。一星期一兩日都得。')}
               </p>
               {repairInfo?.gapDay && repairInfo.remaining > 0 ? (
                 <div className="mt-3 rounded-2xl border border-accent/25 bg-accent-soft/50 px-3.5 py-3">

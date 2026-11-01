@@ -6,10 +6,10 @@ export type DishCategory = '茶記' | 'gym撚常食' | '小食' | '早餐' | '�
 
 export const DISH_CATEGORY_LABEL: Record<DishCategory, string> = {
   '茶記': '茶記／街坊',
-  'gym撚常食': 'gym撚常食',
-  '小食': '高蛋白小食',
+  'gym撚常食': '成日食',
+  '小食': '小食',
   '早餐': '早餐',
-  '補劑': '補劑／乳清',
+  '補劑': 'whey',
 }
 
 export const HK_DISH_ESTIMATES: {
@@ -37,8 +37,8 @@ export const HK_DISH_ESTIMATES: {
     category: '早餐',
   },
   {
-    name: '蛋白粉奶昔',
-    hint: '一勺乳清 + 牛奶',
+    name: '打杯 whey（奶）',
+    hint: '一 scoop + 奶',
     macros: { kcal: 220, protein: 28, carbs: 12, fat: 5, fiber: 0 },
     category: '小食',
   },
@@ -170,10 +170,10 @@ export const HK_DISH_ESTIMATES: {
     category: '小食',
   },
   {
-    name: '會所水煮蛋×3',
-    hint: '自助加餐 · 三隻',
-    macros: { kcal: 210, protein: 18, carbs: 2, fat: 14, fiber: 0 },
-    category: '小食',
+    name: '烚雙蛋',
+    hint: '兩隻烚蛋',
+    macros: { kcal: 156, protein: 12, carbs: 2, fat: 10, fiber: 0 },
+    category: 'gym撚常食',
   },
   {
     name: '低脂芝士雞胸卷',
@@ -188,8 +188,8 @@ export const HK_DISH_ESTIMATES: {
     category: 'gym撚常食',
   },
   {
-    name: '訓練後乳清＋蕉',
-    hint: '一勺乳清 + 香蕉',
+    name: '操完 whey 加蕉',
+    hint: '一 scoop + 香蕉',
     macros: { kcal: 280, protein: 26, carbs: 32, fat: 4, fiber: 3 },
     category: '小食',
   },
@@ -660,20 +660,20 @@ export const HK_DISH_ESTIMATES: {
 
   // —— 補劑／乳清快加 ——
   {
-    name: '乳清一勺（水沖）',
-    hint: '約 25–30g 粉 · 水沖',
+    name: '打杯 whey',
+    hint: '一 scoop · 水沖',
     macros: { kcal: 120, protein: 24, carbs: 3, fat: 1, fiber: 0 },
     category: '補劑',
   },
   {
-    name: '乳清一勺（奶沖）',
-    hint: '一勺 + 250ml 低脂奶',
+    name: '打杯 whey（低脂奶）',
+    hint: '一 scoop + 250ml 低脂奶',
     macros: { kcal: 240, protein: 32, carbs: 15, fat: 5, fiber: 0 },
     category: '補劑',
   },
   {
-    name: '乳清＋燕麥',
-    hint: '訓練後 · 一勺+40g燕麥',
+    name: 'whey 加燕麥',
+    hint: '操完 · 一 scoop + 40g 燕麥',
     macros: { kcal: 280, protein: 28, carbs: 32, fat: 4, fiber: 4 },
     category: '補劑',
   },
@@ -702,7 +702,7 @@ export const HK_DISH_ESTIMATES: {
     category: '補劑',
   },
   {
-    name: '即食雞胸包',
+    name: '即食雞胸',
     hint: '便利店／會所 · 一包',
     macros: { kcal: 150, protein: 28, carbs: 2, fat: 3, fiber: 0 },
     category: '補劑',
@@ -769,7 +769,7 @@ export function dishBrandOf(name: string, category: DishCategory): DishBrand {
   if (/譚仔|三哥/.test(name)) return '譚仔'
   if (/大家樂/.test(name)) return '大家樂'
   if (/大快活/.test(name)) return '大快活'
-  if (category === '補劑' || /便利店|即食雞胸|乳清|蛋白棒|肌酸/.test(name)) return '便利店補劑'
+  if (category === '補劑' || /便利店|即食雞胸|乳清|whey|蛋白棒|肌酸/i.test(name)) return '便利店補劑'
   return '茶記街坊'
 }
 
@@ -844,7 +844,7 @@ export function mealShortcuts(): MealShortcut[] {
   for (const def of SHORTCUT_DEFS) {
     const dish = HK_DISH_ESTIMATES.find((d) => d.name === def.name)
     if (!dish) continue
-    const protein = def.vegSide ? Math.min(2, Math.max(0, dish.macros.protein)) : dish.macros.protein
+    const protein = def.vegSide ? 1 : dish.macros.protein
     out.push({
       ...def,
       macros: { ...dish.macros, protein },
@@ -863,7 +863,7 @@ export function mockEstimateFromFile(fileName: string): { name: string; macros: 
     lower.includes('protein')
   )
   if (lower.includes('protein') || lower.includes('shake')) {
-    return { name: '蛋白粉奶昔', macros: HK_DISH_ESTIMATES[3].macros }
+    return { name: '打杯 whey（奶）', macros: HK_DISH_ESTIMATES[3].macros }
   }
   if (lower.includes('chicken')) {
     return { name: '雞胸便當', macros: HK_DISH_ESTIMATES[1].macros }
@@ -981,13 +981,19 @@ const HK_NAME_EXTRA: {
     macros: { kcal: 95, protein: 0, carbs: 25, fat: 0, fiber: 4 },
   },
   {
+    name: '打杯 whey',
+    aliases: ['whey', '乳清', '乳清蛋白', '乳清蛋白粉', 'protein shake', '一 scoop'],
+    macros: { kcal: 120, protein: 24, carbs: 3, fat: 1, fiber: 0 },
+    hint: '一 scoop · 水沖',
+  },
+  {
     name: '雞蛋',
-    aliases: ['烚蛋', '煎蛋', '炒蛋', 'egg'],
+    aliases: ['烚蛋', '烚雙蛋', '水煮蛋', '水煮雞蛋', '煎蛋', '炒蛋', 'egg'],
     macros: { kcal: 78, protein: 6, carbs: 1, fat: 5, fiber: 0 },
   },
   {
     name: '雞胸',
-    aliases: ['雞胸肉', 'chicken breast'],
+    aliases: ['雞胸肉', '即食雞胸', 'chicken breast'],
     macros: { kcal: 165, protein: 31, carbs: 0, fat: 4, fiber: 0 },
   },
   {

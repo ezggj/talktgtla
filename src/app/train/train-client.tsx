@@ -64,17 +64,19 @@ import { migrateLocalFitnessToCloud } from '@/lib/fitness/migrate'
 import { SyncToast } from '@/components/ui/sync-toast'
 import { volumeByDay } from '@/lib/fitness/plan-progress'
 import { ShareCardButton } from '@/components/fitness/share-card-button'
+import { WeekOneCard } from '@/components/fitness/week-one-card'
+import { SyncStatusLine } from '@/components/fitness/sync-status-line'
 import {
   evaluateFitnessAchievements,
   unlockFitnessAchievements,
   fitnessAchievementById,
   loadFitnessUnlocked,
 } from '@/lib/fitness/achievements'
-import { markTrainedToday, syncDaysFromSessions, weekConsistency, type WeekDay } from '@/lib/fitness/streaks'
+import { markTrainedToday, streakComebackLine, syncDaysFromSessions, trainedToday, weekConsistency, type WeekDay } from '@/lib/fitness/streaks'
 import { WeekDots } from '@/components/fitness/week-dots'
 import { TrainHeatmap } from '@/components/fitness/train-heatmap'
 import { LiftProgressCard } from '@/components/fitness/lift-progress-card'
-import { analyzeWorkout, formatDelta, type WorkoutAnalysis } from '@/lib/fitness/analysis'
+import { analyzeWorkout, type WorkoutAnalysis } from '@/lib/fitness/analysis'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -141,7 +143,6 @@ import { hydrateActivePlanFromCloud, loadActivePlan } from '@/lib/fitness/plan-s
 import {
   enqueueWorkout,
   flushOfflineQueue,
-  offlineQueueCount,
 } from '@/lib/fitness/offline-queue'
 import { LoginPromptBanner } from '@/components/auth/login-card'
 import { MeetupBoard } from '@/components/fitness/meetup-board'
@@ -209,7 +210,6 @@ export function TrainClient() {
   const [restSec, setRestSec] = useState(90)
   const [restAutoStart, setRestAutoStart] = useState(true)
   const [canVibrate, setCanVibrate] = useState(false)
-  const [online, setOnline] = useState(true)
   const [draftNote, setDraftNote] = useState<string | null>(null)
   const [restLeft, setRestLeft] = useState<number | null>(null)
   const [restRunning, setRestRunning] = useState(false)
@@ -370,17 +370,6 @@ export function TrainClient() {
       }
     }
     setReady(true)
-  }, [])
-
-  useEffect(() => {
-    const sync = () => setOnline(typeof navigator === 'undefined' ? true : navigator.onLine)
-    sync()
-    window.addEventListener('online', sync)
-    window.addEventListener('offline', sync)
-    return () => {
-      window.removeEventListener('online', sync)
-      window.removeEventListener('offline', sync)
-    }
   }, [])
 
   useEffect(() => {
@@ -986,17 +975,15 @@ export function TrainClient() {
         try {
           if (typeof navigator !== 'undefined' && navigator.onLine === false) {
             enqueueWorkout(ended)
-            setCloudNote(`暫時冇網 · ${offlineQueueCount()} 項留喺呢部機，有網會再同步`)
+            setCloudNote('未有網，先記喺機度')
             return
           }
           const supabase = createClient()
           await persistFinishedWorkout(supabase, user.id, ended)
-          setCloudNote('呢次訓練已同步去你個帳戶')
-        } catch (e) {
+          setCloudNote('同步去你帳戶')
+        } catch {
           enqueueWorkout(ended)
-          setCloudNote(
-            (e instanceof Error ? e.message : '同步唔到') + ' · 已留喺呢部機，有網會再試'
-          )
+          setCloudNote('同步唔到，先記喺機度')
         }
       })()
     } else {
@@ -1150,6 +1137,13 @@ export function TrainClient() {
             >
               {!active ? (
                 <Stagger className="space-y-3">
+                  <StaggerItem>
+                    <WeekOneCard
+                      variant="workout"
+                      finishedWorkouts={sessions.filter((s) => s.endedAt).length}
+                      hkQuickMeals={0}
+                    />
+                  </StaggerItem>
                   {/* 示範腿日 — 最醒目一掣開波 */}
                   <StaggerItem>
                     <Card className="py-4 border-accent/50 bg-gradient-to-br from-accent via-accent to-[#0d9488] text-white shadow-hover ring-2 ring-accent/30">
@@ -1424,13 +1418,6 @@ export function TrainClient() {
                 </Stagger>
               ) : (
                 <div className="space-y-4">
-                  {!online && (
-                    <div className="rounded-2xl border border-border bg-surface-muted px-3.5 py-2.5 text-[12px] leading-relaxed text-muted">
-                      <span className="font-semibold text-foreground">離線草稿</span>
-                      {' · '}
-                      {active.sets.length} 組已留喺呢部機。有網完場之後會同步去你個帳戶。
-                    </div>
-                  )}
                   {draftNote && (
                     <div className="flex items-center justify-between gap-3 rounded-2xl border border-accent/25 bg-accent-soft/40 px-3.5 py-2.5">
                       <p className="text-[12px] text-accent leading-relaxed">{draftNote}</p>
@@ -2049,6 +2036,7 @@ export function TrainClient() {
                   </div>
 
                   <div className={`thumb-cta sticky z-20 -mx-1 px-1 pt-2 pb-1 bg-gradient-to-t from-background via-background to-transparent ${selectedEx ? 'above-nav-stack' : 'above-nav-gap'}`}>
+                    <SyncStatusLine loggedIn={Boolean(user)} note={cloudNote} className="mb-2 flex items-center gap-1.5 px-1 text-[12px] text-muted" />
                     <div className="flex gap-2">
                       <Button variant="secondary" size="xl" className="flex-1 h-16 rounded-[20px] text-base" onClick={discardSession}>
                         放棄
@@ -2483,7 +2471,8 @@ export function TrainClient() {
                   )}
                 </div>
                 <p className="text-[11px] text-muted mb-3 -mt-1 leading-relaxed">
-                  破咗個人最佳會即刻彈出嚟。全部紀錄同日期留喺呢度。
+                  {streakComebackLine(streak, trainedToday()) ||
+                    '破咗個人最佳會即刻彈出嚟。全部紀錄同日期留喺呢度。'}
                 </p>
                 {Object.keys(prs).length === 0 ? (
                   <EmptyState
@@ -2605,7 +2594,7 @@ export function TrainClient() {
                                     hour: '2-digit',
                                     minute: '2-digit',
                                   }),
-                                  tip: s.analysis.tips?.[0],
+                                  tip: tipsOn ? s.analysis.tips?.[0] : undefined,
                                   prs: (s.analysis.prs || []).map(
                                     (p) => `${p.name} ${p.weightKg}×${p.reps}`
                                   ),
@@ -2629,12 +2618,9 @@ export function TrainClient() {
             <LoginPromptBanner />
           </div>
         )}
-        {user && cloudNote && (
-          <div className="mt-4 mb-2 flex items-start gap-2 rounded-2xl border border-accent/25 bg-accent-soft px-3.5 py-2 text-[11px] text-accent">
-            <span className="font-semibold shrink-0">帳戶</span>
-            <span className="leading-relaxed text-accent/90">{cloudNote}</span>
-          </div>
-        )}
+        <div className="mt-4 mb-2">
+          <SyncStatusLine loggedIn={Boolean(user)} note={cloudNote} />
+        </div>
       </PageTransition>
 
 
@@ -3049,163 +3035,121 @@ export function TrainClient() {
               animate={{ scale: 1, y: 0 }}
               transition={springSoft}
             >
-              <div className="text-center mb-4">
-                <div className="text-3xl mb-2">🔥</div>
-                <h2 className="font-serif text-2xl mb-1">搞掂！</h2>
-                <p className="text-sm text-muted">今日練完啦。分析已跟住呢場儲低。</p>
+              <div className="mb-4">
+                <p className="text-[11px] font-semibold text-accent">搞掂</p>
+                <h2 className="font-serif text-2xl tracking-tight mt-0.5">
+                  {lastFinished
+                    ? TEMPLATES.find((t) => t.id === lastFinished.templateId)?.name || '今日訓練'
+                    : '今日訓練'}
+                </h2>
+                <p className="text-[12px] text-muted mt-0.5">
+                  {lastFinished
+                    ? new Date(lastFinished.endedAt || lastFinished.startedAt).toLocaleString('zh-HK', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : ''}
+                </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                <div className="rounded-2xl border border-border bg-surface-muted px-3 py-3 text-center">
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="rounded-2xl border border-border bg-surface-muted px-2 py-3 text-center">
                   <div className="text-lg font-semibold tabular-nums">
-                    {lastAnalysis.volume.toLocaleString()}
+                    {Math.round(lastAnalysis.volume).toLocaleString()}
                   </div>
-                  <div className="text-[10px] text-muted">容量 kg×reps</div>
-                  {formatDelta(lastAnalysis.volumeDeltaPct) && (
-                    <div className="text-[11px] text-accent mt-0.5 font-medium">
-                      {formatDelta(lastAnalysis.volumeDeltaPct)}
-                      {lastAnalysis.compareLabel ? ` · ${lastAnalysis.compareLabel}` : ''}
-                    </div>
-                  )}
+                  <div className="text-[10px] text-muted">容量</div>
                 </div>
-                <div className="rounded-2xl border border-border bg-surface-muted px-3 py-3 text-center">
+                <div className="rounded-2xl border border-border bg-surface-muted px-2 py-3 text-center">
                   <div className="text-lg font-semibold tabular-nums">{lastAnalysis.sets}</div>
-                  <div className="text-[10px] text-muted">總組數</div>
+                  <div className="text-[10px] text-muted">組數</div>
                 </div>
-                <div className="rounded-2xl border border-border bg-surface-muted px-3 py-3 text-center">
+                <div className="rounded-2xl border border-border bg-surface-muted px-2 py-3 text-center">
                   <div className="text-lg font-semibold tabular-nums">
-                    {Math.floor(lastAnalysis.durationSec / 60)}:{String(lastAnalysis.durationSec % 60).padStart(2, '0')}
+                    {(lastAnalysis.prs?.length ?? 0) > 0
+                      ? lastAnalysis.prs!.length
+                      : `${Math.floor(lastAnalysis.durationSec / 60)}:${String(lastAnalysis.durationSec % 60).padStart(2, '0')}`}
                   </div>
-                  <div className="text-[10px] text-muted">時長</div>
-                  {formatDelta(lastAnalysis.durationDeltaPct) && (
-                    <div className="text-[11px] text-muted mt-0.5">
-                      {formatDelta(lastAnalysis.durationDeltaPct)} 時間
-                    </div>
-                  )}
-                </div>
-                <div className="rounded-2xl border border-border bg-surface-muted px-3 py-3 text-center">
-                  <div className="text-lg font-semibold tabular-nums">{lastAnalysis.density}</div>
-                  <div className="text-[10px] text-muted">密度／分鐘</div>
+                  <div className="text-[10px] text-muted">
+                    {(lastAnalysis.prs?.length ?? 0) > 0 ? 'PR' : '時長'}
+                  </div>
                 </div>
               </div>
 
               {(lastAnalysis.prs?.length ?? 0) > 0 && (
-                <div className="mb-4 rounded-2xl border border-[#F59E0B]/35 bg-[#FEF3C7] px-3.5 py-3 text-left">
-                  <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[#92400E]">
-                    <Trophy className="h-3.5 w-3.5" />
-                    今日 PR
-                  </div>
-                  <ul className="space-y-1">
-                    {lastAnalysis.prs!.map((pr) => (
-                      <li key={pr.exerciseId} className="text-sm font-medium tabular-nums text-[#1C1917]">
-                        {pr.name} · {pr.weightKg} kg × {pr.reps}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <ul className="mb-4 space-y-1">
+                  {lastAnalysis.prs!.map((pr) => (
+                    <li key={pr.exerciseId} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="inline-flex items-center gap-1.5 min-w-0">
+                        <Trophy className="h-3.5 w-3.5 shrink-0 text-accent" />
+                        <span className="truncate">{pr.name}</span>
+                      </span>
+                      <span className="tabular-nums font-semibold text-accent shrink-0">
+                        {pr.weightKg}×{pr.reps}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               )}
 
               {finishLines.length > 0 && (
-                <div
+                <p
                   data-testid="finish-tip"
-                  className="mb-4 rounded-2xl border border-accent/25 bg-accent-soft/40 px-3.5 py-3 text-left"
+                  className="mb-4 text-sm leading-snug text-foreground"
                 >
-                  <div className="text-[10px] font-semibold text-accent mb-1">完場一句</div>
-                  {finishLines.map((line) => (
-                    <p key={line} className="text-sm leading-snug text-foreground">
-                      {line}
-                    </p>
-                  ))}
-                </div>
-              )}
-
-              <div className="rounded-[20px] border border-border bg-surface-muted p-4 mb-5 text-left">
-                <div className="text-xs font-semibold text-accent mb-2">一句講</div>
-                <p className="text-sm text-foreground/90 leading-relaxed">{lastAnalysis.tips[0]}</p>
-                {lastAnalysis.tips.length > 1 && (
-                  <ul className="mt-3 space-y-2">
-                    {lastAnalysis.tips.slice(1).map((tip, i) => (
-                      <li key={i} className="text-sm text-foreground/90 leading-relaxed flex gap-2">
-                        <span className="text-accent shrink-0">·</span>
-                        <span>{tip}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <p className="text-[10px] text-muted mt-3 leading-relaxed">
-                  提示只係一般健身參考，唔係醫療、物理治療或私人教練建議。身體唔舒服就停低並求醫。{' '}
-                  <a href="/disclaimer" className="text-accent font-medium hover:underline">
-                    免責
-                  </a>
+                  {finishLines[0]}
                 </p>
-              </div>
-
-              <div className="mb-4">
-                <InstallPrompt variant="banner" forceAfterWorkout />
-              </div>
+              )}
 
               {lastFinished && lastAnalysis && (
-                <div className="mb-4 rounded-[20px] border border-accent/30 bg-accent-soft/40 p-4">
-                  <div className="text-sm font-semibold text-accent mb-1">出分享卡</div>
-                  <p className="text-[11px] text-muted mb-3 leading-relaxed">
-                    一掣出圖——發 Threads／IG／WhatsApp 都得。街坊見到你練完會想一齊嚟。
-                  </p>
-                  <ShareCardButton
-                    kind="workout"
-                    label="分享呢場 · 出圖"
-                    variant="default"
-                    size="lg"
-                    payload={{
-                      title: '搞掂！',
-                      volume: lastAnalysis.volume,
-                      sets: lastAnalysis.sets,
-                      durationSec: lastAnalysis.durationSec,
-                      topExercises: [
-                        ...new Map(
-                          lastFinished.sets.map((s) => [
-                            s.exerciseId,
-                            `${s.exerciseName} ${s.weightKg}×${s.reps}`,
-                          ])
-                        ).values(),
-                      ].slice(0, 5),
-                      dateLabel: new Date(lastFinished.endedAt || lastFinished.startedAt).toLocaleString(
-                        'zh-HK',
-                        { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
-                      ),
-                      tip: finishLines[0] || lastAnalysis.tips[0],
-                      prs: (lastAnalysis.prs || []).map((p) => `${p.name} ${p.weightKg}×${p.reps}`),
-                    }}
-                  />
-                </div>
-              )}
-              <div className="flex flex-col gap-2">
-                {Object.keys(prs).length > 0 && (
-                  <Button
-                    variant="soft"
-                    className="w-full"
-                    onClick={() => {
-                      setFinishOpen(false)
-                      setLastFinished(null)
-                      setTab('history')
-                      window.setTimeout(() => {
-                        document.getElementById('pr-wall')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                      }, 120)
-                    }}
-                  >
-                    <Trophy className="h-4 w-4" />
-                    睇 PR 牆
-                  </Button>
-                )}
-                <Button
-                  variant="secondary"
-                  className="w-full"
-                  onClick={() => {
-                    setFinishOpen(false)
-                    setLastFinished(null)
+                <ShareCardButton
+                  kind="workout"
+                  primary
+                  label="分享"
+                  variant="default"
+                  size="lg"
+                  payload={{
+                    title:
+                      TEMPLATES.find((t) => t.id === lastFinished.templateId)?.name || '今日訓練',
+                    volume: lastAnalysis.volume,
+                    sets: lastAnalysis.sets,
+                    durationSec: lastAnalysis.durationSec,
+                    topExercises: [
+                      ...new Map(
+                        lastFinished.sets.map((s) => [
+                          s.exerciseId,
+                          `${s.exerciseName} ${s.weightKg}×${s.reps}`,
+                        ])
+                      ).values(),
+                    ].slice(0, 5),
+                    dateLabel: new Date(lastFinished.endedAt || lastFinished.startedAt).toLocaleString(
+                      'zh-HK',
+                      { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
+                    ),
+                    tip: finishLines[0],
+                    prs: (lastAnalysis.prs || []).map((p) => `${p.name} ${p.weightKg}×${p.reps}`),
                   }}
-                >
-                  收工
-                </Button>
+                />
+              )}
+              <Button
+                variant="secondary"
+                className="w-full mt-2"
+                onClick={() => {
+                  setFinishOpen(false)
+                  setLastFinished(null)
+                }}
+              >
+                收工
+              </Button>
+              <p className="mt-3 text-[10px] text-muted leading-relaxed">
+                一般參考。唔舒服就停。{' '}
+                <a href="/disclaimer" className="text-accent font-medium hover:underline">
+                  免責
+                </a>
+              </p>
+              <div className="mt-3">
+                <InstallPrompt variant="banner" forceAfterWorkout />
               </div>
             </motion.div>
           </motion.div>

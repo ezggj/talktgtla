@@ -26,16 +26,16 @@ function authErrorMessage(raw: string, kind: 'otp' | 'verify' | 'oauth' = 'otp')
     lower.includes('429') ||
     lower.includes('email rate limit')
   ) {
-    return '寄得太密喇——等大概一個鐘，或者改撳 Google。舊電郵入面如果有 6 位碼，可以直接填。'
+    return '寄得太密喇——等大概一個鐘，或者改撳 Google。舊電郵入面如果有六位數字，可以直接填。'
   }
   if (
     lower.includes('invalid') &&
     (lower.includes('otp') || lower.includes('token') || lower.includes('code') || kind === 'verify')
   ) {
-    return '驗證碼唔啱或者過期喇——再寄一次，或者改試 Google。'
+    return '六位數字唔啱或者過期喇——再寄一次，或者改試 Google。'
   }
   if (lower.includes('expired') || lower.includes('otp_expired')) {
-    return '驗證碼過期喇——撳「再寄一次」，或者改用 Google。'
+    return '六位數字過期喇——撳「再寄一次」，或者改用 Google。'
   }
   if (lower.includes('network') || lower.includes('fetch') || lower.includes('failed to fetch')) {
     return '網絡唔穩——睇吓 Wi‑Fi 定手機數據，陣間再試。'
@@ -47,7 +47,7 @@ function authErrorMessage(raw: string, kind: 'otp' | 'verify' | 'oauth' = 'otp')
     return '呢個電郵開戶唔到——試下再寄一次，或者改用 Google。'
   }
   // Prefer Cantonese fallback over raw English SDK strings
-  if (kind === 'verify') return '驗證唔到——檢查吓 6 位碼，或者再寄一次／試 Google。'
+  if (kind === 'verify') return '驗證唔到——檢查吓六位數字，或者再寄一次／試 Google。'
   if (kind === 'oauth') return 'Google 登入唔到——陣間再試，或者改用電郵。'
   if (/^[a-z0-9_ .:/-]+$/i.test(raw.trim()) && raw.length < 120) {
     return `登入唔到：${raw}。試下再寄一次，或者改用 Google。`
@@ -232,7 +232,9 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
           <div className="h-px flex-1 bg-border/70" />
         </div>
 
-        <p className="text-[12px] text-muted leading-relaxed">次選：寄六位數字去電郵，唔使撳連結。</p>
+        <p className="text-[12px] text-muted leading-relaxed">
+          次選：電郵會寄六位數字過嚟，填喺下面。唔使撳電郵入面個連結。
+        </p>
         <label className="block text-xs text-muted">
           電郵
           <Input

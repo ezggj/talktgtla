@@ -3,6 +3,7 @@
 import type { MealEntry, WorkoutSession } from './storage'
 import { dayKeyFromIso } from './storage'
 import { weekConsistency } from './streaks'
+import { countableProtein } from './protein-count'
 
 function volumeOf(s: WorkoutSession) {
   return s.sets.reduce((a, x) => a + x.weightKg * x.reps, 0)
@@ -37,7 +38,7 @@ export function buildWeeklySummary(
   const kcalByDay = new Map<string, number>()
   for (const m of weekMeals) {
     const d = dayKeyFromIso(m.createdAt)
-    proteinByDay.set(d, (proteinByDay.get(d) || 0) + m.macros.protein)
+    proteinByDay.set(d, (proteinByDay.get(d) || 0) + countableProtein(m))
     kcalByDay.set(d, (kcalByDay.get(d) || 0) + m.macros.kcal)
   }
   const mealDays = Math.max(1, daysWithMeal.size)
@@ -82,7 +83,7 @@ export function buildWeeklySummary(
           ? '蛋白平均差不多到標'
           : proteinAvg >= proteinGoal * 0.55
             ? '蛋白有記，再補一補就靚'
-            : '蛋白偏少——加蛋、肉、魚、豆腐或者豆奶；碟菜唔計'
+            : 'protein 偏少——加蛋、肉、魚、豆腐或者打杯 whey；碟菜唔計'
       lines.push(
         `記咗 ${weekMeals.length} 餐、${daysWithMeal.size} 日有記；平均約 ${proteinAvg}g 蛋白、${kcalAvg} kcal——其中約 ${hitDays} 日到標。${hit}。`
       )
@@ -139,7 +140,7 @@ export function buildProteinWeekSummary(
   const proteinByDay = new Map<string, number>()
   for (const m of weekMeals) {
     const d = dayKeyFromIso(m.createdAt)
-    proteinByDay.set(d, (proteinByDay.get(d) || 0) + m.macros.protein)
+    proteinByDay.set(d, (proteinByDay.get(d) || 0) + countableProtein(m))
   }
   const days = [...proteinByDay.entries()]
   const daysLogged = days.length
@@ -154,8 +155,8 @@ export function buildProteinWeekSummary(
   const lines: string[] = []
 
   if (daysLogged === 0) {
-    lines.push(`未有飲食紀錄——影一餐或者撳「gym撚常食」，${noun}就有口語總結。`)
-    lines.push(`目標大概每日 ${proteinGoal}g 蛋白。加蛋、肉、魚、豆腐或者豆奶；碟菜唔計。`)
+    lines.push(`未有飲食紀錄——影一餐或者快加，${noun}就有數。`)
+    lines.push(`目標大概每日 ${proteinGoal}g protein。加蛋、肉、魚、豆腐或者打杯 whey；碟菜唔計。`)
   } else if (daysHit >= 5 || pct >= 95) {
     title = `${noun}蛋白好穩`
     vibe = 'fire'
@@ -165,16 +166,16 @@ export function buildProteinWeekSummary(
     title = `${noun}蛋白有進度`
     vibe = 'solid'
     lines.push(`記咗 ${daysLogged} 日，平均約 ${avgProtein}g 蛋白——再補一陣就到標。`)
-    lines.push('差一截就加會所雞胸／乳清，或者茶記轉白切雞飯。')
+    lines.push('差一截就打杯 whey，或者加舊雞胸／茶記白切雞。')
   } else {
     title = `${noun}蛋白偏少`
     vibe = 'light'
     lines.push(`有記 ${daysLogged} 日，平均約 ${avgProtein}g——未夠 ${proteinGoal}g 目標。`)
-    lines.push('唔使完美：加一餐 gym撚常食碗或者蛋白粉，聽日數字就會靚啲。')
+    lines.push('唔使完美：加舊雞胸或者打杯 whey，聽日就夠喇。')
   }
 
   if (daysLogged > 0 && daysHit === 0 && pct >= 55) {
-    lines.push('未算「到標日」，但方向啱——穩陣啲就入 solid。')
+    lines.push('未算到標，但方向啱——再補一截就得。')
   }
 
   return {
@@ -258,7 +259,7 @@ export function buildTrainCoachBlurb(sessions: WorkoutSession[]): TrainCoachBlur
     lines.push(
       w.streak > 0
         ? `連練 ${w.streak} 日——收工都得，聽日再嚟就繼續亮。`
-        : '今日有落場就夠——蛋白質記得補，聽日再睇教練。'
+        : '今日有落場就夠——protein 記得補，聽日再練。'
     )
     if (weekSessions.length > 0) {
       lines.push(`呢個星期已開 ${weekSessions.length} 場（${w.trainedCount} 日）——穩陣過爆機一日。`)

@@ -35,7 +35,7 @@ export function ProteinReminderCard({ className }: { className?: string }) {
       if (pref.enabled) {
         disableProteinReminder()
         setPref((p) => ({ ...p, enabled: false }))
-        flash('已關蛋白晚間提醒')
+        flash('已關夜晚提醒')
         return
       }
       const { ok, permission } = await enableProteinReminder(pref.hour)
@@ -46,7 +46,7 @@ export function ProteinReminderCard({ className }: { className?: string }) {
         return
       }
       setPref((p) => ({ ...p, enabled: true }))
-      flash(`已開 · 每日 ${pref.hour}:00 前後檢查蛋白`)
+      flash(`已開 · 每晚 ${pref.hour}:00 前後睇下夠未`)
     } finally {
       setBusy(false)
     }
@@ -66,9 +66,9 @@ export function ProteinReminderCard({ className }: { className?: string }) {
     <Card className={cn('py-4', className)}>
       <div className="flex items-start justify-between gap-3 mb-2">
         <div>
-          <CardTitle className="text-lg">蛋白晚間提醒</CardTitle>
+          <CardTitle className="text-lg">夜晚睇下 protein</CardTitle>
           <CardDesc className="mt-1">
-            夜晚未夠蛋白目標就推一下——一掣去飲食加乳清。
+            夜晚未夠就提你一句——打杯 whey，或者加舊雞胸。
           </CardDesc>
         </div>
         <Button

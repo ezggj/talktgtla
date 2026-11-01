@@ -36,6 +36,7 @@ import {
 } from '@/lib/chat/moderation'
 import { MessageModActions } from '@/components/chat/message-mod-actions'
 import { StarterChipsBar } from '@/components/chat/starter-chips-bar'
+import { markWeekOneChip } from '@/lib/fitness/week-one'
 
 type Message = {
   id: number
@@ -837,6 +838,7 @@ export default function Chat() {
                     type="button"
                     className="inline-flex items-center rounded-full bg-accent px-3.5 py-2 text-[11px] font-semibold text-white hover:bg-[#0d6a63] transition touch-manipulation"
                     onClick={() => {
+                      markWeekOneChip()
                       const topic = getDailyTopic()
                       setNewMessage(topicStarterLine(topic))
                       requestAnimationFrame(() => inputRef.current?.focus())

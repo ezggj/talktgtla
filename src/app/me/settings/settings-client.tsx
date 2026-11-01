@@ -12,6 +12,7 @@ import { InstallPrompt } from '@/components/pwa/install-prompt'
 import { NotificationsCard } from '@/components/settings/notifications-card'
 import { SoundToggleCard } from '@/components/settings/sound-toggle-card'
 import { TrainTipsCard } from '@/components/settings/train-tips-card'
+import { WeekOneSettingsCard } from '@/components/fitness/week-one-card'
 import { DisplayNameCard } from '@/components/settings/display-name-card'
 import { PublicWallCard } from '@/components/settings/public-wall-card'
 import { ProteinReminderCard } from '@/components/fitness/protein-reminder-card'
@@ -69,6 +70,9 @@ export function SettingsClient() {
             <TrainTipsCard />
           </StaggerItem>
           <StaggerItem>
+            <WeekOneSettingsCard />
+          </StaggerItem>
+          <StaggerItem>
             <SoundToggleCard />
           </StaggerItem>
           <StaggerItem>
@@ -83,7 +87,7 @@ export function SettingsClient() {
           </StaggerItem>
           <StaggerItem>
             <CardDesc className="text-[12px] leading-relaxed px-1">
-              傾偈可以匿名。凑局花名唔會自動變成傾偈花名。登入之後訓練同飲食會同步去你個帳戶。清瀏覽器，設定會冇。
+              傾偈可以匿名。凑局花名唔會自動變成傾偈花名。用電郵登入會收到六位數字，唔係一條連結。登入之後訓練同飲食會同步去你個帳戶。清瀏覽器，設定會冇。
             </CardDesc>
           </StaggerItem>
           <StaggerItem>
