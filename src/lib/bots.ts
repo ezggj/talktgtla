@@ -106,7 +106,7 @@ export const BOT_PERSONAS: BotPersona[] = [
       '打機先',
       '有冇人一齊',
       '輸到燶',
-      '再來一鋪',
+      '再嚟一鋪',
       '你哋玩緊咩',
     ],
   },

@@ -6,6 +6,8 @@ export type SessionPr = {
   name: string
   weightKg: number
   reps: number
+  /** Beat an earlier finished session. A first log is a baseline, not a PR. */
+  beaten: boolean
 }
 
 export type WorkoutAnalysis = {
@@ -17,8 +19,13 @@ export type WorkoutAnalysis = {
   durationDeltaPct: number | null
   compareLabel: string | null
   tips: string[]
-  /** PRs set during this session (heavier, or same weight with more reps). */
+  /** PRs that beat an earlier finished session. First logs are not included. */
   prs?: SessionPr[]
+  /**
+   * False when the session is too small to count as a training day
+   * (one set / very little volume, and no real PR).
+   */
+  countsAsDay?: boolean
   generatedAt: string
 }
 
@@ -29,7 +36,29 @@ function isBetterLoad(
   return next.weightKg > prev.weightKg || (next.weightKg === prev.weightKg && next.reps > prev.reps)
 }
 
-/** PRs vs earlier finished sessions. First logged weight for an exercise counts. */
+/** One set, or a couple of very light sets. Not a full session. */
+export function isTinySession(sets: { weightKg: number; reps: number }[]): boolean {
+  if (sets.length <= 1) return true
+  const volume = sets.reduce((sum, s) => sum + Math.max(0, s.weightKg) * Math.max(0, s.reps), 0)
+  return sets.length < 3 && volume < 400
+}
+
+/** Ended session that should light the day, streak, and 開齋. */
+export function sessionCountsAsTrainingDay(session: {
+  endedAt?: string
+  countsAsDay?: boolean
+  analysis?: { countsAsDay?: boolean }
+}): boolean {
+  if (!session.endedAt) return false
+  if (session.countsAsDay === false) return false
+  if (session.analysis?.countsAsDay === false) return false
+  return true
+}
+
+/**
+ * Real PRs only: heavier than an earlier finished session, or the same
+ * weight for more reps. The first time a lift is logged is a baseline.
+ */
 export function sessionPersonalRecords(
   current: WorkoutSession,
   history: WorkoutSession[]
@@ -54,13 +83,15 @@ export function sessionPersonalRecords(
         }
       }
     }
-    const isPr = !seen || best.weightKg > histW || (best.weightKg === histW && best.reps > histR)
-    if (!isPr) continue
+    if (!seen) continue
+    const beaten = best.weightKg > histW || (best.weightKg === histW && best.reps > histR)
+    if (!beaten) continue
     out.push({
       exerciseId: id,
       name: exerciseById(id)?.nameZh || best.exerciseName,
       weightKg: best.weightKg,
       reps: best.reps,
+      beaten: true,
     })
   }
   return out.slice(0, 4)
@@ -201,7 +232,8 @@ export function analyzeWorkout(
   const flatEx = weightsFlat(history, current)
   const dropEx = dropOffSets(current.sets)
   const sessionPrs = sessionPersonalRecords(current, history)
-  const prs = sessionPrs.map((p) => p.name)
+  const prs = sessionPrs.filter((p) => p.beaten).map((p) => p.name)
+  const countsAsDay = !isTinySession(current.sets) || sessionPrs.length > 0
   const uniqueEx = new Set(current.sets.map((s) => s.exerciseId)).size
 
   if (finishedBefore === 0) {
@@ -276,8 +308,11 @@ export function analyzeWorkout(
     volumeDeltaPct,
     durationDeltaPct,
     compareLabel,
-    tips: tips.slice(0, 4),
+    tips: countsAsDay
+      ? tips.slice(0, 4)
+      : ['記低咗。組數少，未當一場。想計連練就再加幾組。'],
     prs: sessionPrs,
+    countsAsDay,
     generatedAt: new Date().toISOString(),
   }
 }

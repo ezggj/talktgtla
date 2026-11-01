@@ -20,7 +20,7 @@ export function getGymNudge(opts?: {
     return {
       title: '今日打咗卡 ✓',
       body: '做得好。想加多一場輕量都可以，唔想就收工休息。',
-      cta: '再來一場',
+      cta: '再嚟一場',
       tone: 'calm',
     }
   }

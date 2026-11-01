@@ -167,7 +167,7 @@ export function MeClient() {
           description={
             user
               ? '目標同課表喺呢度，跟住你個帳戶。'
-              : '登入先可以喺第部機睇返訓練同飲食。'
+              : '登入先可以喺另一部機睇返訓練同飲食。'
           }
         />
 
@@ -463,7 +463,7 @@ export function MeClient() {
                 <ChevronDown className="h-4 w-4" />
               </button>
               <p className="mt-2 text-center text-[11px] text-muted leading-relaxed px-2">
-                而家先睇想做嘅事。進度可以展開；登入先可以喺第部機睇返。
+                而家先睇想做嘅事。進度可以展開；登入先可以喺另一部機睇返。
               </p>
             </StaggerItem>
           )}
@@ -508,7 +508,7 @@ export function MeClient() {
               <div className="min-w-0 flex-1">
                 <div className="text-base font-semibold text-foreground">設定</div>
                 <p className="mt-0.5 text-[12px] text-muted leading-relaxed">
-                  主題色 · 深淺 · 字體 · 通知 · 加主畫面 · 音效 · 凑局花名
+                  主題色 · 深淺 · 字體 · 通知 · 加主畫面 · 音效 · 湊局花名
                 </p>
               </div>
               <span className="text-accent text-sm font-medium shrink-0">去開 →</span>
@@ -527,7 +527,7 @@ export function MeClient() {
               <div>
                 <div className="text-sm font-semibold text-foreground">免責聲明</div>
                 <p className="mt-0.5 text-[11px] text-muted leading-relaxed">
-                  傾偈、訓練、飲食、凑局
+                  傾偈、訓練、飲食、湊局
                 </p>
               </div>
               <span className="text-accent text-sm font-medium shrink-0">睇 →</span>

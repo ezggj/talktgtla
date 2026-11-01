@@ -33,7 +33,7 @@ export function DisplayNameCard() {
           <UserRound className="h-4 w-4" />
         </div>
         <div>
-          <CardTitle className="text-lg">凑局顯示名</CardTitle>
+          <CardTitle className="text-lg">湊局顯示名</CardTitle>
           <CardDesc className="mt-0.5">
             開台、入台用嘅花名。傾偈仍然可以匿名，唔會自動用呢個名。線下見面自己判斷。
           </CardDesc>

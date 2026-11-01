@@ -1,5 +1,6 @@
 /** Fitness + chat-adjacent achievements (localStorage). */
 
+import { sessionCountsAsTrainingDay } from './analysis'
 import type { MealEntry, WorkoutSession, PRMap } from './storage'
 import { dayKeyFromIso } from './storage'
 import { computeStreak, weekConsistency } from './streaks'
@@ -120,7 +121,7 @@ export function evaluateFitnessAchievements(input: {
   already?: Set<FitnessAchievementId>
 }): FitnessAchievementId[] {
   const already = input.already ?? loadFitnessUnlocked()
-  const finished = input.sessions.filter((s) => s.endedAt)
+  const finished = input.sessions.filter((s) => sessionCountsAsTrainingDay(s))
   const streak = computeStreak(input.sessions)
   const newly: FitnessAchievementId[] = []
   const tryUnlock = (id: FitnessAchievementId, ok: boolean) => {
@@ -130,7 +131,10 @@ export function evaluateFitnessAchievements(input: {
   tryUnlock('first_workout', finished.length >= 1)
   tryUnlock('five_workouts', finished.length >= 5)
   tryUnlock('ten_workouts', finished.length >= 10)
-  tryUnlock('first_pr', Object.keys(input.prs).length >= 1)
+  tryUnlock(
+    'first_pr',
+    input.sessions.some((s) => (s.analysis?.prs?.length ?? 0) > 0)
+  )
   tryUnlock('streak_3', streak >= 3)
   tryUnlock('streak_7', streak >= 7)
   tryUnlock('heatmap_week', weekConsistency(input.sessions).trainedCount >= 3)

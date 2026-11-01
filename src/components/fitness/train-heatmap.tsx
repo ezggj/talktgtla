@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { WorkoutSession } from '@/lib/fitness/storage'
-import { volumeOf } from '@/lib/fitness/analysis'
+import { sessionCountsAsTrainingDay, volumeOf } from '@/lib/fitness/analysis'
 import { dayKeyFromIso, todayKey } from '@/lib/fitness/storage'
 
 /** GitHub-style workout calendar heatmap (Mon-first columns, local HK day). */
@@ -25,7 +25,7 @@ export function TrainHeatmap({
       []
     const volByDay = new Map<string, number>()
     for (const s of sessions) {
-      if (!s.endedAt) continue
+      if (!sessionCountsAsTrainingDay(s)) continue
       const k = dayKeyFromIso(s.startedAt)
       volByDay.set(k, (volByDay.get(k) || 0) + volumeOf(s.sets))
     }

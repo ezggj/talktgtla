@@ -264,7 +264,7 @@ export function buildTrainCoachBlurb(sessions: WorkoutSession[]): TrainCoachBlur
     if (weekSessions.length > 0) {
       lines.push(`呢個星期已開 ${weekSessions.length} 場（${w.trainedCount} 日）——穩陣過爆機一日。`)
     }
-    lines.push('想再練就用「自由練」；唔想就去飲食影餐或者凑局約人。')
+    lines.push('想再練就用「自由練」；唔想就去飲食影餐或者湊局約人。')
     return { title, lines: lines.slice(0, 3), vibe }
   }
 

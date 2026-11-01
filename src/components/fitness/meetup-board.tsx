@@ -528,7 +528,7 @@ export function MeetupBoard({ className }: { className?: string }) {
       <Card className="py-4">
         <div className="flex items-start justify-between gap-3 mb-1">
           <div>
-            <CardTitle className="text-lg leading-snug">開台凑局</CardTitle>
+            <CardTitle className="text-lg leading-snug">開台湊局</CardTitle>
             <CardDesc className="mt-1">
               睇邊度有人開台，一齊練。線下見面自己小心。
             </CardDesc>
@@ -865,8 +865,8 @@ export function MeetupBoard({ className }: { className?: string }) {
             </h3>
             <p className="mt-2 mx-auto max-w-sm text-sm text-muted leading-relaxed">
               {filterArea
-                ? `${filterArea} 暫時冇開緊嘅台。你寫低時段，街坊就睇到入嚟凑。`
-                : '你做第一個——撳下面熱門分店，寫低時段等人凑同一部位。'}
+                ? `${filterArea} 暫時冇開緊嘅台。你寫低時段，街坊就睇到入嚟湊。`
+                : '你做第一個——撳下面熱門分店，寫低時段等人湊同一部位。'}
             </p>
           </div>
           {!filterArea && (
@@ -907,7 +907,7 @@ export function MeetupBoard({ className }: { className?: string }) {
       )}
 
       <p className="mt-3 text-center text-[10px] text-muted leading-relaxed px-2">
-        凑局線下風險自負 · 唔擔保身份。{' '}
+        湊局線下風險自負 · 唔擔保身份。{' '}
         <a href="/disclaimer" className="text-accent font-medium hover:underline">
           免責
         </a>

@@ -52,7 +52,9 @@ export function WeekOneCard({
     const item = items.find((x) => x.id === 'hkMeal')
     if (!item || item.done) return null
     return (
-      <p className="mb-2 text-[12px] leading-relaxed text-muted">第一週：撳下面一餐就勾到。</p>
+      <p className="mb-2 text-[12px] leading-relaxed text-muted">
+        第一週：快加一餐就勾到。成日食都計。
+      </p>
     )
   }
 
@@ -116,7 +118,7 @@ export function WeekOneCard({
 
 function cta(id: WeekOneId) {
   if (id === 'workout') return '去練第一場'
-  if (id === 'hkMeal') return '去港式快加'
+  if (id === 'hkMeal') return '去快加一餐'
   if (id === 'goal') return '去定目標'
   return '去撳個話題'
 }

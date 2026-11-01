@@ -24,6 +24,11 @@ export type WorkoutSession = {
   templateId?: string
   /** Post-workout analysis (local + cloud jsonb) */
   analysis?: import('./analysis').WorkoutAnalysis
+  /**
+   * False when a confirmed finish was too small to count as a training day.
+   * Mirrored on analysis so it survives cloud reload.
+   */
+  countsAsDay?: boolean
 }
 
 export type MealMacros = {
