@@ -111,6 +111,12 @@ function trainedSet(): Set<string> {
   return new Set([...readDays(), ...repair.repairedDays])
 }
 
+/** Alive streak, but today is still empty — one session keeps it. */
+export function streakComebackLine(streak: number, trained: boolean): string | null {
+  if (streak > 0 && !trained) return `連練 ${streak} 日，今日未練——差少少就斷。`
+  return null
+}
+
 export function computeStreak(sessions?: WorkoutSession[]): number {
   if (sessions) syncDaysFromSessions(sessions)
   const set = trainedSet()

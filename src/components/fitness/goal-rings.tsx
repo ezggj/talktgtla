@@ -4,6 +4,7 @@ import { Card, CardTitle } from '@/components/ui/card'
 import { ProgressRing } from '@/components/ui/progress'
 import type { FitnessGoals, MealEntry, WorkoutSession } from '@/lib/fitness/storage'
 import { isSameDay, todayKey } from '@/lib/fitness/storage'
+import { proteinThatCounts } from '@/lib/fitness/protein-count'
 import { weekConsistency } from '@/lib/fitness/streaks'
 
 export function GoalRings({
@@ -19,9 +20,7 @@ export function GoalRings({
   workoutGoalDays?: number
 }) {
   const today = todayKey()
-  const proteinToday = meals
-    .filter((m) => isSameDay(m.createdAt, today))
-    .reduce((a, m) => a + m.macros.protein, 0)
+  const proteinToday = proteinThatCounts(meals.filter((m) => isSameDay(m.createdAt, today)))
   const kcalToday = meals
     .filter((m) => isSameDay(m.createdAt, today))
     .reduce((a, m) => a + m.macros.kcal, 0)
@@ -41,7 +40,7 @@ export function GoalRings({
             sublabel={`/ ${goals.proteinG}g`}
             tone="protein"
           />
-          <span className="text-[11px] font-medium text-muted">今日蛋白</span>
+          <span className="text-[11px] font-medium text-muted">今日 protein</span>
         </div>
         <div className="flex flex-col items-center gap-1.5">
           <ProgressRing

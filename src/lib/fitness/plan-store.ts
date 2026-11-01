@@ -91,6 +91,11 @@ export function setFollowingPlan(
   }
   saveActivePlan(meta)
   upsertSavedPlan(meta)
+  try {
+    window.dispatchEvent(new Event('talktgtla-week-one'))
+  } catch {
+    /* ignore */
+  }
   return meta
 }
 

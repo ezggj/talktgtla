@@ -111,7 +111,7 @@ export function MacroBars({
   const carbsGoal = goals.carbsG ?? Math.round((goals.kcal * 0.45) / 4)
   const fatGoal = goals.fatG ?? Math.round((goals.kcal * 0.25) / 9)
   const rows = [
-    { key: 'protein', label: '蛋白', value: macros.protein, max: goals.proteinG, unit: 'g', tone: 'protein' as const },
+    { key: 'protein', label: 'protein', value: macros.protein, max: goals.proteinG, unit: 'g', tone: 'protein' as const },
     { key: 'carbs', label: '碳水', value: macros.carbs, max: carbsGoal, unit: 'g', tone: 'carbs' as const },
     { key: 'fat', label: '脂肪', value: macros.fat, max: fatGoal, unit: 'g', tone: 'fat' as const },
     { key: 'kcal', label: '卡路里', value: macros.kcal, max: goals.kcal, unit: 'kcal', tone: 'kcal' as const },

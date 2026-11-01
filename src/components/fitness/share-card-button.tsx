@@ -7,6 +7,7 @@ import {
   copyText,
   drawMealShareCard,
   drawNutritionWeekShareCard,
+  currentShareTone,
   drawWorkoutShareCard,
   mealShareCaption,
   nutritionWeekShareCaption,
@@ -28,6 +29,8 @@ type Props =
       variant?: 'default' | 'secondary' | 'soft' | 'ghost'
       size?: 'sm' | 'default' | 'lg' | 'xl'
       label?: string
+      /** One tap shares. No platform menu. */
+      primary?: boolean
     }
   | {
       kind: 'meal'
@@ -36,6 +39,7 @@ type Props =
       variant?: 'default' | 'secondary' | 'soft' | 'ghost'
       size?: 'sm' | 'default' | 'lg' | 'xl'
       label?: string
+      primary?: boolean
     }
   | {
       kind: 'nutrition-week'
@@ -44,10 +48,13 @@ type Props =
       variant?: 'default' | 'secondary' | 'soft' | 'ghost'
       size?: 'sm' | 'default' | 'lg' | 'xl'
       label?: string
+      primary?: boolean
     }
 
 function buildCanvas(props: Props) {
-  if (props.kind === 'workout') return drawWorkoutShareCard(props.payload)
+  if (props.kind === 'workout') {
+    return drawWorkoutShareCard({ ...props.payload, tone: props.payload.tone ?? currentShareTone() })
+  }
   if (props.kind === 'meal') return drawMealShareCard(props.payload)
   return drawNutritionWeekShareCard(props.payload)
 }
@@ -146,6 +153,27 @@ export function ShareCardButton(props: Props) {
   const onCopyCaption = async () => {
     const ok = await copyText(buildCaption(props))
     flash(ok ? '文案已複製' : '複製唔到，試多次')
+  }
+
+  if (props.primary) {
+    return (
+      <div className={cn('relative space-y-2', props.className)}>
+        <Button
+          type="button"
+          variant={props.variant ?? 'default'}
+          size={props.size ?? 'lg'}
+          className="w-full"
+          disabled={busy !== null}
+          onClick={() => void onGeneric()}
+        >
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+          {props.label ?? '分享'}
+        </Button>
+        {note && (
+          <p className="text-center text-[11px] font-medium text-accent">{note}</p>
+        )}
+      </div>
+    )
   }
 
   return (

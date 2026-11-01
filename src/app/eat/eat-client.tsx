@@ -8,7 +8,6 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Cloud,
   CopyPlus,
   ImagePlus,
   Loader2,
@@ -34,7 +33,7 @@ import { PageSkeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { ProgressBar, ProgressRing, MacroBars } from '@/components/ui/progress'
+import { ProgressBar, MacroBars } from '@/components/ui/progress'
 import { LoginPromptBanner } from '@/components/auth/login-card'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
@@ -55,6 +54,11 @@ import {
 } from '@/lib/fitness/meals-demo'
 import { ProteinWeekCard } from '@/components/fitness/protein-week-card'
 import { ProteinReminderCard } from '@/components/fitness/protein-reminder-card'
+import { WeekOneCard } from '@/components/fitness/week-one-card'
+import { SyncStatusLine } from '@/components/fitness/sync-status-line'
+import { proteinThatCounts, vegSideProtein, countableProtein } from '@/lib/fitness/protein-count'
+import { proteinNudgeLine, remainingProteinLine, todayProteinTotalLine } from '@/lib/fitness/protein-line'
+import { mealIsHkQuickAdd } from '@/lib/fitness/week-one'
 import { compressMealImage } from '@/lib/fitness/compress-image'
 import { getOrCreateEatGuestId } from '@/lib/fitness/eat-guest-id'
 import {
@@ -149,21 +153,12 @@ function periodMacroTip(opts: {
   loggedDays: number
 }) {
   const budgetP = opts.proteinGoal * opts.spanDays
-  const budgetK = opts.kcalGoal * opts.spanDays
   const leftP = Math.round(budgetP - opts.protein)
-  const leftK = Math.round(budgetK - opts.kcal)
   const avg = opts.loggedDays > 0 ? Math.round(opts.protein / opts.loggedDays) : 0
-  if (opts.period === 'day') {
-    if (leftP <= 0 && leftK <= 0) return '呢日蛋白同卡路里都過咗目標——聽日再調就得。'
-    if (leftP <= 0) return `蛋白到標。卡路里仲剩約 ${Math.max(0, leftK)} kcal。`
-    if (leftK <= 0) return `卡路里過咗。蛋白仲差 ${leftP}g——加蛋白、少加澱粉。`
-    return `仲差約 ${leftP}g 蛋白 · ${leftK} kcal。影一餐或者港式快加都得。`
-  }
+  if (opts.period === 'day') return remainingProteinLine(opts.protein, opts.proteinGoal)
   const noun = opts.period === 'week' ? '呢個星期' : '呢個月'
-  if (leftP <= 0) {
-    return `${noun}蛋白已過全日目標。有記日子日均約 ${avg}g，穩陣就得。`
-  }
-  return `${noun}對住每日 ${opts.proteinGoal}g × ${opts.spanDays} 日，仲差約 ${leftP}g 蛋白。有記 ${opts.loggedDays} 日，日均 ${avg}g。`
+  if (leftP <= 0) return `${noun} protein 夠喇 ✅ · 日均約 ${avg}g`
+  return `${noun}仲差約 ${leftP}g protein · 日均 ${avg}g`
 }
 
 export function EatClient() {
@@ -432,16 +427,21 @@ export function EatClient() {
   }, [meals])
 
   const todaySum = useMemo(() => sumMacros(todayMeals), [todayMeals])
+  const todayProtein = useMemo(() => proteinThatCounts(todayMeals), [todayMeals])
+  const todayDisplay = useMemo(
+    () => ({ ...todaySum, protein: todayProtein }),
+    [todaySum, todayProtein]
+  )
 
   const filteredPeriodMeals = useMemo(() => {
     if (period !== 'day' || mealSlotFilter === '全部') return periodMeals
     return periodMeals.filter((m) => mealTimeLabel(m.createdAt) === mealSlotFilter)
   }, [period, periodMeals, mealSlotFilter])
 
-  const remainProtein = Math.max(0, Math.round(goals.proteinG - todaySum.protein))
+  const periodProtein = Math.max(0, periodSum.protein - vegSideProtein(periodMeals))
+  const remainProtein = Math.max(0, Math.round(goals.proteinG - todayProtein))
   const remainKcal = Math.max(0, Math.round(goals.kcal - todaySum.kcal))
-  const overProtein = todaySum.protein > goals.proteinG
-  const overKcal = todaySum.kcal > goals.kcal
+  const overProtein = todayProtein > goals.proteinG
 
   useEffect(() => {
     if (period !== 'day' && mealSlotFilter !== '全部') setMealSlotFilter('全部')
@@ -470,7 +470,7 @@ export function EatClient() {
       const t = new Date(m.createdAt)
       if (t >= start && t < end) {
         const k = todayKey(t)
-        map.set(k, (map.get(k) || 0) + m.macros.protein)
+        map.set(k, (map.get(k) || 0) + countableProtein(m))
       }
     }
     return map
@@ -629,7 +629,7 @@ export function EatClient() {
     try {
       if (typeof navigator !== 'undefined' && navigator.onLine === false && changed) {
         enqueueMeal(changed)
-        setCloudNote('暫時冇網，已留喺呢部機，有網會同步')
+        setCloudNote('未有網，先記喺機度')
         return
       }
       const supabase = createClient()
@@ -641,10 +641,11 @@ export function EatClient() {
           saveMeals(mapped)
           return mapped
         })
+        setCloudNote('同步去你帳戶')
       }
-    } catch (e) {
+    } catch {
       if (changed) enqueueMeal(changed)
-      setCloudNote(e instanceof Error ? `${e.message} · 已留喺呢部機` : '同步唔到 · 已留喺呢部機')
+      setCloudNote('同步唔到，先記喺機度')
     }
   }
 
@@ -866,7 +867,7 @@ export function EatClient() {
     void persistList(next, changed)
   }
 
-  const addDemoDish = (idx: number) => {
+  const addDemoDish = (idx: number, via?: 'hk') => {
     const dish = HK_DISH_ESTIMATES[idx]
     if (!dish) return
     const portion = quickPortion
@@ -880,7 +881,7 @@ export function EatClient() {
       macros,
       portion,
       estimated: true,
-      note: dish.hint,
+      note: via === 'hk' ? `${dish.hint} · 港式快加` : dish.hint,
       source: 'mock',
     }
     const next = [entry, ...meals]
@@ -923,8 +924,8 @@ export function EatClient() {
     }
     showToast(
       chip.vegSide
-        ? `已加${chip.label} · 約 ${chip.macros.kcal} kcal，蛋白約 ${chip.macros.protein}g`
-        : `已加${chip.label} · 約 ${chip.macros.kcal} kcal、${chip.macros.protein}g 蛋白`
+        ? `已加${chip.label} · 約 ${chip.macros.kcal} kcal，protein 約 1g，唔計`
+        : `已加${chip.label} · 約 ${chip.macros.kcal} kcal、${chip.macros.protein}g protein`
     )
     try {
       const newly = evaluateFitnessAchievements({
@@ -997,7 +998,7 @@ export function EatClient() {
           compact
           eyebrow="飲食"
           title="影低呢餐"
-          description="記低呢餐幾多卡路里同蛋白。"
+          description="記低呢餐，計 kcal 同 protein。"
         />
 
         {/* Four entry paths — 第一屏主入口 */}
@@ -1023,8 +1024,8 @@ export function EatClient() {
               },
               {
                 id: 'club' as const,
-                title: 'gym撚常食',
-                desc: 'gym 食堂模板',
+                title: '成日食呢啲',
+                desc: '烚蛋／雞胸／whey',
                 icon: Salad,
                 onClick: () => {
                   setDishCat('gym撚常食')
@@ -1067,12 +1068,12 @@ export function EatClient() {
             <span className="text-[10px] text-muted">一撳入帳 · 數字係約</span>
           </div>
           <p className="mb-2 text-[11px] text-muted leading-relaxed">
-            蛋白睇蛋、肉、魚、豆腐、豆奶。碟菜約 1–2g，唔當蛋白。
+            protein 睇蛋、肉、魚、豆腐、打杯 whey。碟菜約 1g，唔計。
           </p>
           {(['茶記', '飯堂'] as const).map((place) => (
             <div key={place} className="mb-2">
               <div className="mb-1 text-[10px] font-medium text-muted">
-                {place === '茶記' ? '茶餐廳' : '飯堂'}
+                {place === '茶記' ? '茶記' : '飯堂'}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {MEAL_CHIPS.filter((chip) => chip.place === place && !chip.vegSide).map((chip) => (
@@ -1080,12 +1081,12 @@ export function EatClient() {
                     key={chip.label}
                     type="button"
                     onClick={() => addShortcut(chip)}
-                    aria-label={`加${chip.label}，約 ${chip.macros.kcal} 卡路里、${chip.macros.protein} 克蛋白`}
+                    aria-label={`加${chip.label}，約 ${chip.macros.kcal} kcal、${chip.macros.protein}g protein`}
                     className="rounded-2xl border border-border bg-surface px-2.5 py-1.5 text-left shadow-soft touch-manipulation active:scale-[0.98]"
                   >
                     <span className="block text-[12px] font-semibold leading-tight">{chip.label}</span>
                     <span className="mt-0.5 block text-[10px] tabular-nums text-muted">
-                      約 {chip.macros.kcal} · {chip.macros.protein}g 蛋白
+                      約 {chip.macros.kcal} · {chip.macros.protein}g protein
                     </span>
                   </button>
                 ))}
@@ -1093,19 +1094,19 @@ export function EatClient() {
             </div>
           ))}
           <div>
-            <div className="mb-1 text-[10px] font-medium text-muted">碟菜 · 唔當蛋白</div>
+            <div className="mb-1 text-[10px] font-medium text-muted">碟菜 · 約 1g，唔計 protein</div>
             <div className="flex flex-wrap gap-1.5">
               {MEAL_CHIPS.filter((chip) => chip.vegSide).map((chip) => (
                 <button
                   key={chip.label}
                   type="button"
                   onClick={() => addShortcut(chip)}
-                  aria-label={`加${chip.label}，約 ${chip.macros.kcal} 卡路里，蛋白約 ${chip.macros.protein} 克，碟菜冇咩蛋白`}
+                  aria-label={`加${chip.label}，約 ${chip.macros.kcal} kcal，protein 約 1g，唔計`}
                   className="rounded-2xl border border-border bg-surface-muted px-2.5 py-1.5 text-left touch-manipulation active:scale-[0.98]"
                 >
                   <span className="block text-[12px] font-semibold leading-tight">{chip.label}</span>
                   <span className="mt-0.5 block text-[10px] tabular-nums text-muted">
-                    約 {chip.macros.kcal} kcal · 蛋白約 {chip.macros.protein}g
+                    約 {chip.macros.kcal} kcal · protein 約 1g，唔計
                   </span>
                 </button>
               ))}
@@ -1118,12 +1119,12 @@ export function EatClient() {
             <LoginPromptBanner />
           </div>
         )}
-        {user && (
-          <div className="mb-3 flex items-center gap-2 text-[11px] text-muted">
-            <Cloud className={cn('h-3.5 w-3.5 text-accent', syncing && 'animate-pulse')} />
-            {syncing ? '同步緊…' : cloudNote || '飲食已同步去你個帳戶'}
-          </div>
-        )}
+        <div className="mb-3">
+          <SyncStatusLine
+            loggedIn={Boolean(user)}
+            note={syncing ? null : cloudNote}
+          />
+        </div>
 
         {/* Period switcher */}
         <div className="mb-3 flex items-center gap-2 min-w-0">
@@ -1213,7 +1214,7 @@ export function EatClient() {
                 {(
                   [
                     { label: 'kcal', v: Math.round(periodSum.kcal), tone: 'text-foreground' },
-                    { label: '蛋白', v: `${Math.round(periodSum.protein)}g`, tone: 'text-accent' },
+                    { label: 'protein', v: `${Math.round(periodProtein)}g`, tone: 'text-accent' },
                     { label: '碳水', v: `${Math.round(periodSum.carbs)}g`, tone: 'text-warning' },
                     { label: '脂肪', v: `${Math.round(periodSum.fat)}g`, tone: 'text-[#7C3AED]' },
                   ] as const
@@ -1231,7 +1232,7 @@ export function EatClient() {
               </div>
               {periodMeals.length === 0 ? (
                 <p className="mt-3 text-center text-[12px] leading-relaxed text-muted">
-                  呢段未有餐。上面一掣茶記／飯堂，或者下面港式快加。
+                  呢段未有餐。上面一掣茶記／飯堂，或者下面快加。
                 </p>
               ) : (
                 <div className="mt-3 space-y-2 border-t border-border/70 pt-3">
@@ -1239,13 +1240,13 @@ export function EatClient() {
                     <>
                       <div className="mb-1.5 flex justify-between text-[10px] text-muted">
                         <span>
-                          蛋白進度 · 日均{' '}
-                          {Math.round(periodSum.protein / Math.max(1, periodLoggedDays))}g
+                          protein · 日均{' '}
+                          {Math.round(periodProtein / Math.max(1, periodLoggedDays))}g
                         </span>
-                        <span className="tabular-nums">{Math.round(periodSum.protein)}g</span>
+                        <span className="tabular-nums">{Math.round(periodProtein)}g</span>
                       </div>
                       <ProgressBar
-                        value={periodSum.protein}
+                        value={periodProtein}
                         max={Math.max(1, goals.proteinG * periodSpanDays)}
                         tone="protein"
                         height="md"
@@ -1255,7 +1256,7 @@ export function EatClient() {
                   <p className="text-[12px] leading-relaxed text-muted">
                     {periodMacroTip({
                       period,
-                      protein: periodSum.protein,
+                      protein: periodProtein,
                       kcal: periodSum.kcal,
                       proteinGoal: goals.proteinG,
                       kcalGoal: goals.kcal,
@@ -1271,46 +1272,18 @@ export function EatClient() {
 
         {/* Today macros — rings + full bars */}
         <Card className="mb-4 py-4 overflow-hidden">
-          <div className="flex items-center justify-between mb-3 gap-2">
-            <div className="min-w-0">
-              <div className="text-sm font-medium">今日進度</div>
-              <div className="text-[11px] text-muted">對住你嘅蛋白／卡路里目標</div>
+          <div className="mb-3">
+            <div className="text-[15px] font-semibold tabular-nums">
+              {todayProteinTotalLine(todayProtein, goals.proteinG)}
             </div>
-            <div className="flex gap-2 shrink-0">
-              <ProgressRing
-                value={todaySum.protein}
-                max={goals.proteinG}
-                label={`${Math.round(todaySum.protein)}`}
-                sublabel="g P"
-                size={56}
-                stroke={6}
-                tone="protein"
-              />
-              <ProgressRing
-                value={todaySum.kcal}
-                max={goals.kcal}
-                label={`${Math.round(todaySum.kcal)}`}
-                sublabel="kcal"
-                size={56}
-                stroke={6}
-                tone="kcal"
-              />
-            </div>
-          </div>
-          <MacroBars macros={todaySum} goals={goals} />
-          {(todayMeals.length > 0 || remainProtein > 0 || remainKcal > 0) && (
-            <p className="mt-3 text-[12px] leading-relaxed text-muted">
-              {overProtein && overKcal
-                ? '今日蛋白同卡路里都過咗目標——休息日／增肌日都得，聽日再調。'
-                : overProtein
-                  ? `蛋白已過目標；卡路里仲剩約 ${remainKcal} kcal（睇你目標）。`
-                  : overKcal
-                    ? `卡路里已過目標；蛋白仲差 ${remainProtein}g。`
-                    : remainProtein === 0 && remainKcal === 0
-                      ? '今日目標差唔多齊——叻呀。'
-                      : `仲差約 ${remainProtein}g 蛋白 · ${remainKcal} kcal——影一餐或港式快加補返。`}
+            <p className="mt-1 text-lg font-semibold leading-snug">
+              {remainingProteinLine(todayProtein, goals.proteinG)}
             </p>
-          )}
+            {remainKcal > 0 && todayMeals.length > 0 && !overProtein && (
+              <p className="mt-1 text-[12px] text-muted">kcal 仲剩約 {remainKcal}</p>
+            )}
+          </div>
+          <MacroBars macros={todayDisplay} goals={goals} />
         </Card>
 
         {/* Weekly protein — high visibility near top */}
@@ -1344,7 +1317,7 @@ export function EatClient() {
           todayKey(anchor) === todayKey() &&
           (() => {
             const hour = new Date().getHours()
-            const pct = goals.proteinG > 0 ? todaySum.protein / goals.proteinG : 0
+            const pct = goals.proteinG > 0 ? todayProtein / goals.proteinG : 0
             if (todayMeals.length === 0 && hour >= 14) {
               return (
                 <div className="mb-5 flex gap-3 rounded-2xl border border-border/90 bg-surface px-4 py-3.5 shadow-soft">
@@ -1367,9 +1340,9 @@ export function EatClient() {
                     <Utensils className="h-4 w-4 text-warning" />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-sm font-medium">蛋白仲差一截</div>
+                    <div className="text-sm font-medium">今晚 protein 點？</div>
                     <p className="text-[12px] text-muted leading-relaxed mt-0.5">
-                      而家大概 {Math.round(pct * 100)}%——晚啲加碟蛋／雞胸／豆腐都得，唔使一次過硬塞。
+                      {proteinNudgeLine(remainProtein)}
                     </p>
                   </div>
                 </div>
@@ -1383,7 +1356,7 @@ export function EatClient() {
           <Card className="mb-6">
             <CardTitle className="text-lg mb-1">飲食日曆</CardTitle>
             <CardDesc className="mb-3">
-              色越深＝當日蛋白越多。金圈＝到標（約 9 成目標）。撳日子跳去嗰日。
+              色越深＝當日 protein 越多。金圈＝食夠。撳日子跳去嗰日。
             </CardDesc>
             <div className="mb-3 flex flex-wrap items-center gap-3 text-[10px] text-muted">
               <span className="inline-flex items-center gap-1">
@@ -1562,7 +1535,7 @@ export function EatClient() {
                   <div className="text-sm font-medium mb-0.5 line-clamp-1">{m.name}</div>
                   <div className="text-xs text-accent font-semibold tabular-nums">
                     {m.estimated ? '約 ' : ''}
-                    {m.macros.protein}g 蛋白 · {m.macros.kcal} kcal
+                    {m.macros.protein}g protein · {m.macros.kcal} kcal
                   </div>
                 </motion.button>
               ))}
@@ -1572,6 +1545,11 @@ export function EatClient() {
 
         {/* 港式快加 */}
         <div id="eat-hk" ref={hkRef} className="mb-6 scroll-mt-24">
+          <WeekOneCard
+            variant="meal"
+            finishedWorkouts={loadSessions().filter((s) => s.endedAt).length}
+            hkQuickMeals={meals.filter((m) => mealIsHkQuickAdd(m)).length}
+          />
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-serif text-xl">港式快加</h2>
             <Badge tone="muted">搜尋 · 品牌 · 份量</Badge>
@@ -1689,14 +1667,14 @@ export function EatClient() {
                 whileHover={reduce ? undefined : { scale: 1.02 }}
                 whileTap={reduce ? undefined : { scale: 0.98 }}
                 transition={springSnappy}
-                onClick={() => addDemoDish(i)}
+                onClick={() => addDemoDish(i, 'hk')}
                 className="shrink-0 w-[148px] rounded-[20px] border border-border bg-surface p-3.5 text-left shadow-soft hover:shadow-hover transition"
               >
                 <div className="text-[10px] text-accent mb-0.5">{DISH_CATEGORY_LABEL[d.category]}</div>
                 <div className="text-sm font-medium mb-0.5">{d.name}</div>
                 <div className="text-[10px] text-muted mb-2 line-clamp-1">{d.hint}</div>
                 <div className="text-xs text-accent font-semibold tabular-nums">
-                  約 {shown.protein}g 蛋白 · {shown.kcal} kcal
+                  約 {shown.protein}g protein · {shown.kcal} kcal
                 </div>
               </motion.button>
             )})}
@@ -1708,14 +1686,21 @@ export function EatClient() {
         {/* gym撚常食 */}
         <div id="eat-club" ref={clubRef} className="mb-6 scroll-mt-24">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-serif text-xl">gym撚常食</h2>
-            <Badge tone="accent">gym 食堂</Badge>
+            <h2 className="font-serif text-xl">成日食呢啲</h2>
+            <Badge tone="accent">快加</Badge>
           </div>
           <p className="text-[11px] text-muted mb-2 px-0.5 leading-relaxed">
-            練完一掣入蛋白餐模板——配一週蛋白口語總結更好用。
+            操完一掣加。蛋白睇蛋、肉、魚、豆腐、打杯 whey。
           </p>
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
-            {clubProteinDishes().map((d) => {
+            {[
+              ...['烚雙蛋', '即食雞胸', '打杯 whey']
+                .map((name) => HK_DISH_ESTIMATES.find((d) => d.name === name))
+                .filter((d): d is (typeof HK_DISH_ESTIMATES)[number] => Boolean(d)),
+              ...clubProteinDishes().filter(
+                (d) => !['烚雙蛋', '即食雞胸', '打杯 whey'].includes(d.name)
+              ),
+            ].map((d) => {
               const i = HK_DISH_ESTIMATES.findIndex((x) => x.name === d.name)
               return (
               <motion.button
@@ -1731,7 +1716,7 @@ export function EatClient() {
                 <div className="text-sm font-medium mb-0.5">{d.name}</div>
                 <div className="text-[10px] text-muted mb-2 line-clamp-1">{d.hint}</div>
                 <div className="text-xs text-accent font-semibold tabular-nums">
-                  約 {d.macros.protein}g 蛋白 · {d.macros.kcal} kcal
+                  約 {d.macros.protein}g protein · {d.macros.kcal} kcal
                 </div>
               </motion.button>
             )})}
@@ -1742,11 +1727,11 @@ export function EatClient() {
         {/* 補劑／乳清 */}
         <div id="eat-supp" className="mb-6 scroll-mt-24">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-serif text-xl">補劑／乳清</h2>
-            <Badge tone="accent">一掣加</Badge>
+            <h2 className="font-serif text-xl">打杯 whey</h2>
+            <Badge tone="accent">一 scoop</Badge>
           </div>
           <p className="text-[11px] text-muted mb-2 px-0.5 leading-relaxed">
-            訓練後乳清、肌酸、蛋白棒——唔使自己計。
+            一 scoop 就記低。操完打杯 whey，或者加即食雞胸。
           </p>
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
             {supplementDishes().map((d) => {
@@ -1765,7 +1750,7 @@ export function EatClient() {
                 <div className="text-sm font-medium mb-0.5">{d.name}</div>
                 <div className="text-[10px] text-muted mb-2 line-clamp-1">{d.hint}</div>
                 <div className="text-xs text-accent font-semibold tabular-nums">
-                  約 {d.macros.protein}g 蛋白 · {d.macros.kcal} kcal
+                  約 {d.macros.protein}g protein · {d.macros.kcal} kcal
                 </div>
               </motion.button>
             )})}
@@ -1844,7 +1829,7 @@ export function EatClient() {
               }
               description={
                 period === 'day'
-                  ? '港式快加最方便（譚仔／茶餐廳／大家樂）；想蛋白就 gym撚常食。'
+                  ? '快加最方便（譚仔／茶記／大家樂）。想補 protein 就打杯 whey 或者加舊雞胸。'
                   : '切去「日」先加一餐，或者撳箭嘴睇其他日子。'
               }
               actionLabel={period === 'day' ? '港式快加' : '睇今日'}
@@ -1856,7 +1841,7 @@ export function EatClient() {
                 // defer scroll so day UI mounts
                 requestAnimationFrame(() => scrollEat('hk'))
               }}
-              secondaryLabel={period === 'day' ? 'gym撚常食' : '港式快加'}
+              secondaryLabel={period === 'day' ? '成日食呢啲' : '港式快加'}
               onSecondary={() => {
                 if (period !== 'day') {
                   setPeriod('day')

@@ -3,6 +3,7 @@
 import type { MealEntry, WorkoutSession, PRMap } from './storage'
 import { dayKeyFromIso } from './storage'
 import { computeStreak, weekConsistency } from './streaks'
+import { countableProtein } from './protein-count'
 
 export const FITNESS_ACH_KEY = 'talktgtla-fitness-achievements-v1'
 
@@ -139,7 +140,7 @@ export function evaluateFitnessAchievements(input: {
     const byDay = new Map<string, number>()
     for (const m of input.meals) {
       const k = dayKeyFromIso(m.createdAt)
-      byDay.set(k, (byDay.get(k) || 0) + m.macros.protein)
+      byDay.set(k, (byDay.get(k) || 0) + countableProtein(m))
     }
     const hit = [...byDay.values()].some((p) => p >= input.proteinGoal!)
     tryUnlock('protein_goal_day', hit)

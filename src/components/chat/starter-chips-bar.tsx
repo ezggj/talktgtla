@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { CHAT_STARTER_CHIPS, type StarterChip } from '@/lib/chat/starter-chips'
+import { markWeekOneChip } from '@/lib/fitness/week-one'
 import { getDailyTopic, topicStarterLine } from '@/lib/fitness/daily-topic'
 
 export function StarterChipsBar({
@@ -28,7 +29,10 @@ export function StarterChipsBar({
           <button
             key={chip.id}
             type="button"
-            onClick={() => onPick(chip.text)}
+            onClick={() => {
+              markWeekOneChip()
+              onPick(chip.text)
+            }}
             className="shrink-0 rounded-full border border-border bg-surface-muted px-2.5 py-1 text-xs text-foreground hover:bg-accent-soft hover:border-accent/40 hover:text-accent active:scale-95 transition-all touch-manipulation"
           >
             {chip.label}

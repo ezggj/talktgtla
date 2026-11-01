@@ -2,6 +2,7 @@
 
 import type { MealEntry, WorkoutSession } from './storage'
 import { dayKeyFromIso, todayKey } from './storage'
+import { countableProtein } from './protein-count'
 
 function volumeOf(s: WorkoutSession) {
   return s.sets.reduce((a, x) => a + x.weightKg * x.reps, 0)
@@ -54,7 +55,7 @@ export function buildMonthlySummary(
   const kcalByDay = new Map<string, number>()
   for (const m of monthMeals) {
     const d = dayKeyFromIso(m.createdAt)
-    proteinByDay.set(d, (proteinByDay.get(d) || 0) + m.macros.protein)
+    proteinByDay.set(d, (proteinByDay.get(d) || 0) + countableProtein(m))
     kcalByDay.set(d, (kcalByDay.get(d) || 0) + m.macros.kcal)
   }
   const mealDays = proteinByDay.size
@@ -107,7 +108,7 @@ export function buildMonthlySummary(
           ? '蛋白平均差不多到標'
           : proteinAvg >= proteinGoal * 0.55
             ? '蛋白有記，再補一補就靚'
-            : '蛋白偏少——加蛋、肉、魚、豆腐或者豆奶；碟菜唔計'
+            : 'protein 偏少——加蛋、肉、魚、豆腐或者打杯 whey；碟菜唔計'
       lines.push(
         `飲食 ${monthMeals.length} 餐、${mealDays} 日有記；日均約 ${proteinAvg}g 蛋白、${kcalAvg} kcal——約 ${hitDays} 日到標。${hit}。`
       )

@@ -25,6 +25,7 @@ function readQueue(): OfflineJob[] {
 function writeQueue(items: OfflineJob[]) {
   try {
     localStorage.setItem(QUEUE_KEY, JSON.stringify(items.slice(0, 80)))
+    window.dispatchEvent(new Event('talktgtla-offline-queue'))
   } catch {
     /* ignore quota */
   }
@@ -87,7 +88,7 @@ export async function flushOfflineQueue(
   const q = readQueue()
   if (q.length === 0) return { ok: 0, left: 0, note: null }
   if (isProbablyOffline()) {
-    return { ok: 0, left: q.length, note: `暫時冇網，${q.length} 項留喺呢部機，有網會再同步` }
+    return { ok: 0, left: q.length, note: '未有網，先記喺機度' }
   }
 
   const sessions = loadSessions()
@@ -114,12 +115,6 @@ export async function flushOfflineQueue(
   }
   writeQueue(remaining)
   const note =
-    ok > 0
-      ? remaining.length
-        ? `已同步 ${ok} 項，仲有 ${remaining.length} 項等返`
-        : `冇網嗰陣留低嘅 ${ok} 項已同步去你個帳戶`
-      : remaining.length
-        ? `仲有 ${remaining.length} 項暫存 · 稍後再試`
-        : null
+    ok > 0 ? '同步去你帳戶' : remaining.length ? '同步唔到，先記喺機度' : null
   return { ok, left: remaining.length, note }
 }

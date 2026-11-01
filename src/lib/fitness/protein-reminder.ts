@@ -1,6 +1,7 @@
 /** 蛋白晚間提醒 — 本地偏好 + 定時檢查（開住 app／PWA 時最準）. */
 
 import { loadGoals, loadMeals, isSameDay } from './storage'
+import { proteinThatCounts } from './protein-count'
 import {
   notificationPermission,
   requestNotificationPermissionCantonese,
@@ -55,9 +56,7 @@ function hkParts(d = new Date()) {
 }
 
 function todayProteinG(): number {
-  return loadMeals()
-    .filter((m) => isSameDay(m.createdAt))
-    .reduce((s, m) => s + (m.macros?.protein || 0), 0)
+  return proteinThatCounts(loadMeals().filter((m) => isSameDay(m.createdAt)))
 }
 
 function alreadyFiredToday(day: string): boolean {
@@ -95,8 +94,8 @@ export async function checkProteinEveningReminder(): Promise<boolean> {
 
   const short = Math.max(0, Math.round(goal - got))
   await showAppNotification({
-    title: '蛋白仲差一截',
-    body: `而家 ${got}g／目標 ${goal}g，仲差約 ${short}g——去飲食一掣加乳清或港式快加。`,
+    title: '今晚 protein 點？',
+    body: `仲差 ${short}g — 打杯 whey？定加舊雞胸？`,
     tag: 'talktgtla-protein-evening',
     url: '/eat',
     renotify: true,
