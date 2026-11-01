@@ -36,6 +36,7 @@ import {
 } from '@/lib/chat/moderation'
 import { MessageModActions } from '@/components/chat/message-mod-actions'
 import { StarterChipsBar } from '@/components/chat/starter-chips-bar'
+import { isObviousInsult } from '@/lib/chat/profanity'
 import { markWeekOneChip } from '@/lib/fitness/week-one'
 
 type Message = {
@@ -176,6 +177,21 @@ export default function Chat() {
 
   const replyTarget = replyToId != null ? messagesById.get(replyToId) ?? null : null
 
+  // Newcomers and a quiet room should not land on abuse. A busy room stays as-is.
+  const hideInsults = showWelcome || onlineCount == null || onlineCount <= 1
+  const visibleMessages = useMemo(() => {
+    return messages.filter((msg) => {
+      if (blockedNames.has(msg.username.trim().toLowerCase())) return false
+      if (hideInsults && isObviousInsult(`${msg.username}\n${msg.content}`)) return false
+      return true
+    })
+  }, [messages, blockedNames, hideInsults])
+  const allBlocked =
+    messagesLoaded &&
+    messages.length > 0 &&
+    messages.every((msg) => blockedNames.has(msg.username.trim().toLowerCase()))
+  const roomLooksEmpty = messagesLoaded && visibleMessages.length === 0 && !allBlocked
+
   const isNearBottom = useCallback(() => {
     const el = listRef.current
     if (!el) return true
@@ -270,6 +286,14 @@ export default function Chat() {
   const closeWelcome = () => {
     dismissWelcome()
     setShowWelcome(false)
+  }
+
+  const startFromTopic = () => {
+    closeWelcome()
+    markWeekOneChip()
+    const topic = getDailyTopic()
+    setNewMessage(topicStarterLine(topic))
+    requestAnimationFrame(() => inputRef.current?.focus())
   }
 
   useEffect(() => {
@@ -756,13 +780,19 @@ export default function Chat() {
                 }
                 aria-hidden
               />
-              {onlineCount == null
-                ? '連線中…'
-                : onlineCount <= 0
-                  ? '而家靜靜地 · 等人上線'
-                  : onlineCount === 1
-                    ? '得你一個喺度'
-                    : `而家 ${onlineCount} 人喺線`}
+              {!isSupabaseConfigured
+                ? visibleMessages.length > 0
+                  ? '而家得你一個上線'
+                  : '得你一個喺度'
+                : onlineCount == null
+                  ? '連線中…'
+                  : onlineCount <= 0
+                    ? '而家靜靜地'
+                    : onlineCount === 1
+                      ? visibleMessages.length > 0
+                        ? '而家得你一個上線'
+                        : '得你一個喺度'
+                      : `而家 ${onlineCount} 人喺線`}
             </p>
           </div>
           <div className="absolute right-0 flex items-center gap-2 pr-11">
@@ -823,62 +853,27 @@ export default function Chat() {
               ))}
             </div>
           )}
-          {messagesLoaded && messages.length === 0 && (
+          {roomLooksEmpty && (
             <div className="flex h-full min-h-[220px] items-center justify-center px-2">
               <div className="welcome-card w-full max-w-sm rounded-[20px] border border-border/80 bg-surface px-6 py-7 text-center shadow-soft">
                 <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-accent-soft text-accent text-lg" aria-hidden>
                   💬
                 </div>
-                <h3 className="font-serif text-xl tracking-tight">歡迎嚟 Talk tgt la</h3>
+                <h3 className="font-serif text-xl tracking-tight">得你一個喺度</h3>
                 <p className="mt-2 text-sm text-muted leading-relaxed">
-                  香港人傾偈室。入花名開波；下面亦可記訓練、影餐。
+                  房入面未有人講嘢。入個花名，用今日話題開波。
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2 justify-center">
-                  <button
-                    type="button"
-                    className="inline-flex items-center rounded-full bg-accent px-3.5 py-2 text-[11px] font-semibold text-white hover:bg-[#0d6a63] transition touch-manipulation"
-                    onClick={() => {
-                      markWeekOneChip()
-                      const topic = getDailyTopic()
-                      setNewMessage(topicStarterLine(topic))
-                      requestAnimationFrame(() => inputRef.current?.focus())
-                    }}
-                  >
-                    用今日話題開波
-                  </button>
-                  <Link
-                    href="/train"
-                    className="inline-flex items-center rounded-full border border-border px-3 py-1.5 text-[11px] font-medium text-foreground hover:border-accent hover:bg-accent-soft hover:text-accent transition touch-manipulation"
-                  >
-                    去訓練
-                  </Link>
-                  <Link
-                    href="/eat"
-                    className="inline-flex items-center rounded-full border border-border px-3 py-1.5 text-[11px] font-medium text-foreground hover:border-accent hover:bg-accent-soft hover:text-accent transition touch-manipulation"
-                  >
-                    去飲食
-                  </Link>
-                </div>
-                <div className="mt-4 text-left">
-                  <StarterChipsBar
-                    onPick={(line) => {
-                      setNewMessage(line)
-                      requestAnimationFrame(() => inputRef.current?.focus())
-                    }}
-                  />
-                </div>
-                <WelcomeTopicCard
-                  onUse={(line) => {
-                    setNewMessage(line)
-                    requestAnimationFrame(() => inputRef.current?.focus())
-                  }}
-                />
+                <button
+                  type="button"
+                  className="mt-4 inline-flex items-center rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0d6a63] transition touch-manipulation"
+                  onClick={startFromTopic}
+                >
+                  用今日話題開波
+                </button>
               </div>
             </div>
           )}
-          {messagesLoaded &&
-            messages.length > 0 &&
-            messages.every((msg) => blockedNames.has(msg.username.trim().toLowerCase())) && (
+          {allBlocked && (
             <div className="flex h-full min-h-[180px] items-center justify-center px-2">
               <div className="w-full max-w-sm rounded-[20px] border border-dashed border-border bg-surface px-5 py-7 text-center shadow-soft">
                 <div className="mx-auto mb-2 text-2xl" aria-hidden>🙈</div>
@@ -896,10 +891,11 @@ export default function Chat() {
               </div>
             </div>
           )}
-          {messages
-            .filter((msg) => !blockedNames.has(msg.username.trim().toLowerCase()))
+          {visibleMessages
             .map((msg) => {
             const parent = msg.reply_to != null ? messagesById.get(msg.reply_to) : null
+            const parentHidden =
+              parent != null && hideInsults && isObviousInsult(`${parent.username}\n${parent.content}`)
             const isReplying = replyToId === msg.id
             return (
               <div key={msg.id} className="chat-msg flex flex-col">
@@ -932,7 +928,7 @@ export default function Chat() {
                         : 'bg-surface border border-border shadow-soft hover:shadow-hover'
                   }`}
                 >
-                  {parent && (
+                  {parent && !parentHidden && (
                     <div className="mb-2 rounded-xl border-l-2 border-accent bg-surface-muted px-2.5 py-1.5 text-xs text-muted">
                       <div className="font-medium text-foreground/80">
                         回覆 {parent.username}
@@ -940,7 +936,7 @@ export default function Chat() {
                       <div className="truncate">{previewText(parent.content)}</div>
                     </div>
                   )}
-                  {!parent && msg.reply_to != null && (
+                  {(!parent || parentHidden) && msg.reply_to != null && (
                     <div className="mb-2 rounded-xl border-l-2 border-border px-2.5 py-1.5 text-xs text-muted">
                       回覆緊上一句
                     </div>
@@ -1195,7 +1191,7 @@ export default function Chat() {
         <DisclaimerShort expanded={showTerms} onToggle={() => setShowTerms((v) => !v)} />
       </footer>
 
-      <NewbieGuide open={showWelcome} onClose={closeWelcome} />
+      <NewbieGuide open={showWelcome} onClose={closeWelcome} onStart={startFromTopic} />
 
       {achievementToast && (() => {
         const a = achievementById(achievementToast)
@@ -1374,36 +1370,6 @@ export default function Chat() {
     </div>
 
     </AppShell>
-  )
-}
-
-
-function WelcomeTopicCard({ onUse }: { onUse: (line: string) => void }) {
-  const [topic, setTopic] = useState<ReturnType<typeof getDailyTopic> | null>(null)
-  useEffect(() => {
-    setTopic(getDailyTopic())
-  }, [])
-  if (!topic) return null
-  return (
-    <div className="mt-4 rounded-2xl border border-accent/20 bg-accent-soft/40 px-3.5 py-3 text-left">
-      <div className="text-[10px] font-semibold text-accent tracking-wide mb-1">今日話題 · 一掣開波</div>
-      <div className="flex items-start gap-2">
-        <span className="text-lg leading-none" aria-hidden>
-          {topic.emoji}
-        </span>
-        <div className="min-w-0">
-          <div className="text-sm font-medium text-foreground">{topic.title}</div>
-          <div className="text-[11px] text-muted mt-0.5 leading-relaxed">{topic.hint}</div>
-        </div>
-      </div>
-      <button
-        type="button"
-        className="mt-3 w-full inline-flex items-center justify-center rounded-xl bg-accent px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-[#0d6a63] transition touch-manipulation"
-        onClick={() => onUse(topicStarterLine(topic))}
-      >
-        用呢個話題開波
-      </button>
-    </div>
   )
 }
 

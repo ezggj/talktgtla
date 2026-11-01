@@ -64,7 +64,7 @@ export function SettingsClient() {
           </StaggerItem>
 
           <StaggerItem>
-            <div className="pt-1 text-[11px] font-medium text-muted px-0.5">訓練同凑局</div>
+            <div className="pt-1 text-[11px] font-medium text-muted px-0.5">訓練同湊局</div>
           </StaggerItem>
           <StaggerItem>
             <TrainTipsCard />
@@ -87,7 +87,7 @@ export function SettingsClient() {
           </StaggerItem>
           <StaggerItem>
             <CardDesc className="text-[12px] leading-relaxed px-1">
-              傾偈可以匿名。凑局花名唔會自動變成傾偈花名。用電郵登入會收到六位數字，唔係一條連結。登入之後訓練同飲食會同步去你個帳戶。清瀏覽器，設定會冇。
+              傾偈可以匿名。湊局花名唔會自動變成傾偈花名。用電郵登入會收到六位數字，唔係一條連結。登入之後訓練同飲食會同步去你個帳戶。清瀏覽器，設定會冇。
             </CardDesc>
           </StaggerItem>
           <StaggerItem>

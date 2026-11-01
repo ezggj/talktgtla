@@ -164,7 +164,7 @@ export function CustomPlanBuilder({ userId, onSaved }: Props) {
           <Badge tone="muted">儲存</Badge>
         </div>
         <p className="mt-1 text-[11px] text-muted leading-relaxed">
-          揀邊幾日練、加動作。登入先可以喺第部機睇返。
+          揀邊幾日練、加動作。登入先可以喺另一部機睇返。
         </p>
       </button>
     )
@@ -273,7 +273,7 @@ export function CustomPlanBuilder({ userId, onSaved }: Props) {
               {editDay === i && (
                 <div className="mt-2 space-y-2">
                   <Input
-                    placeholder="搜：RDL、保加利亞、卧推…"
+                    placeholder="搜：RDL、保加利亞、臥推…"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />

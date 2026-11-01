@@ -50,6 +50,7 @@ test('week-one checklist follows real actions and can hide', () => {
   assert.equal(weekOneVisible(done, flags), false)
   assert.equal(weekOneVisible(open, { ...flags, dismissed: true }), false)
   assert.equal(mealIsHkQuickAdd({ note: '茶記 · 港式快加' }), true)
+  assert.equal(mealIsHkQuickAdd({ note: '一 scoop · 水沖 · 港式快加' }), true)
   assert.equal(mealIsHkQuickAdd({ note: '會所食堂' }), false)
 })
 

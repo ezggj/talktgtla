@@ -1,4 +1,4 @@
-/** 開台凑局 — gym branch + time slot meetups (real people, no bots). */
+/** 開台湊局 — gym branch + time slot meetups (real people, no bots). */
 
 import { HK_GYMS, type HkGym } from './hk-gyms'
 

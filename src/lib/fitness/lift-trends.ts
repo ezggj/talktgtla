@@ -13,7 +13,7 @@ export type MainLift = {
 /** Catalog ids: squat, bench, deadlift, rdl, ohp, row. */
 export const MAIN_LIFTS: MainLift[] = [
   { id: 'squat', label: '深蹲' },
-  { id: 'bench', label: '卧推' },
+  { id: 'bench', label: '臥推' },
   { id: 'deadlift', label: '硬拉' },
   { id: 'rdl', label: 'RDL' },
   { id: 'ohp', label: '肩推' },

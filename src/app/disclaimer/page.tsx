@@ -10,7 +10,7 @@ import { DISCLAIMER_TITLE } from '@/lib/legal/disclaimer'
 export const metadata: Metadata = {
   title: DISCLAIMER_TITLE,
   description:
-    'Talk tgt la 免責聲明——傾偈、訓練、飲食／AI 影餐、健身房比較、凑局同數據使用說明',
+    'Talk tgt la 免責聲明——傾偈、訓練、飲食／AI 影餐、健身房比較、湊局同數據使用說明',
 }
 
 export default function DisclaimerPage() {
@@ -28,7 +28,7 @@ export default function DisclaimerPage() {
           compact
           eyebrow="法律同使用"
           title={DISCLAIMER_TITLE}
-          description="傾偈、訓練、飲食、會所、凑局"
+          description="傾偈、訓練、飲食、會所、湊局"
         />
         <div className="rounded-[20px] border border-border bg-surface shadow-soft p-5">
           <DisclaimerFull />

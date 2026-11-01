@@ -37,11 +37,11 @@ export const GENERIC_CUES = [
 export const EXERCISES: ExerciseGuide[] = [
   {
     id: 'bench',
-    nameZh: '卧推',
+    nameZh: '臥推',
     nameEn: 'Bench Press',
     aliases: [
-      'bench', '胸', '卧推', '平板卧推', '練胸', '推胸', '平板推', '胸推', 'bench press', 'bp', '臥推',
-      '平板臥推', '槓鈴卧推', '槓鈴臥推', 'benchpress', '平推', '胸推槓', '大臥推', '臥推架',
+      'bench', '胸', '臥推', '平板臥推', '練胸', '推胸', '平板推', '胸推', 'bench press', 'bp', '臥推',
+      '平板臥推', '槓鈴臥推', '槓鈴臥推', 'benchpress', '平推', '胸推槓', '大臥推', '臥推架',
     ],
     muscle: '胸',
     equipment: '槓鈴',
@@ -51,16 +51,16 @@ export const EXERCISES: ExerciseGuide[] = [
       '手肘完全打開、屁股離凳、落太快，都係新手最易錯。痛就停。',
     ],
     demoUrl: 'https://www.youtube.com/watch?v=rT7DgCr-3pg',
-    demoLabel: 'YouTube 卧推教學',
+    demoLabel: 'YouTube 臥推教學',
     demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/3/3c/SmithMachineBenchPress.gif',
   },
   {
     id: 'incline-bench',
-    nameZh: '上斜卧推',
+    nameZh: '上斜臥推',
     nameEn: 'Incline Bench Press',
     aliases: [
-      '上斜', '上斜卧推', '上斜臥推', 'incline', 'incline bench', '上斜推', '上胸', '練上胸',
-      '斜板卧推', '斜板推',
+      '上斜', '上斜臥推', '上斜臥推', 'incline', 'incline bench', '上斜推', '上胸', '練上胸',
+      '斜板臥推', '斜板推',
     ],
     muscle: '胸',
     equipment: '槓鈴',
@@ -70,15 +70,15 @@ export const EXERCISES: ExerciseGuide[] = [
       '常見錯：角度超過 60°、彈胸、屁股離凳。',
     ],
     demoUrl: 'https://www.youtube.com/watch?v=DbFgADa2PL8',
-    demoLabel: 'YouTube 上斜卧推',
+    demoLabel: 'YouTube 上斜臥推',
     demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/3/3c/SmithMachineBenchPress.gif',
   },
   {
     id: 'dumbbell-press',
-    nameZh: '啞鈴卧推',
+    nameZh: '啞鈴臥推',
     nameEn: 'Dumbbell Bench Press',
     aliases: [
-      '啞鈴卧推', '啞鈴臥推', 'db bench', 'dumbbell press', '啞鈴胸推', '啞鈴推胸', '雙啞鈴卧推',
+      '啞鈴臥推', '啞鈴臥推', 'db bench', 'dumbbell press', '啞鈴胸推', '啞鈴推胸', '雙啞鈴臥推',
     ],
     muscle: '胸',
     equipment: '啞鈴',
@@ -88,7 +88,7 @@ export const EXERCISES: ExerciseGuide[] = [
       '比起槓鈴活動幅度大啲——注意兩邊對稱。',
     ],
     demoUrl: 'https://www.youtube.com/watch?v=VmB1G1K7v94',
-    demoLabel: 'YouTube 啞鈴卧推',
+    demoLabel: 'YouTube 啞鈴臥推',
     demoGifUrl: 'https://upload.wikimedia.org/wikipedia/commons/3/3c/SmithMachineBenchPress.gif',
   },
   {
@@ -1112,7 +1112,7 @@ const QUERY_SYNONYMS: Record<string, string[]> = {
   拉單槓: ['引體', 'pull-up'],
   俯身划: ['划船', 'row'],
   夾胸: ['飛鳥', '蝴蝶機'],
-  平板推: ['卧推', 'bench'],
+  平板推: ['臥推', 'bench'],
 }
 
 function normalizeQuery(q: string) {

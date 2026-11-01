@@ -180,7 +180,7 @@ export function LiftProgressCard({ sessions }: { sessions: WorkoutSession[] }) {
         )}
       </div>
       <p className="mb-3 text-[11px] text-muted leading-relaxed">
-        深蹲、卧推、硬拉、RDL、肩推、划船。每點係嗰場最重嗰組。
+        深蹲、臥推、硬拉、RDL、肩推、划船。每點係嗰場最重嗰組。
       </p>
 
       {ready.length === 0 ? (

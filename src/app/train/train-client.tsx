@@ -76,7 +76,7 @@ import { markTrainedToday, streakComebackLine, syncDaysFromSessions, trainedToda
 import { WeekDots } from '@/components/fitness/week-dots'
 import { TrainHeatmap } from '@/components/fitness/train-heatmap'
 import { LiftProgressCard } from '@/components/fitness/lift-progress-card'
-import { analyzeWorkout, type WorkoutAnalysis } from '@/lib/fitness/analysis'
+import { analyzeWorkout, isTinySession, sessionCountsAsTrainingDay, type WorkoutAnalysis } from '@/lib/fitness/analysis'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -215,6 +215,7 @@ export function TrainClient() {
   const [restRunning, setRestRunning] = useState(false)
   const [prToast, setPrToast] = useState<string | null>(null)
   const [finishOpen, setFinishOpen] = useState(false)
+  const [confirmFinish, setConfirmFinish] = useState(false)
   const [lastFinished, setLastFinished] = useState<WorkoutSession | null>(null)
   const [lastAnalysis, setLastAnalysis] = useState<WorkoutAnalysis | null>(null)
   const [justAdded, setJustAdded] = useState<string | null>(null)
@@ -407,7 +408,7 @@ export function TrainClient() {
     setCustomPlans(loadCustomDayPlans())
     setWeekSlots(loadWeeklySchedule())
     setWeekProgress(computeWeeklySlotProgress(sessions))
-    setTodayDone(sessions.filter((s) => s.endedAt && isSameDay(s.startedAt)))
+    setTodayDone(sessions.filter((s) => sessionCountsAsTrainingDay(s) && isSameDay(s.startedAt)))
     const w = weekConsistency(sessions)
     setWeekDays(w.days)
     setWeekTrainCount(w.trainedCount)
@@ -858,16 +859,20 @@ export function TrainClient() {
 
     // PR check: heaviest weight for exercise
     const prev = prs[selectedEx]
-    const isPR = !prev || weightKg > prev.weightKg || (weightKg === prev.weightKg && repsN > prev.reps)
-    if (isPR && weightKg > 0) {
+    const better =
+      weightKg > 0 &&
+      (!prev || weightKg > prev.weightKg || (weightKg === prev.weightKg && repsN > prev.reps))
+    if (better) {
       const nextPrs = {
         ...prs,
         [selectedEx]: { weightKg, reps: repsN, at: row.completedAt },
       }
       setPrs(nextPrs)
       savePRs(nextPrs)
-      setPrToast(`${ex.nameZh} · ${weightKg} kg × ${repsN}`)
-      window.setTimeout(() => setPrToast(null), 2800)
+      if (prev) {
+        setPrToast(`${ex.nameZh} · ${weightKg} kg × ${repsN}`)
+        window.setTimeout(() => setPrToast(null), 2800)
+      }
     }
 
     setJustAdded(row.id)
@@ -925,19 +930,22 @@ export function TrainClient() {
     const next = { ...active, sets: [...active.sets, row] }
     persistActive(next)
     const prPrev = prs[selectedEx]
-    const isPR =
-      !prPrev ||
-      prev.weightKg > prPrev.weightKg ||
-      (prev.weightKg === prPrev.weightKg && prev.reps > prPrev.reps)
-    if (isPR && prev.weightKg > 0) {
+    const better =
+      prev.weightKg > 0 &&
+      (!prPrev ||
+        prev.weightKg > prPrev.weightKg ||
+        (prev.weightKg === prPrev.weightKg && prev.reps > prPrev.reps))
+    if (better) {
       const nextPrs = {
         ...prs,
         [selectedEx]: { weightKg: prev.weightKg, reps: prev.reps, at: row.completedAt },
       }
       setPrs(nextPrs)
       savePRs(nextPrs)
-      setPrToast(`${ex.nameZh} · ${prev.weightKg} kg × ${prev.reps}`)
-      window.setTimeout(() => setPrToast(null), 2800)
+      if (prPrev) {
+        setPrToast(`${ex.nameZh} · ${prev.weightKg} kg × ${prev.reps}`)
+        window.setTimeout(() => setPrToast(null), 2800)
+      }
     }
     setJustAdded(row.id)
     window.setTimeout(() => setJustAdded(null), 500)
@@ -949,14 +957,26 @@ export function TrainClient() {
 
   const finishSession = () => {
     if (!active) return
+    setConfirmFinish(false)
+    setRestRunning(false)
+    setRestLeft(null)
+    setRestFullscreen(false)
+    setRestReadyNext(false)
+    cancelRestAlarm()
     const endedAt = new Date().toISOString()
     const draft: WorkoutSession = {
       ...active,
       endedAt,
     }
     const analysis = analyzeWorkout(draft, sessions)
-    const ended: WorkoutSession = { ...draft, analysis }
-    setFinishLines(loadTrainTipsEnabled() ? buildFinishLines(ended, sessions) : [])
+    const tiny = isTinySession(draft.sets)
+    const countsAsDay = analysis.countsAsDay !== false
+    const ended: WorkoutSession = { ...draft, analysis, countsAsDay }
+    setFinishLines(
+      countsAsDay && loadTrainTipsEnabled()
+        ? buildFinishLines(ended, sessions)
+        : analysis.tips.slice(0, 1)
+    )
     setBetweenTip(null)
     clearAsk()
     setOpenDismissedEx(null)
@@ -968,7 +988,7 @@ export function TrainClient() {
     setLastAnalysis(analysis)
     setFinishOpen(true)
     setSelectedEx(null)
-    markTrainedToday(ended.endedAt)
+    if (countsAsDay) markTrainedToday(ended.endedAt)
     syncDaysFromSessions(next)
     if (user) {
       void (async () => {
@@ -997,9 +1017,10 @@ export function TrainClient() {
         prs: loadPRs(),
         already: loadFitnessUnlocked(),
       })
-      if (newly.length) {
-        unlockFitnessAchievements(newly)
-        const a = fitnessAchievementById(newly[0])
+      const announce = newly.filter((id) => !(tiny && id === 'first_workout'))
+      if (announce.length) {
+        unlockFitnessAchievements(announce)
+        const a = fitnessAchievementById(announce[0])
         if (a) {
           setAchToast(`${a.emoji} ${a.title}`)
           window.setTimeout(() => setAchToast(null), 2600)
@@ -1012,6 +1033,7 @@ export function TrainClient() {
 
   const discardSession = () => {
     if (!window.confirm('放棄呢次訓練？組數唔會留低。')) return
+    setConfirmFinish(false)
     persistActive(null)
     setSelectedEx(null)
     setRestRunning(false)
@@ -1098,7 +1120,7 @@ export function TrainClient() {
           {(
             [
               { id: 'today' as const, label: '今日', icon: Play },
-              { id: 'meetup' as const, label: '凑局', icon: Users },
+              { id: 'meetup' as const, label: '湊局', icon: Users },
               { id: 'templates' as const, label: '課表', icon: Sparkles },
               { id: 'history' as const, label: '歷史', icon: History },
             ] as const
@@ -2037,6 +2059,31 @@ export function TrainClient() {
 
                   <div className={`thumb-cta sticky z-20 -mx-1 px-1 pt-2 pb-1 bg-gradient-to-t from-background via-background to-transparent ${selectedEx ? 'above-nav-stack' : 'above-nav-gap'}`}>
                     <SyncStatusLine loggedIn={Boolean(user)} note={cloudNote} className="mb-2 flex items-center gap-1.5 px-1 text-[12px] text-muted" />
+                    {confirmFinish ? (
+                      <div
+                        data-testid="finish-confirm"
+                        className="rounded-[20px] border border-border bg-surface px-3.5 py-3 shadow-soft"
+                      >
+                        <p className="text-sm leading-snug mb-2.5">
+                          {active.sets.length <= 1
+                            ? '得一組都完場？可以繼續加組。'
+                            : `完場？而家 ${active.sets.length} 組。`}
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="secondary"
+                            size="lg"
+                            className="flex-1"
+                            onClick={() => setConfirmFinish(false)}
+                          >
+                            繼續練
+                          </Button>
+                          <Button size="lg" className="flex-1" onClick={finishSession}>
+                            確認完場
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
                     <div className="flex gap-2">
                       <Button variant="secondary" size="xl" className="flex-1 h-16 rounded-[20px] text-base" onClick={discardSession}>
                         放棄
@@ -2045,12 +2092,16 @@ export function TrainClient() {
                         size="xl"
                         className="flex-[1.6] h-16 text-lg rounded-[20px]"
                         disabled={active.sets.length === 0}
-                        onClick={finishSession}
+                        onClick={() => {
+                          setRestFullscreen(false)
+                          setConfirmFinish(true)
+                        }}
                       >
                         <Flame className="h-5 w-5" />
                         完場
                       </Button>
                     </div>
+                    )}
                   </div>
                   {selectedEx ? <div className="h-16 sm:hidden" aria-hidden /> : null}
                 </div>
@@ -3030,17 +3081,22 @@ export function TrainClient() {
             exit={{ opacity: 0 }}
           >
             <motion.div
+              data-testid="finish-sheet"
               className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-t-[24px] sm:rounded-[20px] bg-surface border border-border p-6 shadow-hover"
               initial={reduce ? false : { scale: 0.96, y: 16 }}
               animate={{ scale: 1, y: 0 }}
               transition={springSoft}
             >
               <div className="mb-4">
-                <p className="text-[11px] font-semibold text-accent">搞掂</p>
+                <p className="text-[11px] font-semibold text-accent">
+                  {lastAnalysis.countsAsDay === false ? '記低咗' : '搞掂'}
+                </p>
                 <h2 className="font-serif text-2xl tracking-tight mt-0.5">
-                  {lastFinished
-                    ? TEMPLATES.find((t) => t.id === lastFinished.templateId)?.name || '今日訓練'
-                    : '今日訓練'}
+                  {lastAnalysis.countsAsDay === false
+                    ? '未算完一場'
+                    : lastFinished
+                      ? TEMPLATES.find((t) => t.id === lastFinished.templateId)?.name || '今日訓練'
+                      : '今日訓練'}
                 </h2>
                 <p className="text-[12px] text-muted mt-0.5">
                   {lastFinished
@@ -3102,7 +3158,7 @@ export function TrainClient() {
                 </p>
               )}
 
-              {lastFinished && lastAnalysis && (
+              {lastFinished && lastAnalysis && lastAnalysis.countsAsDay !== false && (
                 <ShareCardButton
                   kind="workout"
                   primary
@@ -3148,9 +3204,11 @@ export function TrainClient() {
                   免責
                 </a>
               </p>
+              {lastAnalysis.countsAsDay !== false && (
               <div className="mt-3">
                 <InstallPrompt variant="banner" forceAfterWorkout />
               </div>
+              )}
             </motion.div>
           </motion.div>
         )}

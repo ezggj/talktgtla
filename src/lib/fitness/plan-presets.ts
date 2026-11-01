@@ -27,8 +27,8 @@ const PPL_6: GeneratedPlan = {
   summary: '經典 PPL：推／拉／腿輪兩輪。適合已有底、想進步嘅人；每次約 60 分。',
   days: [
     day(0, '推', [
-      ex('bench', '卧推', 4, '8–12'),
-      ex('incline-bench', '上斜卧推', 3, '8–12'),
+      ex('bench', '臥推', 4, '8–12'),
+      ex('incline-bench', '上斜臥推', 3, '8–12'),
       ex('ohp', '肩推', 3, '8–12'),
       ex('lateral', '側平舉', 3, '12–15', 60),
       ex('tricep', '三頭下壓', 3, '10–15', 60),
@@ -49,7 +49,7 @@ const PPL_6: GeneratedPlan = {
     ]),
     day(3, '推', [
       ex('ohp', '肩推', 4, '6–10'),
-      ex('dumbbell-press', '啞鈴卧推', 3, '8–12'),
+      ex('dumbbell-press', '啞鈴臥推', 3, '8–12'),
       ex('fly', '飛鳥', 3, '12–15', 60),
       ex('cable-lateral', '繩索側平舉', 3, '12–15', 60),
       ex('overhead-tricep', '過頭三頭伸展', 3, '10–15', 60),
@@ -123,7 +123,7 @@ const NEWBIE_FULL_3: GeneratedPlan = {
     ]),
     day(4, '全身 C', [
       ex('rdl', '羅馬尼亞硬拉', 3, '10–12'),
-      ex('dumbbell-press', '啞鈴卧推', 3, '10–12'),
+      ex('dumbbell-press', '啞鈴臥推', 3, '10–12'),
       ex('dumbbell-row', '單臂划船', 3, '10／邊'),
       ex('lunges', '弓步蹲', 3, '10／邊'),
       ex('plank', '平板支撐', 3, '30–60秒', 45),
@@ -138,7 +138,7 @@ const UPPER_LOWER_4: GeneratedPlan = {
   summary: '一／四上身、二／五下身。時間唔夠六日 PPL 就用呢套。',
   days: [
     day(0, '上身', [
-      ex('bench', '卧推', 4, '8–12'),
+      ex('bench', '臥推', 4, '8–12'),
       ex('row', '划船', 4, '8–12'),
       ex('ohp', '肩推', 3, '8–12'),
       ex('latpulldown', '高拉', 3, '8–12'),
@@ -153,7 +153,7 @@ const UPPER_LOWER_4: GeneratedPlan = {
       ex('calf', '提踵', 4, '12–20', 45),
     ]),
     day(3, '上身', [
-      ex('incline-bench', '上斜卧推', 4, '8–12'),
+      ex('incline-bench', '上斜臥推', 4, '8–12'),
       ex('seated-row', '坐姿划船', 4, '8–12'),
       ex('db-shoulder-press', '啞鈴肩推', 3, '8–12'),
       ex('pullup', '引體上升', 3, '盡量'),
@@ -184,7 +184,7 @@ const LEG_FOCUS: GeneratedPlan = {
       ex('calf', '提踵', 4, '12–20', 45),
     ]),
     day(1, '上身', [
-      ex('bench', '卧推', 4, '8–12'),
+      ex('bench', '臥推', 4, '8–12'),
       ex('row', '划船', 4, '8–12'),
       ex('ohp', '肩推', 3, '8–12'),
       ex('latpulldown', '高拉', 3, '8–12'),
@@ -198,7 +198,7 @@ const LEG_FOCUS: GeneratedPlan = {
       ex('seated-calf', '坐姿提踵', 4, '15–20', 45),
     ]),
     day(4, '上身', [
-      ex('dumbbell-press', '啞鈴卧推', 3, '8–12'),
+      ex('dumbbell-press', '啞鈴臥推', 3, '8–12'),
       ex('seated-row', '坐姿划船', 3, '8–12'),
       ex('lateral', '側平舉', 3, '12–15', 60),
       ex('face-pull', '面拉', 3, '12–15', 60),
@@ -215,7 +215,7 @@ const BUSY_2: GeneratedPlan = {
   days: [
     day(0, '全身', [
       ex('squat', '深蹲', 3, '8–12'),
-      ex('bench', '卧推', 3, '8–12'),
+      ex('bench', '臥推', 3, '8–12'),
       ex('row', '划船', 3, '8–12'),
       ex('rdl', '羅馬尼亞硬拉', 3, '8–12'),
       ex('plank', '平板支撐', 3, '30–60秒', 45),

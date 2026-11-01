@@ -14,7 +14,6 @@ import {
   Pencil,
   PenLine,
   RefreshCw,
-  Salad,
   Search,
   Trash2,
   Undo2,
@@ -34,7 +33,6 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ProgressBar, MacroBars } from '@/components/ui/progress'
-import { LoginPromptBanner } from '@/components/auth/login-card'
 import { useUser } from '@/lib/auth/use-user'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -44,13 +42,11 @@ import {
   clubProteinDishes,
   supplementDishes,
   filterHkDishes,
-  mealShortcuts,
   estimateFromFoodName,
   mockEstimateFromFile,
   scaleMacros,
   type DishBrand,
   type DishCategory,
-  type MealShortcut,
 } from '@/lib/fitness/meals-demo'
 import { ProteinWeekCard } from '@/components/fitness/protein-week-card'
 import { ProteinReminderCard } from '@/components/fitness/protein-reminder-card'
@@ -141,7 +137,12 @@ function periodLabel(k: PeriodKind) {
   return k === 'day' ? '日' : k === 'week' ? '週' : '月'
 }
 
-const MEAL_CHIPS = mealShortcuts()
+const FOLD_QUICK = ['烚雙蛋', '即食雞胸', '打杯 whey', '叉燒飯', '雞胸便當', '白切雞飯']
+  .map((name) => {
+    const index = HK_DISH_ESTIMATES.findIndex((d) => d.name === name)
+    return index >= 0 ? { index, dish: HK_DISH_ESTIMATES[index]! } : null
+  })
+  .filter((row): row is { index: number; dish: (typeof HK_DISH_ESTIMATES)[number] } => row != null)
 
 function periodMacroTip(opts: {
   period: PeriodKind
@@ -187,13 +188,11 @@ export function EatClient() {
   const [cloudNote, setCloudNote] = useState<string | null>(null)
   const [syncToast, setSyncToast] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
-  const [eatFocus, setEatFocus] = useState<'photo' | 'hk' | 'club' | 'manual' | null>(null)
   const manualRef = useRef<HTMLDivElement>(null)
   const hkRef = useRef<HTMLDivElement>(null)
   const clubRef = useRef<HTMLDivElement>(null)
 
   const scrollEat = (id: 'photo' | 'hk' | 'club' | 'manual') => {
-    setEatFocus(id)
     window.setTimeout(() => {
       const el =
         id === 'photo'
@@ -208,7 +207,6 @@ export function EatClient() {
   }
 
   const openManualEntry = () => {
-    setEatFocus('manual')
     setDraft({
       previewUrl: '',
       file: null,
@@ -867,7 +865,7 @@ export function EatClient() {
     void persistList(next, changed)
   }
 
-  const addDemoDish = (idx: number, via?: 'hk') => {
+  const addDemoDish = (idx: number) => {
     const dish = HK_DISH_ESTIMATES[idx]
     if (!dish) return
     const portion = quickPortion
@@ -881,52 +879,12 @@ export function EatClient() {
       macros,
       portion,
       estimated: true,
-      note: via === 'hk' ? `${dish.hint} · 港式快加` : dish.hint,
+      note: `${dish.hint} · 港式快加`,
       source: 'mock',
     }
     const next = [entry, ...meals]
     void persistList(next, entry)
     showToast(`已快加「${entry.name}」`)
-    try {
-      const newly = evaluateFitnessAchievements({
-        sessions: loadSessions(),
-        meals: next,
-        prs: loadPRs(),
-        proteinGoal: goals.proteinG,
-        already: loadFitnessUnlocked(),
-      })
-      if (newly.length) {
-        unlockFitnessAchievements(newly)
-        const a = fitnessAchievementById(newly[0])
-        if (a) showToast(`${a.emoji} 解鎖：${a.title}`)
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  const addShortcut = (chip: MealShortcut) => {
-    const entry: MealEntry = {
-      id: newId(),
-      createdAt: new Date().toISOString(),
-      name: chip.label,
-      macros: { ...chip.macros },
-      portion: 1,
-      estimated: true,
-      note: chip.vegSide ? chip.hint : `${chip.place}約數`,
-      source: 'mock',
-    }
-    const next = [entry, ...meals]
-    void persistList(next, entry)
-    if (period !== 'day' || todayKey(anchor) !== todayKey()) {
-      setPeriod('day')
-      setAnchor(startOfDay(new Date()))
-    }
-    showToast(
-      chip.vegSide
-        ? `已加${chip.label} · 約 ${chip.macros.kcal} kcal，protein 約 1g，唔計`
-        : `已加${chip.label} · 約 ${chip.macros.kcal} kcal、${chip.macros.protein}g protein`
-    )
     try {
       const newly = evaluateFitnessAchievements({
         sessions: loadSessions(),
@@ -1001,124 +959,6 @@ export function EatClient() {
           description="記低呢餐，計 kcal 同 protein。"
         />
 
-        {/* Four entry paths — 第一屏主入口 */}
-        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {(
-            [
-              {
-                id: 'photo' as const,
-                title: '影相 AI',
-                desc: '影一餐估營養',
-                icon: Camera,
-                onClick: () => scrollEat('photo'),
-              },
-              {
-                id: 'hk' as const,
-                title: '港式快加',
-                desc: '茶記／小食',
-                icon: Utensils,
-                onClick: () => {
-                  setDishCat('茶記')
-                  scrollEat('hk')
-                },
-              },
-              {
-                id: 'club' as const,
-                title: '成日食呢啲',
-                desc: '烚蛋／雞胸／whey',
-                icon: Salad,
-                onClick: () => {
-                  setDishCat('gym撚常食')
-                  scrollEat('club')
-                },
-              },
-              {
-                id: 'manual' as const,
-                title: '手動',
-                desc: '自己填數字',
-                icon: PenLine,
-                onClick: () => {
-                  scrollEat('manual')
-                  openManualEntry()
-                },
-              },
-            ] as const
-          ).map(({ id, title, desc, icon: Icon, onClick }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={onClick}
-              className={cn(
-                'rounded-2xl border bg-surface p-3 text-left shadow-soft transition touch-manipulation hover:shadow-hover',
-                eatFocus === id
-                  ? 'border-accent ring-1 ring-accent/30 bg-accent-soft/40'
-                  : 'border-border'
-              )}
-            >
-              <Icon className="h-4 w-4 text-accent mb-1.5" />
-              <div className="text-sm font-semibold leading-tight">{title}</div>
-              <div className="text-[10px] text-muted mt-0.5 leading-snug">{desc}</div>
-            </button>
-          ))}
-        </div>
-
-        <div className="mb-4">
-          <div className="mb-1 flex items-baseline justify-between gap-2">
-            <h2 className="font-serif text-lg leading-tight">茶記／飯堂</h2>
-            <span className="text-[10px] text-muted">一撳入帳 · 數字係約</span>
-          </div>
-          <p className="mb-2 text-[11px] text-muted leading-relaxed">
-            protein 睇蛋、肉、魚、豆腐、打杯 whey。碟菜約 1g，唔計。
-          </p>
-          {(['茶記', '飯堂'] as const).map((place) => (
-            <div key={place} className="mb-2">
-              <div className="mb-1 text-[10px] font-medium text-muted">
-                {place === '茶記' ? '茶記' : '飯堂'}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {MEAL_CHIPS.filter((chip) => chip.place === place && !chip.vegSide).map((chip) => (
-                  <button
-                    key={chip.label}
-                    type="button"
-                    onClick={() => addShortcut(chip)}
-                    aria-label={`加${chip.label}，約 ${chip.macros.kcal} kcal、${chip.macros.protein}g protein`}
-                    className="rounded-2xl border border-border bg-surface px-2.5 py-1.5 text-left shadow-soft touch-manipulation active:scale-[0.98]"
-                  >
-                    <span className="block text-[12px] font-semibold leading-tight">{chip.label}</span>
-                    <span className="mt-0.5 block text-[10px] tabular-nums text-muted">
-                      約 {chip.macros.kcal} · {chip.macros.protein}g protein
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-          <div>
-            <div className="mb-1 text-[10px] font-medium text-muted">碟菜 · 約 1g，唔計 protein</div>
-            <div className="flex flex-wrap gap-1.5">
-              {MEAL_CHIPS.filter((chip) => chip.vegSide).map((chip) => (
-                <button
-                  key={chip.label}
-                  type="button"
-                  onClick={() => addShortcut(chip)}
-                  aria-label={`加${chip.label}，約 ${chip.macros.kcal} kcal，protein 約 1g，唔計`}
-                  className="rounded-2xl border border-border bg-surface-muted px-2.5 py-1.5 text-left touch-manipulation active:scale-[0.98]"
-                >
-                  <span className="block text-[12px] font-semibold leading-tight">{chip.label}</span>
-                  <span className="mt-0.5 block text-[10px] tabular-nums text-muted">
-                    約 {chip.macros.kcal} kcal · protein 約 1g，唔計
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {!user && (
-          <div className="mb-3">
-            <LoginPromptBanner />
-          </div>
-        )}
         <div className="mb-3">
           <SyncStatusLine
             loggedIn={Boolean(user)}
@@ -1231,8 +1071,8 @@ export function EatClient() {
                 ))}
               </div>
               {periodMeals.length === 0 ? (
-                <p className="mt-3 text-center text-[12px] leading-relaxed text-muted">
-                  呢段未有餐。上面一掣茶記／飯堂，或者下面快加。
+                  <p className="mt-3 text-center text-[12px] leading-relaxed text-muted">
+                  呢段未有餐。下面一撳快加就得。
                 </p>
               ) : (
                 <div className="mt-3 space-y-2 border-t border-border/70 pt-3">
@@ -1269,6 +1109,34 @@ export function EatClient() {
             </Card>
           </motion.div>
         </AnimatePresence>
+
+        <div className="mb-4" data-testid="eat-fold-chips">
+          <div className="mb-1.5 flex items-baseline justify-between gap-2 px-0.5">
+            <h2 className="text-sm font-semibold">港式快加</h2>
+            <button
+              type="button"
+              onClick={() => scrollEat('hk')}
+              className="text-[11px] font-medium text-accent touch-manipulation"
+            >
+              全部
+            </button>
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 -mx-0.5 px-0.5">
+            {FOLD_QUICK.map(({ index, dish }) => (
+              <button
+                key={dish.name}
+                type="button"
+                onClick={() => addDemoDish(index)}
+                className="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-left shadow-soft touch-manipulation active:scale-[0.98]"
+              >
+                <span className="block text-[12px] font-semibold leading-tight">{dish.name}</span>
+                <span className="block text-[10px] tabular-nums text-accent">
+                  約 {dish.macros.protein}g protein
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Today macros — rings + full bars */}
         <Card className="mb-4 py-4 overflow-hidden">
@@ -1667,7 +1535,7 @@ export function EatClient() {
                 whileHover={reduce ? undefined : { scale: 1.02 }}
                 whileTap={reduce ? undefined : { scale: 0.98 }}
                 transition={springSnappy}
-                onClick={() => addDemoDish(i, 'hk')}
+                onClick={() => addDemoDish(i)}
                 className="shrink-0 w-[148px] rounded-[20px] border border-border bg-surface p-3.5 text-left shadow-soft hover:shadow-hover transition"
               >
                 <div className="text-[10px] text-accent mb-0.5">{DISH_CATEGORY_LABEL[d.category]}</div>
@@ -1775,6 +1643,16 @@ export function EatClient() {
             </div>
           </Card>
         </div>
+
+        {!user && (
+          <p className="mb-6 text-center text-[12px] leading-relaxed text-muted">
+            紀錄喺呢部機。
+            <Link href="/login" className="mx-1 font-medium text-accent">
+              登入
+            </Link>
+            就可以喺另一部機睇返。
+          </p>
+        )}
 
         {/* History list for selected period */}
         <div className="mb-3 flex items-center justify-between">

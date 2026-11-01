@@ -1,3 +1,4 @@
+import { sessionCountsAsTrainingDay } from './analysis'
 import { dayKeyFromIso, loadSessions, todayKey, type WorkoutSession } from './storage'
 
 const STREAK_KEY = 'talktgtla-workout-days-v1'
@@ -87,12 +88,14 @@ export function trainedToday(d = new Date()): boolean {
   } catch {
     /* ignore */
   }
-  return loadSessions().some((s) => s.endedAt && dayKeyFromIso(s.startedAt) === key)
+  return loadSessions().some(
+    (s) => sessionCountsAsTrainingDay(s) && dayKeyFromIso(s.startedAt) === key
+  )
 }
 
 export function syncDaysFromSessions(sessions: WorkoutSession[]) {
   const days = sessions
-    .filter((s) => s.endedAt)
+    .filter((s) => sessionCountsAsTrainingDay(s))
     .map((s) => dayKeyFromIso(s.startedAt))
   const merged = [...new Set([...readDays(), ...days])].sort()
   writeDays(merged)

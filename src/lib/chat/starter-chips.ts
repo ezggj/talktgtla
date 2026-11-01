@@ -16,5 +16,5 @@ export const CHAT_STARTER_CHIPS: StarterChip[] = [
   { id: 'pr', label: '📈 PR', text: '最近有冇細 PR？講嚟聽下～' },
   { id: 'rest', label: '😴 休息日', text: '今日休息日，大家都點過？' },
   { id: 'newbie', label: '🌱 新手', text: '新手嚟問：腿日第一日點排好？' },
-  { id: 'meetup', label: '🤝 凑局', text: '想開台凑局，邊個時段啱？' },
+  { id: 'meetup', label: '🤝 湊局', text: '想開台湊局，邊個時段啱？' },
 ]

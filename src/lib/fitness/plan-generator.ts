@@ -41,7 +41,7 @@ type Ex = { id: string; nameZh: string; gym: boolean; db: boolean; bw: boolean }
 
 const POOL: Record<string, Ex[]> = {
   push: [
-    { id: 'bench', nameZh: '卧推', gym: true, db: true, bw: false },
+    { id: 'bench', nameZh: '臥推', gym: true, db: true, bw: false },
     { id: 'ohp', nameZh: '肩推', gym: true, db: true, bw: false },
     { id: 'fly', nameZh: '飛鳥', gym: true, db: true, bw: false },
     { id: 'lateral', nameZh: '側平舉', gym: true, db: true, bw: false },
@@ -68,7 +68,7 @@ const POOL: Record<string, Ex[]> = {
   ],
   full: [
     { id: 'squat', nameZh: '深蹲', gym: true, db: true, bw: true },
-    { id: 'bench', nameZh: '卧推', gym: true, db: true, bw: false },
+    { id: 'bench', nameZh: '臥推', gym: true, db: true, bw: false },
     { id: 'row', nameZh: '划船', gym: true, db: true, bw: false },
     { id: 'ohp', nameZh: '肩推', gym: true, db: true, bw: false },
     { id: 'lunges', nameZh: '弓步蹲', gym: true, db: true, bw: true },

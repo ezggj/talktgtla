@@ -352,7 +352,7 @@ export function PlanGenerator({ userId }: Props) {
               <p className="text-xs text-muted mt-1 leading-relaxed">{plan.summary}</p>
               <p className="text-[11px] text-muted mt-1">每日右邊「開波」會帶晒動作去訓練頁，唔使再揀一次。</p>
               <p className="text-[10px] text-muted mt-1">
-                {planId ? '已同步去你個帳戶' : '已留喺呢部機。登入先可以喺第部機睇返。'}
+                {planId ? '已同步去你個帳戶' : '已留喺呢部機。登入先可以喺另一部機睇返。'}
               </p>
             </div>
             {plan.days.map((d) => {

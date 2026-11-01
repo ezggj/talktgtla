@@ -1,5 +1,6 @@
 /** Local weekly schedule + custom day plans — works for guests too. */
 
+import { sessionCountsAsTrainingDay } from './analysis'
 import { TEMPLATES, type Template } from './exercises'
 import type { GeneratedPlan, PlanInputs } from './plan-generator'
 import { setFollowingPlan } from './plan-store'
@@ -225,7 +226,7 @@ function slotDoneThisWeek(
   if (!slot.templateId) return false
   const slotDate = localTodayKey(addDays(weekStart, slot.dayIndex))
   return sessions.some((s) => {
-    if (!s.endedAt) return false
+    if (!sessionCountsAsTrainingDay(s)) return false
     const t = new Date(s.startedAt).getTime()
     if (t < weekStart.getTime() || t >= weekEnd.getTime()) return false
     if (s.templateId === slot.templateId) return true
@@ -257,7 +258,7 @@ export function getTodayPlanHint(
   const todayStr = localTodayKey(now)
   const doneToday = sessions.some(
     (s) =>
-      s.endedAt &&
+      sessionCountsAsTrainingDay(s) &&
       dayKeyFromIso(s.startedAt) === todayStr &&
       (slot.templateId
         ? s.templateId === slot.templateId ||

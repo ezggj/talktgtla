@@ -206,7 +206,7 @@ export function LoginCard({ user, configured, onSignOut, compact }: Props) {
           <Badge tone="muted">訪客模式</Badge>
           <CardTitle className="mt-2 text-xl">登入，換手機都睇到</CardTitle>
           <CardDesc className="mt-2">
-            而家紀錄淨係喺呢部機。登入先可以喺第部機睇返。
+            而家紀錄淨係喺呢部機。登入先可以喺另一部機睇返。
           </CardDesc>
         </div>
 
@@ -328,11 +328,11 @@ function GoogleGlyph() {
 
 
 /** Slim prompt for train/eat when guest. */
-export function LoginPromptBanner({ href = '/me' }: { href?: string }) {
+export function LoginPromptBanner({ href = '/login' }: { href?: string }) {
   return (
     <div className="rounded-2xl border border-border/80 bg-surface px-4 py-3.5 shadow-soft flex items-center justify-between gap-3">
       <p className="text-muted text-xs sm:text-[13px] leading-relaxed">
-        而家淨係呢部機。登入先可以喺第部機睇返。
+        而家淨係呢部機。登入先可以喺另一部機睇返。
       </p>
       <Link
         href={href}
