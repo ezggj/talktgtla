@@ -11,6 +11,60 @@ type Props = {
   onAsk: () => void
 }
 
+/** One quiet sentence after rest. Same tip actions, without a second card. */
+export function TrainCalmLine({
+  text,
+  acceptLabel,
+  askBusy,
+  askNote,
+  onAccept,
+  onDismiss,
+  onAsk,
+}: {
+  text: string
+  acceptLabel?: string
+  askBusy?: boolean
+  askNote?: string | null
+  onAccept?: () => void
+  onDismiss?: () => void
+  onAsk?: () => void
+}) {
+  return (
+    <p data-testid="train-calm-line" className="mb-3 text-[13px] leading-snug text-foreground/85">
+      <span>{text}</span>
+      {onAccept && (
+        <button
+          type="button"
+          onClick={onAccept}
+          className="ml-2 font-semibold text-accent touch-manipulation"
+        >
+          {acceptLabel || '用呢個重量'}
+        </button>
+      )}
+      {onAsk && (
+        <button
+          type="button"
+          onClick={onAsk}
+          disabled={askBusy}
+          className="ml-2 font-semibold text-accent touch-manipulation disabled:opacity-50"
+        >
+          {askBusy ? '問緊…' : '問 AI'}
+        </button>
+      )}
+      {onDismiss && (
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="ml-2 text-muted touch-manipulation"
+        >
+          收埋
+        </button>
+      )}
+      {askNote ? <span className="mt-0.5 block text-[11px] text-muted">{askNote}</span> : null}
+    </p>
+  )
+}
+
 /** Short in-flow tip. Not a separate coach screen. */
 export function TrainTipBanner({
   lines,
