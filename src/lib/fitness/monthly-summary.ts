@@ -1,11 +1,12 @@
 /** 月度回顧 — 練幾多、蛋白點，廣東話口語。 */
 
 import type { MealEntry, WorkoutSession } from './storage'
+import { isWorkingSet } from './storage'
 import { dayKeyFromIso, todayKey } from './storage'
 import { countableProtein } from './protein-count'
 
 function volumeOf(s: WorkoutSession) {
-  return s.sets.reduce((a, x) => a + x.weightKg * x.reps, 0)
+  return s.sets.reduce((a, x) => (isWorkingSet(x) ? a + x.weightKg * x.reps : a), 0)
 }
 
 function monthBounds(d = new Date()) {

@@ -1,6 +1,7 @@
 /** Recent-session trends for the main lifts. Local sessions only — no network. */
 
 import type { WorkoutSession, WorkoutSet } from './storage'
+import { isWorkingSet } from './storage'
 
 export type LiftMetric = 'weight' | 'volume'
 
@@ -38,7 +39,9 @@ export type LiftTrend = {
 const MAX_POINTS = 10
 
 function workingSets(sets: WorkoutSet[], exerciseId: string): WorkoutSet[] {
-  const mine = sets.filter((s) => s.exerciseId === exerciseId && s.weightKg > 0 && s.reps > 0)
+  const mine = sets.filter(
+    (s) => s.exerciseId === exerciseId && s.weightKg > 0 && s.reps > 0 && isWorkingSet(s)
+  )
   const ok = mine.filter((s) => s.outcome !== 'fail')
   return ok.length ? ok : mine
 }

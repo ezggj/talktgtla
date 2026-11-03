@@ -2,7 +2,7 @@
 
 import type { GeneratedPlan, PlanDay } from './plan-generator'
 import { startOfWeekMonday, addDays } from './cloud'
-import { dayKeyFromIso, todayKey as localTodayKey, type WorkoutSession } from './storage'
+import { dayKeyFromIso, todayKey as localTodayKey, isWorkingSet, type WorkoutSession } from './storage'
 
 export type PlanDayProgress = {
   day: PlanDay
@@ -101,7 +101,7 @@ export function volumeByDay(
     const key = localTodayKey(d)
     const volume = sessions
       .filter((s) => s.endedAt && dayKeyFromIso(s.startedAt) === key)
-      .reduce((a, s) => a + s.sets.reduce((b, x) => b + x.weightKg * x.reps, 0), 0)
+      .reduce((a, s) => a + s.sets.reduce((b, x) => (isWorkingSet(x) ? b + x.weightKg * x.reps : b), 0), 0)
     out.push({ key, label: labels[d.getDay()], volume })
   }
   return out

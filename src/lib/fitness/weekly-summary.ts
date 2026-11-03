@@ -1,12 +1,13 @@
 /** 一週口語總結 — spoken Cantonese card copy. */
 
 import type { MealEntry, WorkoutSession } from './storage'
+import { isWorkingSet } from './storage'
 import { dayKeyFromIso } from './storage'
 import { weekConsistency } from './streaks'
 import { countableProtein } from './protein-count'
 
 function volumeOf(s: WorkoutSession) {
-  return s.sets.reduce((a, x) => a + x.weightKg * x.reps, 0)
+  return s.sets.reduce((a, x) => (isWorkingSet(x) ? a + x.weightKg * x.reps : a), 0)
 }
 
 export type WeeklySummary = {

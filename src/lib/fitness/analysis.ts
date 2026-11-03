@@ -1,4 +1,5 @@
 import type { WorkoutSession, WorkoutSet } from './storage'
+import { isWorkingSet } from './storage'
 import { exerciseById } from './exercises'
 
 export type SessionPr = {
@@ -36,11 +37,14 @@ function isBetterLoad(
   return next.weightKg > prev.weightKg || (next.weightKg === prev.weightKg && next.reps > prev.reps)
 }
 
-/** One set, or a couple of very light sets. Not a full session. */
-export function isTinySession(sets: { weightKg: number; reps: number }[]): boolean {
-  if (sets.length <= 1) return true
-  const volume = sets.reduce((sum, s) => sum + Math.max(0, s.weightKg) * Math.max(0, s.reps), 0)
-  return sets.length < 3 && volume < 400
+/** One set, or a couple of very light sets. Not a full session. Warmups ignored. */
+export function isTinySession(
+  sets: { weightKg: number; reps: number; outcome?: string | null }[]
+): boolean {
+  const working = sets.filter((s) => s.outcome !== 'warmup')
+  if (working.length <= 1) return true
+  const volume = working.reduce((sum, s) => sum + Math.max(0, s.weightKg) * Math.max(0, s.reps), 0)
+  return working.length < 3 && volume < 400
 }
 
 /** Ended session that should light the day, streak, and 開齋. */
@@ -67,7 +71,9 @@ export function sessionPersonalRecords(
   const ids = [...new Set(current.sets.map((s) => s.exerciseId))]
   const out: SessionPr[] = []
   for (const id of ids) {
-    const sets = current.sets.filter((s) => s.exerciseId === id && s.weightKg > 0)
+    const sets = current.sets.filter(
+      (s) => s.exerciseId === id && s.weightKg > 0 && isWorkingSet(s)
+    )
     if (!sets.length) continue
     const best = sets.reduce((a, b) => (isBetterLoad(b, a) ? b : a))
     let histW = 0
@@ -75,7 +81,7 @@ export function sessionPersonalRecords(
     let seen = false
     for (const sess of finished) {
       for (const s of sess.sets) {
-        if (s.exerciseId !== id || s.weightKg <= 0) continue
+        if (s.exerciseId !== id || s.weightKg <= 0 || !isWorkingSet(s)) continue
         seen = true
         if (s.weightKg > histW || (s.weightKg === histW && s.reps > histR)) {
           histW = s.weightKg
@@ -97,8 +103,9 @@ export function sessionPersonalRecords(
   return out.slice(0, 4)
 }
 
+/** Working volume — 熱身組唔計. */
 export function volumeOf(sets: WorkoutSet[]) {
-  return sets.reduce((a, s) => a + s.weightKg * s.reps, 0)
+  return sets.reduce((a, s) => (isWorkingSet(s) ? a + s.weightKg * s.reps : a), 0)
 }
 
 function durationSec(s: WorkoutSession) {
@@ -142,6 +149,7 @@ function recentWeek(all: WorkoutSession[], current: WorkoutSession) {
 function topVolumeExercise(sets: WorkoutSet[]) {
   const map = new Map<string, { name: string; vol: number; sets: number }>()
   for (const s of sets) {
+    if (!isWorkingSet(s)) continue
     const cur = map.get(s.exerciseId) || { name: s.exerciseName, vol: 0, sets: 0 }
     cur.vol += s.weightKg * s.reps
     cur.sets += 1
@@ -154,6 +162,7 @@ function dropOffSets(sets: WorkoutSet[]) {
   // last set of an exercise much weaker than first → maybe rest too short / fatigue
   const byEx = new Map<string, WorkoutSet[]>()
   for (const s of sets) {
+    if (!isWorkingSet(s)) continue
     const list = byEx.get(s.exerciseId) || []
     list.push(s)
     byEx.set(s.exerciseId, list)
@@ -176,11 +185,14 @@ function weightsFlat(all: WorkoutSession[], current: WorkoutSession) {
   if (finished.length < 2) return null as string | null
   const exIds = [...new Set(current.sets.map((s) => s.exerciseId))]
   for (const ex of exIds) {
-    const curMax = Math.max(0, ...current.sets.filter((s) => s.exerciseId === ex).map((s) => s.weightKg))
+    const curMax = Math.max(
+      0,
+      ...current.sets.filter((s) => s.exerciseId === ex && isWorkingSet(s)).map((s) => s.weightKg)
+    )
     if (curMax <= 0) continue
     const historyMax: number[] = []
     for (const sess of finished.slice(0, 3)) {
-      const xs = sess.sets.filter((s) => s.exerciseId === ex)
+      const xs = sess.sets.filter((s) => s.exerciseId === ex && isWorkingSet(s))
       if (!xs.length) continue
       historyMax.push(Math.max(...xs.map((s) => s.weightKg)))
     }

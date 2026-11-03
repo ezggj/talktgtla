@@ -121,3 +121,33 @@ test('下次試 stays on the same set as the prefill', () => {
   )
   assert.equal(suggested, 82.5)
 })
+
+test('prefill prefers last working set over a later warmup', () => {
+  const active = session({
+    id: 'now',
+    sets: [
+      set({
+        exerciseId: 'bench',
+        weightKg: 60,
+        reps: 8,
+        setIndex: 1,
+        completedAt: '2026-04-01T00:01:00.000Z',
+        outcome: 'ok',
+      }),
+      set({
+        exerciseId: 'bench',
+        weightKg: 40,
+        reps: 12,
+        setIndex: 2,
+        completedAt: '2026-04-01T00:05:00.000Z',
+        outcome: 'warmup',
+      }),
+    ],
+  })
+  const found = prefillSetForExercise([], 'bench', active)
+  assert.equal(found?.source, 'active')
+  assert.equal(found?.set.weightKg, 60)
+  assert.equal(found?.set.reps, 8)
+  assert.equal(found?.set.outcome, 'ok')
+})
+

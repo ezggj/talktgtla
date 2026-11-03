@@ -66,6 +66,7 @@ import { offlineDrainToastMessage } from '@/lib/fitness/offline-drain'
 import {
   type MealEntry,
   type MealMacros,
+  dayKeyFromIso,
   isSameDay,
   loadGoals,
   loadMeals,
@@ -75,6 +76,7 @@ import {
   saveMeals,
   todayKey,
 } from '@/lib/fitness/storage'
+import { hkDayKey, previousHkDay } from '@/lib/fitness/hk-day'
 import {
   type PeriodKind,
   type MealPeriodBucket,
@@ -461,6 +463,19 @@ export function EatClient() {
     }
     return out
   }, [meals])
+
+  /** 昨日餐（Asia/Hong_Kong 日）——一掣加返今日 */
+  const yesterdayMeals = useMemo(() => {
+    const y = previousHkDay(hkDayKey())
+    return [...meals]
+      .filter((m) => dayKeyFromIso(m.createdAt) === y)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  }, [meals])
+
+  const yesterdayProtein = useMemo(
+    () => Math.round(yesterdayMeals.reduce((a, m) => a + countableProtein(m), 0)),
+    [yesterdayMeals]
+  )
 
   // Calendar heat for current month (protein per day)
   const monthHeat = useMemo(() => {
@@ -860,6 +875,70 @@ export function EatClient() {
     const next = [entry, ...meals]
     void persistList(next, entry)
     showToast(`再食一次「${entry.name}」`)
+  }
+
+  const addYesterdayMeals = () => {
+    if (!yesterdayMeals.length) return
+    const now = new Date().toISOString()
+    const entries: MealEntry[] = yesterdayMeals.map((m) => ({
+      id: newId(),
+      createdAt: now,
+      name: m.name,
+      macros: { ...m.macros },
+      portion: m.portion ?? 1,
+      estimated: m.estimated,
+      note: m.note,
+      source: m.source === 'ai' ? 'mock' : m.source,
+      // 唔抄 imageDataUrl，避免塞爆；雲端 path 可以留
+      imagePath: m.imagePath,
+    }))
+    const next = [...entries, ...meals]
+    setMeals(next)
+    saveMeals(next)
+    showToast(`加咗昨日 ${entries.length} 餐`)
+    if (user) {
+      void (async () => {
+        try {
+          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            for (const entry of entries) enqueueMeal(entry)
+            setCloudNote('未有網，先記喺機度')
+            return
+          }
+          const supabase = createClient()
+          let mapped = next
+          for (const entry of entries) {
+            try {
+              const saved = await upsertMeal(supabase, user.id, entry, null)
+              mapped = mapped.map((m) => (m.id === saved.id ? saved : m))
+            } catch {
+              enqueueMeal(entry)
+            }
+          }
+          setMeals(mapped)
+          saveMeals(mapped)
+          setCloudNote('同步去你帳戶')
+        } catch {
+          for (const entry of entries) enqueueMeal(entry)
+          setCloudNote('同步唔到，先記喺機度')
+        }
+      })()
+    }
+    try {
+      const newly = evaluateFitnessAchievements({
+        sessions: loadSessions(),
+        meals: next,
+        prs: loadPRs(),
+        proteinGoal: goals.proteinG,
+        already: loadFitnessUnlocked(),
+      })
+      if (newly.length) {
+        unlockFitnessAchievements(newly)
+        const a = fitnessAchievementById(newly[0])
+        if (a) showToast(`${a.emoji} 解鎖：${a.title}`)
+      }
+    } catch {
+      /* ignore */
+    }
   }
 
   const updateMealMacros = (id: string, patch: Partial<MealEntry>) => {
@@ -1381,6 +1460,28 @@ export function EatClient() {
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPick} />
           </div>
         </Card>
+
+        {yesterdayMeals.length > 0 && (
+          <div className="mb-6">
+            <button
+              type="button"
+              onClick={addYesterdayMeals}
+              className="w-full rounded-[20px] border border-accent/25 bg-accent-soft/20 p-4 text-left shadow-soft hover:shadow-hover transition touch-manipulation"
+            >
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-white">
+                  <CopyPlus className="h-5 w-5" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-serif text-lg text-foreground">加返昨日</span>
+                  <span className="mt-0.5 block text-[12px] text-muted leading-relaxed">
+                    {yesterdayMeals.length} 餐 · 約 {yesterdayProtein}g 蛋白——一掣抄入今日
+                  </span>
+                </span>
+              </div>
+            </button>
+          </div>
+        )}
 
         {recentMeals.length > 0 && (
           <div className="mb-6">

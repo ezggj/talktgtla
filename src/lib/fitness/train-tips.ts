@@ -7,6 +7,7 @@ import { exerciseById } from '../exercises/library'
 import { hkDayKey, previousHkDay } from './hk-day'
 import { lastSetInSession } from './last-set'
 import type { WorkoutSession, WorkoutSet } from './storage'
+import { isWorkingSet } from './storage'
 
 export type TrainTip = {
   id: string
@@ -71,7 +72,7 @@ export function recentAnchors(
 }
 
 function volumeOf(sets: WorkoutSet[]) {
-  return sets.reduce((sum, s) => sum + s.weightKg * s.reps, 0)
+  return sets.reduce((sum, s) => (isWorkingSet(s) ? sum + s.weightKg * s.reps : sum), 0)
 }
 
 /** Before the first set of an exercise in this session. Null when there is no history. */

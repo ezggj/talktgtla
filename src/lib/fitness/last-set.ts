@@ -1,6 +1,7 @@
 /** Last logged kg × reps for an exercise. Local sessions only — no network. */
 
 import type { WorkoutSession, WorkoutSet } from './storage'
+import { isWorkingSet } from './storage'
 
 export type PrefillSource = 'active' | 'history'
 
@@ -9,19 +10,21 @@ export type ExercisePrefill = {
   source: PrefillSource
 }
 
-/** Latest set of this exercise inside one session (by time, then set index). */
+function isLaterSet(a: WorkoutSet, b: WorkoutSet) {
+  const time = (a.completedAt || '').localeCompare(b.completedAt || '')
+  return time > 0 || (time === 0 && a.setIndex >= b.setIndex)
+}
+
+/** Latest set of this exercise — prefer working（非熱身）; fallback to warmup-only. */
 export function lastSetInSession(session: WorkoutSession, exerciseId: string): WorkoutSet | null {
-  let best: WorkoutSet | null = null
+  let bestWorking: WorkoutSet | null = null
+  let bestAny: WorkoutSet | null = null
   for (const set of session.sets) {
     if (set.exerciseId !== exerciseId) continue
-    if (!best) {
-      best = set
-      continue
-    }
-    const time = (set.completedAt || '').localeCompare(best.completedAt || '')
-    if (time > 0 || (time === 0 && set.setIndex >= best.setIndex)) best = set
+    if (!bestAny || isLaterSet(set, bestAny)) bestAny = set
+    if (isWorkingSet(set) && (!bestWorking || isLaterSet(set, bestWorking))) bestWorking = set
   }
-  return best
+  return bestWorking || bestAny
 }
 
 /**

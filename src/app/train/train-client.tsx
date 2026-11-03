@@ -57,6 +57,8 @@ import {
   savePRs,
   saveSessions,
   isSameDay,
+  isWarmupSet,
+  isWorkingSet,
   todayKey,
 } from '@/lib/fitness/storage'
 import { persistFinishedWorkout } from '@/lib/fitness/cloud'
@@ -184,7 +186,20 @@ function draftReps(raw: string): number | null {
 }
 
 function volumeOf(sets: WorkoutSet[]) {
-  return sets.reduce((a, s) => a + s.weightKg * s.reps, 0)
+  return sets.reduce((a, s) => (isWorkingSet(s) ? a + s.weightKg * s.reps : a), 0)
+}
+
+function workingSetLabel(sets: WorkoutSet[], setId: string) {
+  let n = 0
+  for (const s of sets) {
+    if (isWarmupSet(s)) {
+      if (s.id === setId) return '熱'
+      continue
+    }
+    n += 1
+    if (s.id === setId) return `#${n}`
+  }
+  return '#'
 }
 
 type Tab = 'today' | 'templates' | 'history' | 'meetup'
@@ -872,9 +887,10 @@ export function TrainClient() {
     const next = { ...active, sets: [...active.sets, row] }
     persistActive(next)
 
-    // PR check: heaviest weight for exercise
+    // PR check: heaviest weight for exercise（熱身唔計）
     const prev = prs[selectedEx]
     const better =
+      outcome !== 'warmup' &&
       weightKg > 0 &&
       (!prev || weightKg > prev.weightKg || (weightKg === prev.weightKg && repsN > prev.reps))
     if (better) {
@@ -902,7 +918,7 @@ export function TrainClient() {
 
   const cycleSetOutcome = (setId: string) => {
     if (!active) return
-    const order: SetOutcome[] = ['ok', 'half', 'fail']
+    const order: SetOutcome[] = ['ok', 'half', 'fail', 'warmup']
     const nextSets = active.sets.map((s) => {
       if (s.id !== setId) return s
       const cur = s.outcome || 'ok'
@@ -1954,10 +1970,11 @@ export function TrainClient() {
                           </div>
                         </div>
 
-                        <div className="mb-2.5 flex gap-1.5">
+                        <div className="mb-2.5 grid grid-cols-4 gap-1.5">
                           {(
                             [
                               { id: 'ok' as const, label: '正常組' },
+                              { id: 'warmup' as const, label: '熱身組' },
                               { id: 'half' as const, label: '半組' },
                               { id: 'fail' as const, label: '失敗組' },
                             ] as const
@@ -1967,13 +1984,15 @@ export function TrainClient() {
                               type="button"
                               onClick={() => setPendingOutcome(o.id)}
                               className={cn(
-                                'flex-1 rounded-2xl border py-2.5 text-[12px] font-semibold touch-manipulation min-h-[48px]',
+                                'rounded-2xl border py-2.5 text-[11px] sm:text-[12px] font-semibold touch-manipulation min-h-[48px]',
                                 pendingOutcome === o.id
                                   ? o.id === 'fail'
                                     ? 'border-danger/40 bg-danger/10 text-danger'
                                     : o.id === 'half'
                                       ? 'border-warning/40 bg-warning/10 text-warning'
-                                      : 'border-accent bg-accent-soft text-accent'
+                                      : o.id === 'warmup'
+                                        ? 'border-border bg-surface-muted text-foreground'
+                                        : 'border-accent bg-accent-soft text-accent'
                                   : 'border-border text-muted hover:text-foreground'
                               )}
                             >
@@ -1993,7 +2012,7 @@ export function TrainClient() {
                               <Plus className="h-7 w-7" />
                               記低
                               {logFigures ? ` · ${logFigures}` : ''}
-                              {pendingOutcome === 'half' ? ' · 半' : pendingOutcome === 'fail' ? ' · 敗' : ''}
+                              {pendingOutcome === 'half' ? ' · 半' : pendingOutcome === 'fail' ? ' · 敗' : pendingOutcome === 'warmup' ? ' · 熱' : ''}
                             </Button>
                           </motion.div>
                           <Button
@@ -2023,7 +2042,7 @@ export function TrainClient() {
                             {sfxOn ? <Volume2 className="h-3.5 w-3.5 text-accent" /> : <VolumeX className="h-3.5 w-3.5" />}
                             {sfxOn ? '音效開' : '音效關'}
                           </button>
-                          <span className="text-[10px] text-muted">失敗／半組可之後喺列表改</span>
+                          <span className="text-[10px] text-muted">熱身／失敗／半組可之後喺列表改</span>
                         </div>
                         {nextPlanExercise && setsForSelected > 0 && (
                           <button
@@ -2130,10 +2149,13 @@ export function TrainClient() {
                                   'flex items-center justify-between rounded-xl bg-surface-muted border border-border px-3 py-2.5 text-sm gap-2',
                                   justAdded === s.id && 'pr-burst ring-2 ring-accent/25',
                                   s.outcome === 'fail' && 'border-danger/30 bg-danger/5',
-                                  s.outcome === 'half' && 'border-warning/30 bg-warning/5'
+                                  s.outcome === 'half' && 'border-warning/30 bg-warning/5',
+                                  s.outcome === 'warmup' && 'border-border/70 bg-surface'
                                 )}
                               >
-                                <span className="text-muted tabular-nums w-8 shrink-0">#{s.setIndex}</span>
+                                <span className="text-muted tabular-nums w-8 shrink-0">
+                                  {workingSetLabel(group.sets, s.id)}
+                                </span>
                                 <span className="font-medium tabular-nums flex-1">
                                   {s.weightKg} kg × {s.reps}
                                 </span>
@@ -2146,11 +2168,19 @@ export function TrainClient() {
                                       ? 'border-danger/40 text-danger'
                                       : s.outcome === 'half'
                                         ? 'border-warning/40 text-warning'
-                                        : 'border-accent/30 text-accent'
+                                        : s.outcome === 'warmup'
+                                          ? 'border-border text-muted'
+                                          : 'border-accent/30 text-accent'
                                   )}
-                                  title="撳一下切換：正常／半組／失敗"
+                                  title="撳一下切換：正常／半組／失敗／熱身"
                                 >
-                                  {s.outcome === 'fail' ? '失敗' : s.outcome === 'half' ? '半組' : '正常'}
+                                  {s.outcome === 'fail'
+                                    ? '失敗'
+                                    : s.outcome === 'half'
+                                      ? '半組'
+                                      : s.outcome === 'warmup'
+                                        ? '熱身'
+                                        : '正常'}
                                 </button>
                               </li>
                             ))}
@@ -2830,6 +2860,13 @@ export function TrainClient() {
             >
               <Plus className="h-6 w-6" />
               {logFigures ? `記低 · ${logFigures}` : '記低'}
+              {pendingOutcome === 'half'
+                ? ' · 半'
+                : pendingOutcome === 'fail'
+                  ? ' · 敗'
+                  : pendingOutcome === 'warmup'
+                    ? ' · 熱'
+                    : ''}
             </Button>
           </div>
         </div>
