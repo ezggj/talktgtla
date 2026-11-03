@@ -144,6 +144,8 @@ import {
   enqueueWorkout,
   flushOfflineQueue,
 } from '@/lib/fitness/offline-queue'
+import { offlineDrainToastMessage } from '@/lib/fitness/offline-drain'
+import { offerNextPlanExercise } from '@/lib/fitness/plan-queue'
 import { LoginPromptBanner } from '@/components/auth/login-card'
 import { MeetupBoard } from '@/components/fitness/meetup-board'
 import { buildTrainCoachBlurb } from '@/lib/fitness/weekly-summary'
@@ -471,7 +473,7 @@ export function TrainClient() {
     }
   }, [authReady, user])
 
-  // Flush offline queue when back online / on login
+  // Flush offline queue when back online / on login — toast when drain succeeds
   useEffect(() => {
     if (!user) return
     const flush = async () => {
@@ -479,6 +481,8 @@ export function TrainClient() {
         const supabase = createClient()
         const flushed = await flushOfflineQueue(supabase, user.id)
         if (flushed.note) setCloudNote(flushed.note)
+        const toast = offlineDrainToastMessage(flushed.ok)
+        if (toast) setSyncToast(toast)
       } catch {
         /* ignore */
       }
@@ -1068,7 +1072,17 @@ export function TrainClient() {
   const logFigures =
     weightN != null && repsN != null && weightN >= 0 && repsN >= 1 ? `${weightN}×${repsN}` : ''
 
-  const nextPlanExercise = planQueue.find((id) => id !== selectedEx) || null
+  const setsForSelected =
+    active && selectedEx
+      ? active.sets.filter((s) => s.exerciseId === selectedEx).length
+      : 0
+  const nextOffer = offerNextPlanExercise({
+    queue: planQueue,
+    selectedId: selectedEx,
+    setsForSelected,
+  })
+  const nextPlanExercise = nextOffer?.nextId ?? null
+  const nextPlanEmphasize = Boolean(nextOffer?.emphasize)
   const openVisible =
     tipsOn && !betweenTip && openTip && openDismissedEx !== selectedEx ? openTip : null
   const betweenVisible = tipsOn && betweenTip ? betweenTip : null
@@ -1654,9 +1668,13 @@ export function TrainClient() {
                                   <button
                                     type="button"
                                     onClick={() => pickExercise(nextPlanExercise)}
-                                    className="text-[10px] font-medium text-accent touch-manipulation"
+                                    className={
+                                      nextPlanEmphasize
+                                        ? 'rounded-full border border-accent/35 bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent touch-manipulation'
+                                        : 'text-[10px] font-medium text-accent touch-manipulation'
+                                    }
                                   >
-                                    下一個 →
+                                    {nextPlanEmphasize ? '去做下一個 →' : '下一個 →'}
                                   </button>
                                 )}
                               </div>
@@ -1971,13 +1989,19 @@ export function TrainClient() {
                           </button>
                           <span className="text-[10px] text-muted">失敗／半組可之後喺列表改</span>
                         </div>
-                        {nextPlanExercise && planQueue.length <= 1 && (
+                        {nextPlanExercise && (
                           <button
                             type="button"
                             onClick={() => pickExercise(nextPlanExercise)}
-                            className="w-full text-center text-xs font-medium text-accent py-2 rounded-xl hover:bg-accent-soft transition touch-manipulation"
+                            className={
+                              nextPlanEmphasize
+                                ? 'mt-1 w-full min-h-14 rounded-[20px] border border-accent/35 bg-accent-soft px-4 py-3.5 text-base font-semibold text-accent shadow-soft touch-manipulation active:scale-[0.99]'
+                                : 'w-full text-center text-xs font-medium text-accent py-2.5 rounded-xl hover:bg-accent-soft transition touch-manipulation min-h-11'
+                            }
                           >
-                            下一個：{exerciseById(nextPlanExercise)?.nameZh} →
+                            {nextPlanEmphasize ? '去做下一個 · ' : '下一個：'}
+                            {exerciseById(nextPlanExercise)?.nameZh || '下一動作'}
+                            {' →'}
                           </button>
                         )}
                       </>

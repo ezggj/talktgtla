@@ -61,6 +61,7 @@ import {
   enqueueMeal,
   flushOfflineQueue,
 } from '@/lib/fitness/offline-queue'
+import { offlineDrainToastMessage } from '@/lib/fitness/offline-drain'
 
 import {
   type MealEntry,
@@ -291,6 +292,8 @@ export function EatClient() {
           const supabase = createClient()
           const flushed = await flushOfflineQueue(supabase, user.id)
           if (flushed.note) setCloudNote(flushed.note)
+          const toast = offlineDrainToastMessage(flushed.ok)
+          if (toast) setSyncToast(toast)
         } catch {
           /* ignore */
         }
