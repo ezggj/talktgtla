@@ -91,7 +91,7 @@ import {
 import { clampRestSeconds, loadRestPrefs, saveRestPrefs } from '@/lib/fitness/rest-prefs'
 import { RestTimerControls } from '@/components/fitness/rest-timer-controls'
 import { prefillSetForExercise } from '@/lib/fitness/last-set'
-import { TrainTipBanner } from '@/components/fitness/train-tip-banner'
+import { TrainCalmLine, TrainTipBanner } from '@/components/fitness/train-tip-banner'
 import {
   buildBetweenSetTip,
   buildFinishLines,
@@ -246,6 +246,8 @@ export function TrainClient() {
   const [sfxOn, setSfxOn] = useState(true)
   const [restFullscreen, setRestFullscreen] = useState(true)
   const [pendingOutcome, setPendingOutcome] = useState<SetOutcome>('ok')
+  const [exerciseToolsOpen, setExerciseToolsOpen] = useState(false)
+  const [prChallengeOpen, setPrChallengeOpen] = useState(false)
 
   const applyPrefill = useCallback(
     (
@@ -638,10 +640,19 @@ export function TrainClient() {
     setPickerOpen(false)
     setPickerHowtoId(null)
     setSearch('')
+    setExerciseToolsOpen(false)
+    setPrChallengeOpen(false)
+    setRestReadyNext(false)
     applyPrefill(exerciseId, sess ?? null, sessions, { resetOutcome: true })
     setBetweenTip(null)
     setAskLine(null)
     setAskNote(null)
+  }
+
+  const startDemoLegDay = () => {
+    const t = TEMPLATES.find((x) => x.id === 'newbie-leg-day')
+    if (!t) return
+    startSession(t.id, t.exerciseIds)
   }
 
   /** One-tap：未開波就開波再揀；已開波就直接加入今日動作。 */
@@ -1082,11 +1093,19 @@ export function TrainClient() {
     setsForSelected,
   })
   const nextPlanExercise = nextOffer?.nextId ?? null
-  const nextPlanEmphasize = Boolean(nextOffer?.emphasize)
+  const sessionLive = Boolean(active && !active.endedAt)
   const openVisible =
     tipsOn && !betweenTip && openTip && openDismissedEx !== selectedEx ? openTip : null
   const betweenVisible = tipsOn && betweenTip ? betweenTip : null
-  const betweenOnPage = Boolean(betweenVisible && !(restLeft != null && restFullscreen))
+  const restOnScreen = restLeft != null
+  const calmAfterRest =
+    restOnScreen
+      ? null
+      : betweenVisible
+        ? askLine || betweenVisible.lines[0] || null
+        : restReadyNext
+          ? `休息完 · 第 ${setsForSelected + 1} 組`
+          : null
   const tipBanner = (tip: TrainTip) => (
     <TrainTipBanner
       lines={tip.lines}
@@ -1123,7 +1142,7 @@ export function TrainClient() {
                   {formatDuration(elapsed)}
                 </div>
                 <div className="text-[10px] text-muted tabular-nums mt-0.5">
-                  {active.sets.length} 組 · {Math.round(volumeOf(active.sets)).toLocaleString()}
+                  {active.sets.length} 組 · {Math.round(volumeOf(active.sets)).toLocaleString()} kg
                 </div>
               </div>
             ) : undefined
@@ -1142,10 +1161,17 @@ export function TrainClient() {
             <button
               key={id}
               type="button"
-              onClick={() => setTab(id)}
+              data-testid={`train-tab-${id}`}
+              disabled={sessionLive && id !== 'today'}
+              title={sessionLive && id !== 'today' ? '練緊。完場或放棄先轉去第度。' : undefined}
+              onClick={() => {
+                if (sessionLive && id !== 'today') return
+                setTab(id)
+              }}
               className={cn(
                 'relative flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-medium transition-colors',
-                tab === id ? 'text-accent' : 'text-muted hover:text-foreground'
+                tab === id ? 'text-accent' : 'text-muted hover:text-foreground',
+                sessionLive && id !== 'today' && 'opacity-40 cursor-not-allowed hover:text-muted'
               )}
             >
               {tab === id && (
@@ -1180,36 +1206,7 @@ export function TrainClient() {
                       hkQuickMeals={0}
                     />
                   </StaggerItem>
-                  {/* 示範腿日 — 最醒目一掣開波 */}
-                  <StaggerItem>
-                    <Card className="py-4 border-accent/50 bg-gradient-to-br from-accent via-accent to-[#0d9488] text-white shadow-hover ring-2 ring-accent/30">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-semibold tracking-wide text-white/80 mb-1">
-                            示範課表 · Threads 成日問
-                          </p>
-                          <div className="font-serif text-2xl tracking-tight leading-tight">新手腿日</div>
-                          <p className="mt-1.5 text-[12px] text-white/85 leading-relaxed">
-                            深蹲／RDL／保加利亞＋腿機——每動作有「點做」。第一次練腿跟呢套就得。
-                          </p>
-                        </div>
-                        <Badge className="shrink-0 bg-white/20 text-white border-0">推介</Badge>
-                      </div>
-                      <Button
-                        size="lg"
-                        className="mt-3 w-full h-12 bg-white text-accent hover:bg-white/90 font-semibold touch-manipulation"
-                        onClick={() => {
-                          const t = TEMPLATES.find((x) => x.id === 'newbie-leg-day')
-                          if (!t) return
-                          startSession(t.id, t.exerciseIds)
-                        }}
-                      >
-                        <Play className="h-4 w-4" />
-                        開波 · 示範腿日
-                      </Button>
-                    </Card>
-                  </StaggerItem>
-                  {/* ① 第一屏：今日 + 主 CTA（週日子 chips 收埋，少堆高） */}
+                  {/* ① 第一屏：今日課表先係實心主掣。示範腿日只係字掣。 */}
                   <StaggerItem>
                     {loadActivePlan()?.plan?.days?.length ? (
                       <div className="space-y-1.5">
@@ -1234,6 +1231,14 @@ export function TrainClient() {
                             className="text-[11px] font-semibold text-muted hover:text-accent touch-manipulation"
                           >
                             改課表
+                          </button>
+                          <button
+                            type="button"
+                            data-testid="demo-leg-link"
+                            onClick={startDemoLegDay}
+                            className="text-[11px] font-semibold text-muted hover:text-accent touch-manipulation"
+                          >
+                            示範腿日
                           </button>
                         </div>
                       </div>
@@ -1355,6 +1360,16 @@ export function TrainClient() {
                           >
                             全日課表 →
                           </button>
+                          {todayHint.template?.id !== 'newbie-leg-day' && (
+                            <button
+                              type="button"
+                              data-testid="demo-leg-link"
+                              onClick={startDemoLegDay}
+                              className="text-[11px] font-semibold text-muted hover:text-accent touch-manipulation"
+                            >
+                              示範腿日
+                            </button>
+                          )}
                         </div>
                       </Card>
                     ) : (
@@ -1374,13 +1389,23 @@ export function TrainClient() {
                           <Play className="h-5 w-5" />
                           開波
                         </Button>
-                        <button
-                          type="button"
-                          onClick={() => setTab('templates')}
-                          className="mt-2 text-[11px] font-semibold text-muted hover:text-accent touch-manipulation"
-                        >
-                          或者先揀課表 →
-                        </button>
+                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                          <button
+                            type="button"
+                            onClick={() => setTab('templates')}
+                            className="text-[11px] font-semibold text-muted hover:text-accent touch-manipulation"
+                          >
+                            或者先揀課表 →
+                          </button>
+                          <button
+                            type="button"
+                            data-testid="demo-leg-link"
+                            onClick={startDemoLegDay}
+                            className="text-[11px] font-semibold text-muted hover:text-accent touch-manipulation"
+                          >
+                            示範腿日
+                          </button>
+                        </div>
                       </Card>
                     )}
                   </StaggerItem>
@@ -1555,39 +1580,37 @@ export function TrainClient() {
                       </div>
                     </Card>
                   )}
-                  {betweenOnPage && betweenVisible && (
-                    <div className="mb-1">{tipBanner(betweenVisible)}</div>
-                  )}
 
                   {/* Logger */}
                   <div
                     ref={loggerRef}
                     className={cn(landscapeLog && 'train-landscape-log grid gap-3 md:grid-cols-2')}
                   >
-                  <Card
-                    className={cn(restReadyNext && 'ring-2 ring-accent/30 rest-done-glow')}
-                  >
-                    {restReadyNext && (
-                      <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl bg-accent text-white px-3.5 py-3 shadow-soft rest-done-glow">
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold tracking-tight">
-                            休息完 · 下一組準備好
-                            {selectedEx
-                              ? ` · 第 ${(active?.sets.filter((s) => s.exerciseId === selectedEx).length || 0) + 1} 組`
-                              : ''}
-                          </div>
-                          <p className="text-[11px] text-white/85 mt-0.5 leading-snug">
-                            重量同次數跟上一組。撳下面大掣就記低。
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setRestReadyNext(false)}
-                          className="shrink-0 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-medium touch-manipulation"
-                        >
-                          知喇
-                        </button>
-                      </div>
+                  <Card>
+                    {calmAfterRest && (
+                      <TrainCalmLine
+                        text={calmAfterRest}
+                        acceptLabel={
+                          betweenVisible && typeof betweenVisible.suggestedWeightKg === 'number'
+                            ? `用 ${betweenVisible.suggestedWeightKg} kg`
+                            : undefined
+                        }
+                        askBusy={askBusy}
+                        askNote={betweenVisible ? askNote : null}
+                        onAccept={
+                          betweenVisible && typeof betweenVisible.suggestedWeightKg === 'number'
+                            ? () => {
+                                acceptTip(betweenVisible)
+                                setRestReadyNext(false)
+                              }
+                            : undefined
+                        }
+                        onAsk={betweenVisible ? () => void askTip('between') : undefined}
+                        onDismiss={() => {
+                          if (betweenVisible) dismissTip(betweenVisible)
+                          setRestReadyNext(false)
+                        }}
+                      />
                     )}
                     <div className="flex items-center justify-between mb-4">
                       <CardTitle className="text-lg">記一組</CardTitle>
@@ -1615,20 +1638,30 @@ export function TrainClient() {
                                 </span>
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const pr = prs[selectedEx!]
-                                    if (!pr) return
-                                    const nextW = Math.round((pr.weightKg + 2.5) * 2) / 2
-                                    markDraftEdited()
-                                    setWeight(String(nextW))
-                                    setReps(String(pr.reps))
-                                    setPendingOutcome('ok')
-                                    weightRef.current?.focus()
-                                  }}
-                                  className="rounded-full border border-accent/35 bg-accent-soft px-2.5 py-0.5 text-[10px] font-semibold text-accent touch-manipulation"
+                                  aria-expanded={prChallengeOpen}
+                                  onClick={() => setPrChallengeOpen((v) => !v)}
+                                  className="text-[11px] font-medium text-muted touch-manipulation"
                                 >
-                                  挑戰 PR +2.5
+                                  {prChallengeOpen ? '收埋挑戰' : '挑戰'}
                                 </button>
+                                {prChallengeOpen && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const pr = prs[selectedEx!]
+                                      if (!pr) return
+                                      const nextW = Math.round((pr.weightKg + 2.5) * 2) / 2
+                                      markDraftEdited()
+                                      setWeight(String(nextW))
+                                      setReps(String(pr.reps))
+                                      setPendingOutcome('ok')
+                                      weightRef.current?.focus()
+                                    }}
+                                    className="text-[11px] font-semibold text-accent touch-manipulation"
+                                  >
+                                    +2.5 kg
+                                  </button>
+                                )}
                               </span>
                             )}
                             {lastLoggedForSelected && !usingLast && (
@@ -1662,21 +1695,8 @@ export function TrainClient() {
                           if (ids.length === 0) return null
                           return (
                             <div className="mb-3 -mx-1 px-1">
-                              <div className="flex items-center justify-between mb-1.5 px-0.5">
+                              <div className="mb-1.5 px-0.5">
                                 <span className="text-[10px] text-muted font-medium">快速換動作</span>
-                                {nextPlanExercise && (
-                                  <button
-                                    type="button"
-                                    onClick={() => pickExercise(nextPlanExercise)}
-                                    className={
-                                      nextPlanEmphasize
-                                        ? 'rounded-full border border-accent/35 bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent touch-manipulation'
-                                        : 'text-[10px] font-medium text-accent touch-manipulation'
-                                    }
-                                  >
-                                    {nextPlanEmphasize ? '去做下一個 →' : '下一個 →'}
-                                  </button>
-                                )}
                               </div>
                               <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 overscroll-x-contain">
                                 {ids.map((id) => {
@@ -1725,51 +1745,78 @@ export function TrainClient() {
                           )
                         })()}
 
-                        {subTips.length > 0 && (
-                          <div className="mb-3 rounded-2xl border border-border bg-surface-muted px-3 py-2.5">
-                            <div className="flex items-center justify-between gap-2 mb-1.5">
-                              <div className="text-[10px] font-semibold text-muted tracking-wide">
-                                冇呢部機？換呢啲
-                              </div>
-                              <div className="flex gap-1 flex-wrap justify-end">
-                                {(['槓鈴', '啞鈴', '機械'] as const).map((eq) => (
-                                  <button
-                                    key={eq}
-                                    type="button"
-                                    onClick={() =>
-                                      setAvoidEquip((v) => (v === eq ? null : eq))
-                                    }
-                                    className={cn(
-                                      'rounded-full px-2 py-0.5 text-[10px] border touch-manipulation',
-                                      avoidEquip === eq
-                                        ? 'border-accent bg-accent-soft text-accent font-semibold'
-                                        : 'border-border text-muted'
-                                    )}
-                                  >
-                                    冇{eq}
-                                  </button>
-                                ))}
-                              </div>
+                        <div className="mb-3">
+                          <button
+                            type="button"
+                            data-testid="exercise-tools"
+                            aria-expanded={exerciseToolsOpen}
+                            onClick={() => setExerciseToolsOpen((v) => !v)}
+                            className="text-[12px] font-semibold text-muted hover:text-accent touch-manipulation"
+                          >
+                            {exerciseToolsOpen ? '收埋選項' : '冇機／砌片'}
+                          </button>
+                          {exerciseToolsOpen && (
+                            <div className="mt-2 space-y-2">
+                              {subTips.length > 0 && (
+                                <div className="rounded-2xl border border-border bg-surface-muted px-3 py-2.5">
+                                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                                    <div className="text-[10px] font-semibold text-muted tracking-wide">
+                                      冇呢部機？換呢啲
+                                    </div>
+                                    <div className="flex gap-1 flex-wrap justify-end">
+                                      {(['槓鈴', '啞鈴', '機械'] as const).map((eq) => (
+                                        <button
+                                          key={eq}
+                                          type="button"
+                                          onClick={() =>
+                                            setAvoidEquip((v) => (v === eq ? null : eq))
+                                          }
+                                          className={cn(
+                                            'rounded-full px-2 py-0.5 text-[10px] border touch-manipulation',
+                                            avoidEquip === eq
+                                              ? 'border-accent bg-accent-soft text-accent font-semibold'
+                                              : 'border-border text-muted'
+                                          )}
+                                        >
+                                          冇{eq}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {subTips.map(({ exercise: ex, reason }) => (
+                                      <button
+                                        key={ex.id}
+                                        type="button"
+                                        onClick={() => pickExercise(ex.id)}
+                                        className="rounded-full border border-accent/25 bg-accent-soft/50 px-2.5 py-1.5 text-[11px] font-medium text-accent touch-manipulation"
+                                        title={reason}
+                                      >
+                                        {ex.nameZh}
+                                        <span className="text-muted font-normal"> · {ex.equipment}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                  {avoidEquip && (
+                                    <p className="mt-1.5 text-[10px] text-muted">按「冇{avoidEquip}」篩替代 · 撳動作即換</p>
+                                  )}
+                                </div>
+                              )}
+                              {exerciseById(selectedEx)?.equipment === '槓鈴' && weightN != null && weightN > 0 && (
+                                <PlateHint
+                                  weightKg={weightN}
+                                  onPickTotal={(kg) => {
+                                    markDraftEdited()
+                                    setWeight(String(kg))
+                                  }}
+                                />
+                              )}
+                              {exerciseById(selectedEx)?.equipment === '槓鈴' && !(weightN != null && weightN > 0) && (
+                                <p className="text-[12px] text-muted">打咗重量先計槓片點砌。</p>
+                              )}
                             </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {subTips.map(({ exercise: ex, reason }) => (
-                                <button
-                                  key={ex.id}
-                                  type="button"
-                                  onClick={() => pickExercise(ex.id)}
-                                  className="rounded-full border border-accent/25 bg-accent-soft/50 px-2.5 py-1.5 text-[11px] font-medium text-accent touch-manipulation"
-                                  title={reason}
-                                >
-                                  {ex.nameZh}
-                                  <span className="text-muted font-normal"> · {ex.equipment}</span>
-                                </button>
-                              ))}
-                            </div>
-                            {avoidEquip && (
-                              <p className="mt-1.5 text-[10px] text-muted">按「冇{avoidEquip}」篩替代 · 撳動作即換</p>
-                            )}
-                          </div>
-                        )}
+                          )}
+                        </div>
 
                         <div className="grid grid-cols-2 gap-3 mb-3">
                           <div>
@@ -1831,15 +1878,6 @@ export function TrainClient() {
                                 </button>
                               ))}
                             </div>
-                            {exerciseById(selectedEx)?.equipment === '槓鈴' && weightN != null && weightN > 0 && (
-                              <PlateHint
-                                weightKg={weightN}
-                                onPickTotal={(kg) => {
-                                  markDraftEdited()
-                                  setWeight(String(kg))
-                                }}
-                              />
-                            )}
                           </div>
                           <div>
                             <label className="text-[11px] text-muted mb-1.5 block">次數</label>
@@ -1947,15 +1985,13 @@ export function TrainClient() {
                           <motion.div className="flex-[1.7]" whileTap={reduce ? undefined : { scale: 0.98 }} transition={springSnappy}>
                             <Button
                               size="xl"
-                              className={cn(
-                                'w-full text-lg gap-2 h-[4.5rem] rounded-[20px] shadow-hover touch-manipulation',
-                                restReadyNext && 'rest-done-glow ring-2 ring-accent/25'
-                              )}
+                              data-testid="log-set"
+                              className="w-full text-lg gap-2 h-[4.5rem] rounded-[20px] shadow-hover touch-manipulation"
                               disabled={!logFigures}
                               onClick={() => addSet()}
                             >
                               <Plus className="h-7 w-7" />
-                              {restReadyNext ? '下一組' : '記低'}
+                              記低
                               {logFigures ? ` · ${logFigures}` : ''}
                               {pendingOutcome === 'half' ? ' · 半' : pendingOutcome === 'fail' ? ' · 敗' : ''}
                             </Button>
@@ -1989,19 +2025,14 @@ export function TrainClient() {
                           </button>
                           <span className="text-[10px] text-muted">失敗／半組可之後喺列表改</span>
                         </div>
-                        {nextPlanExercise && (
+                        {nextPlanExercise && setsForSelected > 0 && (
                           <button
                             type="button"
+                            data-testid="next-exercise"
                             onClick={() => pickExercise(nextPlanExercise)}
-                            className={
-                              nextPlanEmphasize
-                                ? 'mt-1 w-full min-h-14 rounded-[20px] border border-accent/35 bg-accent-soft px-4 py-3.5 text-base font-semibold text-accent shadow-soft touch-manipulation active:scale-[0.99]'
-                                : 'w-full text-center text-xs font-medium text-accent py-2.5 rounded-xl hover:bg-accent-soft transition touch-manipulation min-h-11'
-                            }
+                            className="mt-1 w-full text-center text-[13px] font-medium text-accent py-2 touch-manipulation"
                           >
-                            {nextPlanEmphasize ? '去做下一個 · ' : '下一個：'}
-                            {exerciseById(nextPlanExercise)?.nameZh || '下一動作'}
-                            {' →'}
+                            下一個 · {exerciseById(nextPlanExercise)?.nameZh || '下一動作'} →
                           </button>
                         )}
                       </>
@@ -2014,6 +2045,56 @@ export function TrainClient() {
                         揀個動作開始記
                       </button>
                     )}
+                    <div className="mt-3 border-t border-border/70 pt-2">
+                      {confirmFinish ? (
+                        <div data-testid="finish-confirm" className="px-0.5">
+                          <p className="text-[13px] leading-snug mb-2">
+                            {active.sets.length <= 1
+                              ? '得一組都完場？可以繼續加組。'
+                              : `完場？而家 ${active.sets.length} 組。`}
+                          </p>
+                          <div className="flex gap-4">
+                            <button
+                              type="button"
+                              onClick={() => setConfirmFinish(false)}
+                              className="min-h-11 text-[13px] font-semibold text-muted touch-manipulation"
+                            >
+                              繼續練
+                            </button>
+                            <button
+                              type="button"
+                              onClick={finishSession}
+                              className="min-h-11 text-[13px] font-semibold text-accent touch-manipulation"
+                            >
+                              確認完場
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between px-0.5">
+                          <button
+                            type="button"
+                            data-testid="abandon-session"
+                            onClick={discardSession}
+                            className="min-h-11 text-[13px] font-medium text-muted touch-manipulation"
+                          >
+                            放棄
+                          </button>
+                          <button
+                            type="button"
+                            data-testid="finish-session"
+                            disabled={active.sets.length === 0}
+                            onClick={() => {
+                              setRestFullscreen(false)
+                              setConfirmFinish(true)
+                            }}
+                            className="min-h-11 text-[13px] font-semibold text-muted disabled:opacity-40 touch-manipulation"
+                          >
+                            完場
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </Card>
 
                   {/* Sets list */}
@@ -2081,52 +2162,6 @@ export function TrainClient() {
 
                   </div>
 
-                  <div className={`thumb-cta sticky z-20 -mx-1 px-1 pt-2 pb-1 bg-gradient-to-t from-background via-background to-transparent ${selectedEx ? 'above-nav-stack' : 'above-nav-gap'}`}>
-                    <SyncStatusLine loggedIn={Boolean(user)} note={cloudNote} className="mb-2 flex items-center gap-1.5 px-1 text-[12px] text-muted" />
-                    {confirmFinish ? (
-                      <div
-                        data-testid="finish-confirm"
-                        className="rounded-[20px] border border-border bg-surface px-3.5 py-3 shadow-soft"
-                      >
-                        <p className="text-sm leading-snug mb-2.5">
-                          {active.sets.length <= 1
-                            ? '得一組都完場？可以繼續加組。'
-                            : `完場？而家 ${active.sets.length} 組。`}
-                        </p>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="secondary"
-                            size="lg"
-                            className="flex-1"
-                            onClick={() => setConfirmFinish(false)}
-                          >
-                            繼續練
-                          </Button>
-                          <Button size="lg" className="flex-1" onClick={finishSession}>
-                            確認完場
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                    <div className="flex gap-2">
-                      <Button variant="secondary" size="xl" className="flex-1 h-16 rounded-[20px] text-base" onClick={discardSession}>
-                        放棄
-                      </Button>
-                      <Button
-                        size="xl"
-                        className="flex-[1.6] h-16 text-lg rounded-[20px]"
-                        disabled={active.sets.length === 0}
-                        onClick={() => {
-                          setRestFullscreen(false)
-                          setConfirmFinish(true)
-                        }}
-                      >
-                        <Flame className="h-5 w-5" />
-                        完場
-                      </Button>
-                    </div>
-                    )}
-                  </div>
                   {selectedEx ? <div className="h-16 sm:hidden" aria-hidden /> : null}
                 </div>
               )}
@@ -2737,12 +2772,7 @@ export function TrainClient() {
                 </button>
               </div>
             </div>
-            <div
-              className={cn(
-                'flex flex-1 flex-col items-center justify-center px-6',
-                betweenVisible ? 'pb-4' : 'pb-24'
-              )}
-            >
+            <div className="flex flex-1 flex-col items-center justify-center px-6 pb-24">
               <div
                 className={cn(
                   'font-serif tabular-nums tracking-tight leading-none',
@@ -2753,7 +2783,7 @@ export function TrainClient() {
               </div>
               <p className="mt-4 text-center text-sm text-white/70 max-w-xs leading-relaxed">
                 {restLeft === 0
-                  ? '準備下一組——撳下面繼續記'
+                  ? '休息完。縮細之後撳「記低」。'
                   : !restRunning
                     ? '未開始計時。撳「開始倒數」，或者跳過直接記下一組。'
                     : selectedEx
@@ -2774,11 +2804,6 @@ export function TrainClient() {
                 onToggleAuto={toggleRestAuto}
               />
             </div>
-            {betweenVisible && (
-              <div className="px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-                <div className="mx-auto max-w-md">{tipBanner(betweenVisible)}</div>
-              </div>
-            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -3064,6 +3089,7 @@ export function TrainClient() {
             role="status"
             onClick={() => {
               setPrToast(null)
+              if (active && !active.endedAt) return
               setTab('history')
               window.setTimeout(() => {
                 document.getElementById('pr-wall')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -3072,7 +3098,9 @@ export function TrainClient() {
           >
             <Trophy className="h-4 w-4 text-amber-300 shrink-0" />
             <div>
-              <div className="text-xs opacity-70">新 PR 🎉 · 撳睇牆</div>
+              <div className="text-xs opacity-70">
+                {active && !active.endedAt ? '新 PR' : '新 PR · 撳睇牆'}
+              </div>
               <div className="text-sm font-medium">{prToast}</div>
             </div>
           </motion.button>

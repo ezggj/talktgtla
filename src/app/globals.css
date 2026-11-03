@@ -301,7 +301,8 @@ body {
 }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
-/* Clearance above mobile bottom nav (+ home indicator) */
+/* Clearance above mobile bottom nav (+ home indicator).
+   Wide layout uses a side nav — do not reserve --nav-h there. */
 .above-nav {
   bottom: calc(var(--nav-h) + var(--safe-bottom));
 }
@@ -311,6 +312,15 @@ body {
 /* Stack a second sticky/fixed row above the primary thumb CTA */
 .above-nav-stack {
   bottom: calc(var(--nav-h) + var(--safe-bottom) + 4.5rem);
+}
+@media (min-width: 768px) {
+  .above-nav {
+    bottom: 0;
+  }
+  .above-nav-gap,
+  .above-nav-stack {
+    bottom: 1rem;
+  }
 }
 
 /* Thumb-zone sticky primary actions above bottom nav */
