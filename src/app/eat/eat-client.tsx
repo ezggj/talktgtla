@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
@@ -195,6 +196,24 @@ export function EatClient() {
   const manualRef = useRef<HTMLDivElement>(null)
   const hkRef = useRef<HTMLDivElement>(null)
   const clubRef = useRef<HTMLDivElement>(null)
+  const searchParams = useSearchParams()
+
+  // Deep-link from Today protein chip / Threads landing
+  useEffect(() => {
+    const focus = searchParams.get('focus')
+    if (focus !== 'protein' && focus !== 'hk') return
+    const t = window.setTimeout(() => {
+      hkRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      try {
+        const url = new URL(window.location.href)
+        url.searchParams.delete('focus')
+        window.history.replaceState({}, '', url.pathname + (url.hash || ''))
+      } catch {
+        /* ignore */
+      }
+    }, 120)
+    return () => window.clearTimeout(t)
+  }, [searchParams])
 
   const scrollEat = (id: 'photo' | 'hk' | 'club' | 'manual') => {
     window.setTimeout(() => {

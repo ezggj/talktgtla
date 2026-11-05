@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { Dumbbell, MessageCircle, Utensils, Flame, ChevronRight } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Dumbbell, MessageCircle, Utensils, Flame, ChevronRight, RotateCcw, Sparkles } from 'lucide-react'
 import { AppShell } from '@/components/shell/app-shell'
 import { NewbieGuide } from '@/components/shell/newbie-guide'
 import { PageTransition } from '@/components/motion/page-transition'
+import { InstallPrompt } from '@/components/pwa/install-prompt'
 import { dismissWelcome, isWelcomeDismissed } from '@/lib/client-progress'
 import { getDailyTopic, topicStarterLine } from '@/lib/fitness/daily-topic'
 import {
@@ -25,10 +26,15 @@ import { computeStreak, trainedToday } from '@/lib/fitness/streaks'
 import { TEMPLATES } from '@/lib/fitness/exercises'
 import { cn } from '@/lib/utils'
 
+const DEMO_LEG = TEMPLATES.find((t) => t.id === 'newbie-leg-day') || TEMPLATES.find((t) => t.id === 'fullbody')
+
+function lastFinished(sessions: WorkoutSession[]): WorkoutSession | null {
+  return sessions.find((s) => s.endedAt && s.sets.length > 0) || null
+}
+
 function lastFinishedLine(sessions: WorkoutSession[]): string | null {
-  const done = sessions.filter((s) => s.endedAt)
-  if (!done.length) return null
-  const s = done[0]
+  const s = lastFinished(sessions)
+  if (!s) return null
   const name = TEMPLATES.find((t) => t.id === s.templateId)?.name || '自由練'
   const sets = s.sets.filter(isWorkingSet).length
   const when = new Date(s.endedAt || s.startedAt)
@@ -41,6 +47,8 @@ function lastFinishedLine(sessions: WorkoutSession[]): string | null {
 
 export function TodayHub() {
   const router = useRouter()
+  const search = useSearchParams()
+  const fromThreads = search.get('from') === 'threads'
   const [ready, setReady] = useState(false)
   const [showGuide, setShowGuide] = useState(false)
   const [protein, setProtein] = useState(0)
@@ -50,6 +58,7 @@ export function TodayHub() {
   const [streak, setStreak] = useState(0)
   const [didTrain, setDidTrain] = useState(false)
   const [lastLine, setLastLine] = useState<string | null>(null)
+  const [hasHistory, setHasHistory] = useState(false)
   const [activeLive, setActiveLive] = useState(false)
   const [topic, setTopic] = useState({
     emoji: '🏋️',
@@ -58,6 +67,7 @@ export function TodayHub() {
     key: '',
   })
   const [greeting, setGreeting] = useState('你好')
+  const [hour, setHour] = useState(12)
 
   useEffect(() => {
     const meals = loadMeals()
@@ -71,16 +81,24 @@ export function TodayHub() {
     setStreak(computeStreak(sessions))
     setDidTrain(trainedToday())
     setLastLine(lastFinishedLine(sessions))
+    setHasHistory(Boolean(lastFinished(sessions)))
     const active = loadActiveSession()
     setActiveLive(Boolean(active && !active.endedAt))
     setTopic(getDailyTopic())
-    setShowGuide(!isWelcomeDismissed())
     const h = new Date().getHours()
+    setHour(h)
     setGreeting(
       h < 11 ? '早晨' : h < 14 ? '午安' : h < 18 ? '下晝好' : h < 22 ? '晚上好' : '夜啦'
     )
+    // Threads visitors: skip long guide; mark welcome done so we don't nag later
+    if (fromThreads) {
+      dismissWelcome()
+      setShowGuide(false)
+    } else {
+      setShowGuide(!isWelcomeDismissed())
+    }
     setReady(true)
-  }, [])
+  }, [fromThreads])
 
   const closeGuide = () => {
     dismissWelcome()
@@ -88,6 +106,16 @@ export function TodayHub() {
   }
 
   const proteinPct = proteinGoal > 0 ? Math.min(100, Math.round((protein / proteinGoal) * 100)) : 0
+  const proteinGap = Math.max(0, proteinGoal - protein)
+  const showProteinChip =
+    ready && proteinGap >= 20 && (mealCount === 0 || hour >= 17 || proteinPct < 70)
+  const showDemo = ready && !hasHistory && !activeLive && !didTrain
+  const showReplay = ready && hasHistory && !activeLive
+
+  const demoHref = useMemo(() => {
+    if (!DEMO_LEG) return '/train'
+    return `/train?template=${DEMO_LEG.id}`
+  }, [])
 
   return (
     <AppShell>
@@ -97,12 +125,38 @@ export function TodayHub() {
             Talk tgt la · 今日
           </p>
           <h1 className="font-serif text-[1.75rem] sm:text-[2rem] tracking-tight leading-tight">
-            {greeting}——練完／食完一掣記
+            {fromThreads
+              ? '免費記組 · 唔使裝 app'
+              : `${greeting}——練完／食完一掣記`}
           </h1>
           <p className="mt-1.5 text-[13px] text-muted leading-relaxed max-w-md">
-            免費記組同港式飲食。想傾先入房都得。
+            {fromThreads
+              ? '一掣開示範腿日，約五分鐘感受記組。港式飲食都喺度。'
+              : '免費記組同港式飲食。想傾先入房都得。'}
           </p>
         </header>
+
+        {fromThreads && showDemo ? (
+          <Link
+            href={demoHref}
+            className={cn(
+              'mb-4 flex items-center gap-3 rounded-[20px] border px-4 py-4 shadow-soft transition touch-manipulation',
+              'border-accent/40 bg-gradient-to-br from-accent-soft via-surface to-surface ring-1 ring-accent/25',
+              'hover:shadow-hover active:scale-[0.99]'
+            )}
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent text-white">
+              <Sparkles className="h-5 w-5" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-serif text-lg leading-tight">試做示範腿日（約 5 分鐘）</span>
+              <span className="mt-0.5 block text-[12px] text-muted leading-snug">
+                預填動作 · 一掣開波 · 唔使註冊
+              </span>
+            </span>
+            <ChevronRight className="h-5 w-5 shrink-0 text-accent" aria-hidden />
+          </Link>
+        ) : null}
 
         <div className="mb-4 grid grid-cols-2 gap-2">
           <div className="rounded-2xl border border-border bg-surface px-3.5 py-3 shadow-soft">
@@ -142,7 +196,20 @@ export function TodayHub() {
           </div>
         </div>
 
-        <div className="space-y-2.5 mb-5">
+        {showProteinChip ? (
+          <Link
+            href="/eat?focus=protein"
+            className="mb-3 flex items-center justify-between gap-2 rounded-2xl border border-amber-200/80 bg-amber-50/90 px-3.5 py-2.5 text-[12px] text-amber-950 touch-manipulation hover:brightness-[0.98] dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+          >
+            <span>
+              蛋白仲差 <strong className="font-semibold tabular-nums">{proteinGap}g</strong>
+              <span className="text-muted dark:text-amber-100/70"> · 港式快加</span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+          </Link>
+        ) : null}
+
+        <div className="space-y-2.5 mb-4">
           <Link
             href="/train"
             className={cn(
@@ -164,6 +231,44 @@ export function TodayHub() {
             </span>
             <ChevronRight className="h-5 w-5 shrink-0 text-accent" aria-hidden />
           </Link>
+
+          {showDemo && !fromThreads ? (
+            <Link
+              href={demoHref}
+              className="flex items-center gap-3 rounded-[20px] border border-border bg-surface px-4 py-3.5 shadow-soft transition touch-manipulation hover:shadow-hover active:scale-[0.99]"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent">
+                <Sparkles className="h-4 w-4" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold leading-tight">
+                  試做示範腿日（約 5 分鐘）
+                </span>
+                <span className="mt-0.5 block text-[11px] text-muted leading-snug">
+                  預填動作 · 一掣體驗成功 · 唔使註冊
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden />
+            </Link>
+          ) : null}
+
+          {showReplay ? (
+            <Link
+              href="/train?replay=1"
+              className="flex items-center gap-3 rounded-[20px] border border-border bg-surface px-4 py-3.5 shadow-soft transition touch-manipulation hover:shadow-hover active:scale-[0.99]"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-surface-muted text-foreground">
+                <RotateCcw className="h-4 w-4" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold leading-tight">再做呢場</span>
+                <span className="mt-0.5 block text-[11px] text-muted leading-snug line-clamp-1">
+                  {lastLine || '照上一場動作同重量'}
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden />
+            </Link>
+          ) : null}
 
           <Link
             href="/eat"
@@ -198,6 +303,10 @@ export function TodayHub() {
           </Link>
         </div>
 
+        <div className="mb-4">
+          <InstallPrompt variant="banner" eager className="shadow-soft" />
+        </div>
+
         <div className="rounded-[20px] border border-border bg-surface p-4 shadow-soft mb-4">
           <p className="text-[10px] font-semibold tracking-wide text-accent mb-1">今日話題</p>
           <p className="font-serif text-lg leading-snug">
@@ -224,7 +333,7 @@ export function TodayHub() {
         onClose={closeGuide}
         onStart={() => {
           closeGuide()
-          router.push('/train')
+          router.push(showDemo ? demoHref : '/train')
         }}
         onEat={() => {
           closeGuide()

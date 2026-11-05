@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ChevronDown, Cloud, Dumbbell, Flame, MessageCircle, Target, Trophy, Utensils, Settings } from 'lucide-react'
+import { ChevronDown, Cloud, Copy, Dumbbell, Flame, MessageCircle, Share2, Target, Trophy, Utensils, Settings } from 'lucide-react'
 import { AppShell } from '@/components/shell/app-shell'
 import { PageTransition } from '@/components/motion/page-transition'
 import { Stagger, StaggerItem } from '@/components/motion/stagger'
@@ -68,6 +68,7 @@ export function MeClient() {
   const [unlocked, setUnlocked] = useState<Set<FitnessAchievementId>>(new Set())
   const [prs, setPrs] = useState(loadPRs())
   const [guestMore, setGuestMore] = useState(false)
+  const [inviteNote, setInviteNote] = useState<string | null>(null)
   const [repairInfo, setRepairInfo] = useState<StreakRepairInfo | null>(null)
   const [repairMsg, setRepairMsg] = useState<string | null>(null)
   const authError = search.get('auth') === 'error'
@@ -280,11 +281,60 @@ export function MeClient() {
 
           {!user && (
             <StaggerItem>
-              <div className="rounded-2xl border border-dashed border-border bg-surface-muted px-4 py-3.5 text-xs text-muted leading-relaxed">
-                上面數字而家淨係呢部機。登入之後會同步去你個帳戶，換手機都睇到。傾偈仍然可以匿名。
+              <div className="rounded-2xl border border-accent/20 bg-accent-soft/40 px-4 py-3.5">
+                <div className="flex items-start gap-2">
+                  <Cloud className="h-4 w-4 shrink-0 mt-0.5 text-accent" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">登入先有雲端同步</p>
+                    <p className="mt-1 text-[12px] text-muted leading-relaxed">
+                      而家紀錄淨係呢部機。登入之後換手機都睇到訓練同飲食——傾偈仍然可以匿名。
+                    </p>
+                    <Link
+                      href="/login"
+                      className="mt-2.5 inline-flex h-9 items-center rounded-xl bg-accent px-3.5 text-xs font-semibold text-white touch-manipulation"
+                    >
+                      去登入
+                    </Link>
+                  </div>
+                </div>
               </div>
             </StaggerItem>
           )}
+
+          <StaggerItem>
+            <Card className="py-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Share2 className="h-4 w-4 text-accent" />
+                <CardTitle className="text-lg">介紹朋友</CardTitle>
+              </div>
+              <p className="text-[12px] text-muted leading-relaxed mb-3">
+                免費記組同港式飲食——傳個連結就得。
+              </p>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 rounded-2xl border border-border bg-surface-muted px-3.5 py-3 text-left touch-manipulation hover:border-accent/30"
+                onClick={async () => {
+                  const line = '免費記組同港式飲食——Talk tgt la\nhttps://talktgtla.com/start?from=threads'
+                  try {
+                    await navigator.clipboard.writeText(line)
+                    setInviteNote('已複製連結')
+                  } catch {
+                    setInviteNote('複製唔到，自己揀連結')
+                  }
+                  window.setTimeout(() => setInviteNote(null), 2200)
+                }}
+              >
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold truncate">talktgtla.com/start</span>
+                  <span className="block text-[10px] text-muted mt-0.5">撳掣複製文案</span>
+                </span>
+                <Copy className="h-4 w-4 shrink-0 text-accent" />
+              </button>
+              {inviteNote ? (
+                <p className="mt-2 text-[11px] font-medium text-accent">{inviteNote}</p>
+              ) : null}
+            </Card>
+          </StaggerItem>
 
           <StaggerItem>
             <Card className="py-4">
@@ -294,7 +344,7 @@ export function MeClient() {
                   [
                     { href: '/train', label: '去訓練', icon: Dumbbell, hint: '開波記組' },
                     { href: '/eat', label: '去飲食', icon: Utensils, hint: '影餐估營養' },
-                    { href: '/chat', label: '去傾偈', icon: MessageCircle, hint: '匿名開波' },
+                    { href: '/chat', label: '傾兩句', icon: MessageCircle, hint: '可選' },
                   ] as const
                 ).map(({ href, label, icon: Icon, hint }) => (
                   <Link

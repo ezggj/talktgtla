@@ -30,11 +30,13 @@ export const metadata: Metadata = {
     siteName: 'Talk tgt la',
     locale: 'zh_HK',
     type: 'website',
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Talk tgt la · 免費記組同港式飲食' }],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: 'Talk tgt la · 免費記組同港式飲食',
     description: '練完／食完一掣記。港式快加、記組、完場分享。',
+    images: ['/og.png'],
   },
   manifest: '/manifest.webmanifest',
   appleWebApp: {

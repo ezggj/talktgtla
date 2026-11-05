@@ -36,10 +36,13 @@ export function InstallPrompt({
   /** Compact card for /me; banner after workout elsewhere */
   variant = 'card',
   forceAfterWorkout = false,
+  /** Soft one-time prompt on Today (no workout required) */
+  eager = false,
 }: {
   className?: string
   variant?: 'card' | 'banner'
   forceAfterWorkout?: boolean
+  eager?: boolean
 }) {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null)
   const [visible, setVisible] = useState(false)
@@ -49,7 +52,7 @@ export function InstallPrompt({
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (isStandaloneDisplay()) return
-    if (dismissedRecently() && !forceAfterWorkout) return
+    if (dismissedRecently() && !forceAfterWorkout && !eager) return
 
     const isIos =
       /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -63,12 +66,13 @@ export function InstallPrompt({
     }
     window.addEventListener('beforeinstallprompt', onBip)
 
-    // After first finished workout, or always on /me card
-    let show = forceAfterWorkout
+    // After first finished workout, Today eager, or always on /me card
+    let show = forceAfterWorkout || eager
     try {
       if (forceAfterWorkout) localStorage.setItem(WORKOUT_HINT_KEY, '1')
       if (variant === 'card') show = true
       if (localStorage.getItem(WORKOUT_HINT_KEY) === '1' && variant === 'banner') show = true
+      if (eager) show = true
     } catch {
       /* ignore */
     }
@@ -85,7 +89,7 @@ export function InstallPrompt({
     if (perm === 'default' && !hasAskedNotificationPermission()) setNotifLine(true)
 
     return () => window.removeEventListener('beforeinstallprompt', onBip)
-  }, [forceAfterWorkout, variant])
+  }, [forceAfterWorkout, variant, eager])
 
   const dismiss = useCallback(() => {
     try {

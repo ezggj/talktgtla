@@ -43,7 +43,7 @@ export type NutritionWeekSharePayload = {
   vibe?: string
 }
 
-const SITE = 'https://talktgtla.com'
+const SITE = 'https://talktgtla.com/start?from=threads'
 
 function roundRect(
   ctx: CanvasRenderingContext2D,
@@ -104,6 +104,7 @@ export function nutritionWeekShareCaption(payload: NutritionWeekSharePayload): s
   if (payload.lines[0]) bits.push(payload.lines[0])
   bits.push('Talk tgt la 飲食')
   bits.push(SITE)
+  bits.push('#港式飲食 #健身飲食 #TalkTgtLa')
   return bits.join('\n')
 }
 

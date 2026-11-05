@@ -512,27 +512,66 @@ export function TrainClient() {
 
 
 
-  // One-tap start from workout plan (?exercises=id1,id2)
+  // One-tap start from plan (?exercises=), template (?template=), or replay last (?replay=1)
   useEffect(() => {
     if (!ready) return
     const raw = searchParams.get('exercises')
     const fromPlan = searchParams.get('plan')
-    if (!raw) return
-    const ids = raw.split(',').map((x) => x.trim()).filter(Boolean).filter((id) => !!exerciseById(id))
-    if (ids.length === 0) return
-    setPlanQueue(ids)
+    const templateQ = searchParams.get('template')
+    const replayQ = searchParams.get('replay')
+    if (!raw && !templateQ && replayQ !== '1') return
+
     const existing = loadActiveSession()
-    if (existing && !existing.endedAt) {
-      // Already mid-session — keep it, just seed the queue for quick switch
+    if (existing && !existing.endedAt && existing.sets.length > 0) {
       setActive(existing)
       setTab('today')
+      try {
+        const url = new URL(window.location.href)
+        url.searchParams.delete('exercises')
+        url.searchParams.delete('plan')
+        url.searchParams.delete('template')
+        url.searchParams.delete('replay')
+        window.history.replaceState({}, '', url.pathname)
+      } catch {
+        /* ignore */
+      }
       return
     }
+
+    let ids: string[] = []
+    let templateId: string | undefined
+
+    if (replayQ === '1') {
+      const last = loadSessions().find((s) => s.endedAt && s.sets.length > 0)
+      if (last) {
+        for (const set of last.sets) {
+          if (!ids.includes(set.exerciseId) && exerciseById(set.exerciseId)) ids.push(set.exerciseId)
+        }
+        templateId = last.templateId
+      }
+    }
+
+    if (!ids.length && templateQ) {
+      const tpl = TEMPLATES.find((t) => t.id === templateQ)
+      if (tpl) {
+        ids = tpl.exerciseIds.filter((id) => !!exerciseById(id))
+        templateId = tpl.id
+      }
+    }
+
+    if (!ids.length && raw) {
+      ids = raw.split(',').map((x) => x.trim()).filter(Boolean).filter((id) => !!exerciseById(id))
+      templateId = fromPlan ? `plan:${fromPlan}` : 'plan'
+    }
+
+    if (ids.length === 0) return
+
+    setPlanQueue(ids)
     const sess: WorkoutSession = {
       id: newId(),
       startedAt: new Date().toISOString(),
       sets: [],
-      templateId: fromPlan ? `plan:${fromPlan}` : 'plan',
+      templateId,
     }
     saveActiveSession(sess)
     setActive(sess)
@@ -542,11 +581,12 @@ export function TrainClient() {
       setSelectedEx(first)
       applyPrefill(first, sess, loadSessions(), { resetOutcome: true })
     }
-    // Clean query so refresh won't restart another session
     try {
       const url = new URL(window.location.href)
       url.searchParams.delete('exercises')
       url.searchParams.delete('plan')
+      url.searchParams.delete('template')
+      url.searchParams.delete('replay')
       window.history.replaceState({}, '', url.pathname)
     } catch {
       /* ignore */
