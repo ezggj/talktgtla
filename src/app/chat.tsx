@@ -6,9 +6,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import {
   ACHIEVEMENTS,
   achievementById,
-  dismissWelcome,
   evaluateAchievements,
-  isWelcomeDismissed,
   loadStats,
   loadUnlocked,
   saveStats,
@@ -24,7 +22,6 @@ import {
 } from '@/lib/sanitize'
 import { applyTheme, resolveTheme, readThemePreference, setThemePreference, type ThemeMode } from '@/lib/theme'
 import { AppShell } from '@/components/shell/app-shell'
-import { NewbieGuide } from '@/components/shell/newbie-guide'
 import { DisclaimerShort } from '@/components/legal/site-disclaimer'
 import { computeStreak, trainedToday } from '@/lib/fitness/streaks'
 import { getDailyTopic, topicStarterLine } from '@/lib/fitness/daily-topic'
@@ -127,6 +124,20 @@ export default function Chat() {
     setShowTrainedBadge(trainedToday())
     setTrainStreak(computeStreak())
     setBlockedNames(loadBlockedUsernames())
+  }, [])
+
+  // Hub owns the first-run guide; chat stays ready to post.
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search)
+      if (q.get('topic') === '1') {
+        const line = topicStarterLine(getDailyTopic())
+        setNewMessage((prev) => (prev ? prev : line))
+        requestAnimationFrame(() => inputRef.current?.focus())
+      }
+    } catch {
+      /* ignore */
+    }
   }, [])
   const [isAnonymous, setIsAnonymous] = useState(true)
   const [replyToId, setReplyToId] = useState<number | null>(null)
@@ -231,7 +242,7 @@ export default function Chat() {
     const mode = resolveTheme(readThemePreference())
     setThemeMode(mode)
     applyTheme(mode)
-    setShowWelcome(!isWelcomeDismissed())
+    setShowWelcome(false) // first-run lives on Today hub
     setUnlocked(loadUnlocked())
     setStats(loadStats())
     const FP_KEY = 'talktgtla-fp'
@@ -283,13 +294,8 @@ export default function Chat() {
     [showAchievementToast]
   )
 
-  const closeWelcome = () => {
-    dismissWelcome()
-    setShowWelcome(false)
-  }
-
   const startFromTopic = () => {
-    closeWelcome()
+    setShowWelcome(false)
     markWeekOneChip()
     const topic = getDailyTopic()
     setNewMessage(topicStarterLine(topic))
@@ -854,14 +860,20 @@ export default function Chat() {
             </div>
           )}
           {roomLooksEmpty && (
-            <div className="flex h-full min-h-[220px] items-center justify-center px-2">
-              <div className="welcome-card w-full max-w-sm rounded-[20px] border border-border/80 bg-surface px-6 py-7 text-center shadow-soft">
+            <div className="flex h-full min-h-[240px] items-center justify-center px-2 py-4">
+              <div className="welcome-card w-full max-w-sm rounded-[20px] border border-border/80 bg-surface px-5 py-6 text-center shadow-soft">
                 <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-accent-soft text-accent text-lg" aria-hidden>
                   💬
                 </div>
-                <h3 className="font-serif text-xl tracking-tight">得你一個喺度</h3>
+                <h3 className="font-serif text-xl tracking-tight">
+                  {onlineCount != null && onlineCount > 1
+                    ? '有人喺線——開波啦'
+                    : '房靜靜地都得'}
+                </h3>
                 <p className="mt-2 text-sm text-muted leading-relaxed">
-                  房入面未有人講嘢。入個花名，用今日話題開波。
+                  {onlineCount != null && onlineCount > 0
+                    ? `而家約 ${onlineCount} 人在線。入個花名，撳話題開波。`
+                    : '未有人講嘢都冇所謂。入花名，用今日話題開波；或者先去記組／記餐。'}
                 </p>
                 <button
                   type="button"
@@ -870,6 +882,19 @@ export default function Chat() {
                 >
                   用今日話題開波
                 </button>
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px]">
+                  <Link href="/train" className="font-semibold text-accent hover:underline touch-manipulation">
+                    去開波訓練
+                  </Link>
+                  <span className="text-border">·</span>
+                  <Link href="/eat" className="font-semibold text-accent hover:underline touch-manipulation">
+                    去記餐
+                  </Link>
+                  <span className="text-border">·</span>
+                  <Link href="/" className="font-medium text-muted hover:text-foreground touch-manipulation">
+                    返今日
+                  </Link>
+                </div>
               </div>
             </div>
           )}
@@ -1190,8 +1215,6 @@ export default function Chat() {
       <footer className="px-3 py-1.5 border-t border-border bg-surface-muted/95 shrink-0">
         <DisclaimerShort expanded={showTerms} onToggle={() => setShowTerms((v) => !v)} />
       </footer>
-
-      <NewbieGuide open={showWelcome} onClose={closeWelcome} onStart={startFromTopic} />
 
       {achievementToast && (() => {
         const a = achievementById(achievementToast)

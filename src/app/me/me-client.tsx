@@ -294,7 +294,7 @@ export function MeClient() {
                   [
                     { href: '/train', label: '去訓練', icon: Dumbbell, hint: '開波記組' },
                     { href: '/eat', label: '去飲食', icon: Utensils, hint: '影餐估營養' },
-                    { href: '/', label: '去傾偈', icon: MessageCircle, hint: '匿名開波' },
+                    { href: '/chat', label: '去傾偈', icon: MessageCircle, hint: '匿名開波' },
                   ] as const
                 ).map(({ href, label, icon: Icon, hint }) => (
                   <Link
@@ -473,7 +473,7 @@ export function MeClient() {
             <div className="grid grid-cols-3 gap-3">
               {(
                 [
-                  { href: '/', label: '傾偈', icon: MessageCircle },
+                  { href: '/chat', label: '傾偈', icon: MessageCircle },
                   { href: '/train', label: '訓練', icon: Dumbbell },
                   { href: '/eat', label: '飲食', icon: Utensils },
                 ] as const

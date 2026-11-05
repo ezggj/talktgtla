@@ -77,8 +77,9 @@ export function workoutShareCaption(payload: WorkoutSharePayload): string {
   const bits = [`今日${day}打完 ✅`, `${payload.sets} 組 · ${vol} 容量 · ${formatDur(payload.durationSec)}`]
   if (payload.prs?.length) bits.push(`PR：${payload.prs.slice(0, 3).join('、')}`)
   if (focus) bits.push(`重點：${focus}`)
-  bits.push('Talk tgt la 記組')
+  bits.push('用 Talk tgt la 免費記組')
   bits.push(SITE)
+  bits.push('#香港健身 #記組 #TalkTgtLa')
   return bits.join('\n')
 }
 
@@ -87,8 +88,9 @@ export function mealShareCaption(payload: MealSharePayload): string {
   return [
     `食咗：${name} 🍽`,
     `${Math.round(payload.kcal)} kcal · 蛋白 ${Math.round(payload.protein)}g`,
-    'Talk tgt la 影餐估營養',
+    'Talk tgt la 港式飲食一掣記',
     SITE,
+    '#港式飲食 #健身飲食 #TalkTgtLa',
   ].join('\n')
 }
 

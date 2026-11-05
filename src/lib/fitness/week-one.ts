@@ -121,7 +121,7 @@ export function weekOneItems(input: ProgressInput, flags: WeekOneFlags = loadWee
     {
       id: 'chip',
       title: '撳一個傾偈話題',
-      href: '/',
+      href: '/chat',
       done: flags.chipTried,
     },
   ]

@@ -1,8 +1,8 @@
 {
-  "name": "Talk tgt la",
+  "name": "Talk tgt la · 記組同港式飲食",
   "short_name": "Talk tgt la",
-  "description": "香港人一齊傾偈、記訓練、影餐估營養",
-  "start_url": "/train",
+  "description": "免費記組同港式飲食——練完／食完一掣記",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -10,7 +10,7 @@
   "theme_color": "#0F766E",
   "lang": "zh-HK",
   "dir": "ltr",
-  "categories": ["fitness", "health", "social"],
+  "categories": ["fitness", "health", "lifestyle"],
   "icons": [
     {
       "src": "/icons/icon-192.png",

@@ -191,6 +191,7 @@ export function EatClient() {
   const [cloudNote, setCloudNote] = useState<string | null>(null)
   const [syncToast, setSyncToast] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [shareAfterMeal, setShareAfterMeal] = useState<MealEntry | null>(null)
   const manualRef = useRef<HTMLDivElement>(null)
   const hkRef = useRef<HTMLDivElement>(null)
   const clubRef = useRef<HTMLDivElement>(null)
@@ -966,7 +967,7 @@ export function EatClient() {
     }
     const next = [entry, ...meals]
     void persistList(next, entry)
-    showToast(`已快加「${entry.name}」`)
+    setShareAfterMeal(entry)
     try {
       const newly = evaluateFitnessAchievements({
         sessions: loadSessions(),
@@ -1037,8 +1038,8 @@ export function EatClient() {
         <PageHeader
           compact
           eyebrow="飲食"
-          title="影低呢餐"
-          description="記低呢餐，計 kcal 同 protein。"
+          title="記低呢餐"
+          description="港式快加一掣加 · 影餐估蛋白 kcal。"
         />
 
         <div className="mb-3">
@@ -1046,6 +1047,34 @@ export function EatClient() {
             loggedIn={Boolean(user)}
             note={syncing ? null : cloudNote}
           />
+        </div>
+
+        <div className="mb-4" data-testid="eat-fold-chips">
+          <div className="mb-1.5 flex items-baseline justify-between gap-2 px-0.5">
+            <h2 className="text-sm font-semibold">一掣加餐 · 港式快加</h2>
+            <button
+              type="button"
+              onClick={() => scrollEat('hk')}
+              className="text-[11px] font-medium text-accent touch-manipulation"
+            >
+              全部
+            </button>
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 -mx-0.5 px-0.5">
+            {FOLD_QUICK.map(({ index, dish }) => (
+              <button
+                key={dish.name}
+                type="button"
+                onClick={() => addDemoDish(index)}
+                className="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-left shadow-soft touch-manipulation active:scale-[0.98]"
+              >
+                <span className="block text-[12px] font-semibold leading-tight">{dish.name}</span>
+                <span className="block text-[10px] tabular-nums text-accent">
+                  約 {dish.macros.protein}g protein
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Period switcher */}
@@ -1192,34 +1221,6 @@ export function EatClient() {
           </motion.div>
         </AnimatePresence>
 
-        <div className="mb-4" data-testid="eat-fold-chips">
-          <div className="mb-1.5 flex items-baseline justify-between gap-2 px-0.5">
-            <h2 className="text-sm font-semibold">港式快加</h2>
-            <button
-              type="button"
-              onClick={() => scrollEat('hk')}
-              className="text-[11px] font-medium text-accent touch-manipulation"
-            >
-              全部
-            </button>
-          </div>
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 -mx-0.5 px-0.5">
-            {FOLD_QUICK.map(({ index, dish }) => (
-              <button
-                key={dish.name}
-                type="button"
-                onClick={() => addDemoDish(index)}
-                className="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-left shadow-soft touch-manipulation active:scale-[0.98]"
-              >
-                <span className="block text-[12px] font-semibold leading-tight">{dish.name}</span>
-                <span className="block text-[10px] tabular-nums text-accent">
-                  約 {dish.macros.protein}g protein
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Today macros — rings + full bars */}
         <Card className="mb-4 py-4 overflow-hidden">
           <div className="mb-3">
@@ -1235,32 +1236,6 @@ export function EatClient() {
           </div>
           <MacroBars macros={todayDisplay} goals={goals} />
         </Card>
-
-        {/* Weekly protein — high visibility near top */}
-        <div className="mb-5">
-          <ProteinWeekCard
-            meals={meals}
-            proteinGoal={goals.proteinG}
-            window={
-              period === 'day'
-                ? undefined
-                : {
-                    fromMs: range.from.getTime(),
-                    toMs: range.to.getTime(),
-                    noun: period === 'week' ? '呢個星期' : '呢個月',
-                  }
-            }
-            dateLabel={period === 'day' ? undefined : range.label}
-            onLogMeal={() => {
-              const el = document.getElementById('eat-camera')
-              el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            }}
-          />
-
-          <div className="mb-4">
-            <ProteinReminderCard />
-          </div>
-        </div>
 
         {/* Gentle nudges */}
         {period === 'day' &&
@@ -1460,6 +1435,33 @@ export function EatClient() {
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPick} />
           </div>
         </Card>
+
+        {/* Weekly protein — below primary add CTA */}
+        <div className="mb-5">
+          <ProteinWeekCard
+            meals={meals}
+            proteinGoal={goals.proteinG}
+            window={
+              period === 'day'
+                ? undefined
+                : {
+                    fromMs: range.from.getTime(),
+                    toMs: range.to.getTime(),
+                    noun: period === 'week' ? '呢個星期' : '呢個月',
+                  }
+            }
+            dateLabel={period === 'day' ? undefined : range.label}
+            onLogMeal={() => {
+              const el = document.getElementById('eat-camera')
+              el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }}
+          />
+
+          <div className="mb-4">
+            <ProteinReminderCard />
+          </div>
+        </div>
+
 
         {yesterdayMeals.length > 0 && (
           <div className="mb-6">
@@ -2258,6 +2260,51 @@ export function EatClient() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {shareAfterMeal && (
+          <div
+            className="fixed above-nav-gap left-1/2 z-[60] -translate-x-1/2 w-[min(92vw,420px)] rounded-[20px] border border-border bg-surface p-3.5 shadow-hover"
+            role="dialog"
+            aria-label="分享呢餐"
+          >
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-accent">記低咗 · 分享去 Threads？</p>
+                <p className="text-sm font-medium truncate">{shareAfterMeal.name}</p>
+                <p className="text-[11px] text-muted tabular-nums">
+                  {Math.round(shareAfterMeal.macros.kcal)} kcal · 蛋白 {Math.round(shareAfterMeal.macros.protein)}g
+                </p>
+              </div>
+              <button
+                type="button"
+                className="text-[11px] text-muted hover:text-foreground touch-manipulation px-1"
+                onClick={() => setShareAfterMeal(null)}
+              >
+                收起
+              </button>
+            </div>
+            <ShareCardButton
+              kind="meal"
+              primary
+              label="分享去 Threads"
+              size="default"
+              payload={{
+                name: shareAfterMeal.name,
+                kcal: shareAfterMeal.macros.kcal,
+                protein: shareAfterMeal.macros.protein,
+                carbs: shareAfterMeal.macros.carbs,
+                fat: shareAfterMeal.macros.fat,
+                dateLabel: new Date(shareAfterMeal.createdAt).toLocaleString('zh-HK', {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
+                note: shareAfterMeal.note,
+              }}
+            />
+          </div>
+        )}
+
         {toast && (
           <motion.div
             className="fixed above-nav-gap left-1/2 z-[60] -translate-x-1/2 max-w-[min(92vw,420px)] rounded-2xl border border-border bg-foreground text-background px-4 py-3 text-xs shadow-hover flex items-center gap-3"

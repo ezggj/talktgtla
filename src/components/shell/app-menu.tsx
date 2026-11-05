@@ -5,12 +5,14 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
+  CalendarDays,
   Dumbbell,
   FileText,
   LogIn,
   LogOut,
   MapPin,
   Menu,
+  MessageCircle,
   MessageSquarePlus,
   Moon,
   Settings,
@@ -140,10 +142,10 @@ export function AppMenu({ className }: { className?: string }) {
 
               <div className="p-1.5">
                 <MenuItem
-                  icon={Settings}
-                  label="設定"
-                  hint="主題 · 通知 · 字體"
-                  onClick={() => go('/me/settings')}
+                  icon={CalendarDays}
+                  label="今日"
+                  hint="開波 · 記餐 · 話題"
+                  onClick={() => go('/')}
                 />
                 <MenuItem
                   icon={Dumbbell}
@@ -156,6 +158,18 @@ export function AppMenu({ className }: { className?: string }) {
                   label="飲食"
                   hint="影餐 · 港式快加"
                   onClick={() => go('/eat')}
+                />
+                <MenuItem
+                  icon={MessageCircle}
+                  label="傾偈室"
+                  hint="今日話題開波"
+                  onClick={() => go('/chat')}
+                />
+                <MenuItem
+                  icon={Settings}
+                  label="設定"
+                  hint="主題 · 通知 · 字體"
+                  onClick={() => go('/me/settings')}
                 />
                 <MenuItem
                   icon={MapPin}

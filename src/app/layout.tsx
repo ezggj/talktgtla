@@ -16,11 +16,26 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Talk tgt la',
+    default: 'Talk tgt la · 免費記組同港式飲食',
     template: '%s · Talk tgt la',
   },
-  description: '香港人一齊傾偈、記訓練、影餐估營養',
+  description:
+    '免費記組同港式飲食——練完／食完一掣記。香港 gym 人用嘅訓練記錄、影餐估營養，想傾先入房。',
   applicationName: 'Talk tgt la',
+  metadataBase: new URL('https://talktgtla.com'),
+  openGraph: {
+    title: 'Talk tgt la · 免費記組同港式飲食',
+    description: '練完／食完一掣記。港式快加、記組、完場分享 Threads。',
+    url: 'https://talktgtla.com',
+    siteName: 'Talk tgt la',
+    locale: 'zh_HK',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Talk tgt la · 免費記組同港式飲食',
+    description: '練完／食完一掣記。港式快加、記組、完場分享。',
+  },
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,

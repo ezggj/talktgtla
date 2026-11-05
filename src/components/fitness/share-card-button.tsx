@@ -164,11 +164,25 @@ export function ShareCardButton(props: Props) {
           size={props.size ?? 'lg'}
           className="w-full"
           disabled={busy !== null}
+          onClick={() => void onThreads()}
+        >
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <span className="text-sm leading-none" aria-hidden>
+              ✺
+            </span>
+          )}
+          {props.label ?? '分享去 Threads'}
+        </Button>
+        <button
+          type="button"
+          className="w-full text-center text-[11px] text-muted hover:text-foreground touch-manipulation py-1"
+          disabled={busy !== null}
           onClick={() => void onGeneric()}
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
-          {props.label ?? '分享'}
-        </Button>
+          或者系統分享／出圖
+        </button>
         {note && (
           <p className="text-center text-[11px] font-medium text-accent">{note}</p>
         )}

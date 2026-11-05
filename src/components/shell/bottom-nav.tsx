@@ -3,15 +3,33 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, useReducedMotion } from 'framer-motion'
-import { MessageCircle, Dumbbell, Utensils, User } from 'lucide-react'
+import { CalendarDays, Dumbbell, Utensils, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { springSoft, springSnappy } from '@/components/motion/presets'
 
 const items = [
-  { href: '/', label: '傾偈', hint: '傾偈室', icon: MessageCircle },
-  { href: '/train', label: '訓練', hint: '訓練記錄', icon: Dumbbell },
-  { href: '/eat', label: '飲食', hint: '飲食日記', icon: Utensils },
-  { href: '/me', label: '我', hint: '我嘅頁', icon: User },
+  { href: '/', label: '今日', hint: '今日總覽', icon: CalendarDays, match: (p: string) => p === '/' },
+  {
+    href: '/train',
+    label: '訓練',
+    hint: '訓練記錄',
+    icon: Dumbbell,
+    match: (p: string) => p.startsWith('/train'),
+  },
+  {
+    href: '/eat',
+    label: '飲食',
+    hint: '飲食日記',
+    icon: Utensils,
+    match: (p: string) => p.startsWith('/eat'),
+  },
+  {
+    href: '/me',
+    label: '我',
+    hint: '我嘅頁',
+    icon: User,
+    match: (p: string) => p.startsWith('/me'),
+  },
 ] as const
 
 export function BottomNav() {
@@ -27,8 +45,8 @@ export function BottomNav() {
         aria-label="主導航"
       >
         <ul className="grid grid-cols-4 h-[var(--nav-h)] min-h-[3.75rem] max-w-lg mx-auto px-1.5 pt-0.5">
-          {items.map(({ href, label, hint, icon: Icon }) => {
-            const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
+          {items.map(({ href, label, hint, icon: Icon, match }) => {
+            const active = match(pathname || '')
             return (
               <li key={href} className="flex">
                 <motion.div
@@ -73,8 +91,8 @@ export function BottomNav() {
         aria-label="主導航"
       >
         <div className="mb-6 font-serif text-lg text-accent tracking-tight">tgt</div>
-        {items.map(({ href, label, hint, icon: Icon }) => {
-          const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
+        {items.map(({ href, label, hint, icon: Icon, match }) => {
+          const active = match(pathname || '')
           return (
             <motion.div
               key={href}

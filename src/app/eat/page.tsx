@@ -3,7 +3,7 @@ import { EatClient } from './eat-client'
 
 export const metadata = {
   title: '飲食 · Talk tgt la',
-  description: '影餐計 kcal 同 protein——香港口味',
+  description: '港式飲食一掣記——快加／影餐估蛋白 kcal',
 }
 
 function EatFallback() {

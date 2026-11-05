@@ -1145,7 +1145,7 @@ export function TrainClient() {
           description={
             active && !active.endedAt
               ? '記一組，休息完再記下一組。'
-              : '記低每組重量同次數。'
+              : '免費記組——完場可分享 Threads。'
           }
           trailing={
             active && !active.endedAt ? (
@@ -1215,13 +1215,6 @@ export function TrainClient() {
             >
               {!active ? (
                 <Stagger className="space-y-3">
-                  <StaggerItem>
-                    <WeekOneCard
-                      variant="workout"
-                      finishedWorkouts={sessions.filter((s) => s.endedAt).length}
-                      hkQuickMeals={0}
-                    />
-                  </StaggerItem>
                   {/* ① 第一屏：今日課表先係實心主掣。示範腿日只係字掣。 */}
                   <StaggerItem>
                     {loadActivePlan()?.plan?.days?.length ? (
@@ -1424,6 +1417,14 @@ export function TrainClient() {
                         </div>
                       </Card>
                     )}
+                  </StaggerItem>
+
+                  <StaggerItem>
+                    <WeekOneCard
+                      variant="workout"
+                      finishedWorkouts={sessions.filter((s) => s.endedAt).length}
+                      hkQuickMeals={0}
+                    />
                   </StaggerItem>
 
                   {/* ② 搵動作：扁卡，盡量同 CTA 同屏 */}
@@ -3251,7 +3252,7 @@ export function TrainClient() {
                 <ShareCardButton
                   kind="workout"
                   primary
-                  label="分享"
+                  label="分享去 Threads"
                   variant="default"
                   size="lg"
                   payload={{
