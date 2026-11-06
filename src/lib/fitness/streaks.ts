@@ -120,6 +120,23 @@ export function streakComebackLine(streak: number, trained: boolean): string | n
   return null
 }
 
+
+/** Calendar days since last finished training day (local TZ). null if none. */
+export function daysSinceLastTrain(sessions: WorkoutSession[], today = todayKey()): number | null {
+  const last = sessions.find(
+    (s) => sessionCountsAsTrainingDay(s) && Boolean(s.endedAt) && s.sets.length > 0
+  )
+  if (!last) return null
+  const lastDay = dayKeyFromIso(last.endedAt || last.startedAt)
+  const [ty, tm, td] = today.split('-').map(Number)
+  const [ly, lm, ld] = lastDay.split('-').map(Number)
+  if (![ty, tm, td, ly, lm, ld].every((n) => Number.isFinite(n))) return null
+  const t = Date.UTC(ty, tm - 1, td)
+  const l = Date.UTC(ly, lm - 1, ld)
+  const days = Math.round((t - l) / 86_400_000)
+  return days >= 0 ? days : null
+}
+
 export function computeStreak(sessions?: WorkoutSession[]): number {
   if (sessions) syncDaysFromSessions(sessions)
   const set = trainedSet()

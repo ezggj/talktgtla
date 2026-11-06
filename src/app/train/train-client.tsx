@@ -3382,6 +3382,19 @@ export function TrainClient() {
                 </div>
               )}
 
+              {lastAnalysis.countsAsDay !== false && (
+                <Link
+                  href="/eat?focus=protein"
+                  onClick={() => setFinishOpen(false)}
+                  className="mb-3 flex flex-col rounded-[20px] border border-border bg-surface px-4 py-3.5 shadow-soft touch-manipulation transition hover:bg-surface-muted/40 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+                >
+                  <span className="font-serif text-base leading-tight">練完加蛋白</span>
+                  <span className="mt-1 text-[12px] text-muted leading-snug">
+                    港式快加／影餐——叉燒飯、譚仔一掣
+                  </span>
+                </Link>
+              )}
+
               {lastFinished && lastAnalysis && lastAnalysis.countsAsDay !== false && (
                 <ShareCardButton
                   kind="workout"

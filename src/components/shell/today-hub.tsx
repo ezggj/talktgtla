@@ -22,7 +22,7 @@ import {
   type WorkoutSession,
 } from '@/lib/fitness/storage'
 import { proteinThatCounts } from '@/lib/fitness/protein-count'
-import { computeStreak, trainedToday } from '@/lib/fitness/streaks'
+import { computeStreak, daysSinceLastTrain, trainedToday } from '@/lib/fitness/streaks'
 import { TEMPLATES } from '@/lib/fitness/exercises'
 import { cn } from '@/lib/utils'
 
@@ -60,6 +60,7 @@ export function TodayHub() {
   const [lastLine, setLastLine] = useState<string | null>(null)
   const [hasHistory, setHasHistory] = useState(false)
   const [activeLive, setActiveLive] = useState(false)
+  const [daysAway, setDaysAway] = useState(0)
   const [topic, setTopic] = useState({
     emoji: '🏋️',
     title: '今日去邊間 gym？',
@@ -82,6 +83,8 @@ export function TodayHub() {
     setDidTrain(trainedToday())
     setLastLine(lastFinishedLine(sessions))
     setHasHistory(Boolean(lastFinished(sessions)))
+    const away = daysSinceLastTrain(sessions)
+    setDaysAway(away != null && away >= 2 ? away : 0)
     const active = loadActiveSession()
     setActiveLive(Boolean(active && !active.endedAt))
     setTopic(getDailyTopic())
@@ -112,6 +115,8 @@ export function TodayHub() {
   const showDemo = ready && !hasHistory && !activeLive && !didTrain
   const showReplay = ready && hasHistory && !activeLive
   const streakAtRisk = ready && streak > 0 && !didTrain && !activeLive
+  const comeback =
+    ready && hasHistory && !didTrain && !activeLive && streak === 0 && daysAway >= 2
 
   const demoHref = useMemo(() => {
     if (!DEMO_LEG) return '/train'
@@ -217,11 +222,17 @@ export function TodayHub() {
               <span className="font-medium">連練危機 · 今日未開波</span>
             </div>
           ) : null}
+          {comeback ? (
+            <div className="flex items-center gap-2 rounded-2xl border border-amber-200/80 bg-amber-50/90 px-3.5 py-2 text-[12px] text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+              <Flame className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-300" aria-hidden />
+              <span className="font-medium">斷咗 {daysAway} 日——今日返嚟就得</span>
+            </div>
+          ) : null}
           <Link
             href="/train"
             className={cn(
               'flex items-center gap-3 rounded-[20px] border px-4 py-4 shadow-soft transition touch-manipulation',
-              streakAtRisk
+              streakAtRisk || comeback
                 ? 'border-amber-300/70 bg-gradient-to-br from-amber-50/90 via-surface to-surface ring-1 ring-amber-200/50 dark:border-amber-500/35 dark:from-amber-500/10 dark:ring-amber-500/20'
                 : 'border-accent/35 bg-gradient-to-br from-accent-soft/80 via-surface to-surface ring-1 ring-accent/20',
               'hover:shadow-hover active:scale-[0.99]'
@@ -236,14 +247,18 @@ export function TodayHub() {
                   ? '繼續訓練'
                   : streakAtRisk
                     ? `守住連練 ${streak} 日`
-                    : '開波訓練'}
+                    : comeback
+                      ? '今日返嚟開波'
+                      : '開波訓練'}
               </span>
               <span className="mt-0.5 block text-[12px] text-muted leading-snug">
                 {activeLive
                   ? '返去記組'
                   : streakAtRisk
                     ? '今日未打卡——練完就續到'
-                    : '記重量同次數——完場可以分享 Threads'}
+                    : comeback
+                      ? '唔使接連練，練完就算'
+                      : '記重量同次數——完場可以分享 Threads'}
               </span>
             </span>
             <ChevronRight className="h-5 w-5 shrink-0 text-accent" aria-hidden />

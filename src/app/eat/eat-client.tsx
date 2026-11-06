@@ -100,6 +100,25 @@ import {
 import { cn } from '@/lib/utils'
 import { checkProteinEveningReminder } from '@/lib/fitness/protein-reminder'
 
+const EAT_LOGIN_CTA_DISMISS_KEY = 'talktgtla-eat-login-cta-dismissed-v1'
+
+function isEatLoginCtaDismissed() {
+  if (typeof window === 'undefined') return true
+  try {
+    return localStorage.getItem(EAT_LOGIN_CTA_DISMISS_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function dismissEatLoginCta() {
+  try {
+    localStorage.setItem(EAT_LOGIN_CTA_DISMISS_KEY, '1')
+  } catch {
+    /* ignore */
+  }
+}
+
 type Draft = {
   previewUrl: string
   file: File | null
@@ -193,6 +212,7 @@ export function EatClient() {
   const [syncToast, setSyncToast] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [shareAfterMeal, setShareAfterMeal] = useState<MealEntry | null>(null)
+  const [showGuestLoginCta, setShowGuestLoginCta] = useState(false)
   const manualRef = useRef<HTMLDivElement>(null)
   const hkRef = useRef<HTMLDivElement>(null)
   const clubRef = useRef<HTMLDivElement>(null)
@@ -828,6 +848,12 @@ export function EatClient() {
     }
   }
 
+  const maybeOfferGuestLoginCta = () => {
+    if (user) return
+    if (isEatLoginCtaDismissed()) return
+    setShowGuestLoginCta(true)
+  }
+
   const confirmDraft = () => {
 
     if (!draft || draft.status !== 'ready' || !liveMacros) return
@@ -845,6 +871,7 @@ export function EatClient() {
     const next = [entry, ...meals]
     void persistList(next, entry, draft.file)
     setDraft(null)
+    maybeOfferGuestLoginCta()
     try {
       const newly = evaluateFitnessAchievements({
         sessions: loadSessions(),
@@ -987,6 +1014,7 @@ export function EatClient() {
     const next = [entry, ...meals]
     void persistList(next, entry)
     setShareAfterMeal(entry)
+    maybeOfferGuestLoginCta()
     try {
       const newly = evaluateFitnessAchievements({
         sessions: loadSessions(),
@@ -1067,6 +1095,36 @@ export function EatClient() {
             note={syncing ? null : cloudNote}
           />
         </div>
+
+        {showGuestLoginCta && !user ? (
+          <div className="mb-3 rounded-[20px] border border-accent/25 bg-gradient-to-br from-accent-soft/70 via-surface to-surface px-4 py-3.5 shadow-soft ring-1 ring-accent/10">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-serif text-base leading-tight">登入鎖住今日飲食</p>
+                <p className="mt-1 text-[12px] text-muted leading-snug">
+                  而家淨係呢部機。登入之後換手機都睇到。
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="關閉"
+                onClick={() => {
+                  dismissEatLoginCta()
+                  setShowGuestLoginCta(false)
+                }}
+                className="shrink-0 rounded-lg p-1.5 text-muted touch-manipulation hover:bg-surface-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+            <Link
+              href="/login?from=eat"
+              className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-xl bg-accent px-4 text-sm font-semibold text-white touch-manipulation hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+            >
+              去登入
+            </Link>
+          </div>
+        ) : null}
 
         <div className="mb-4" data-testid="eat-fold-chips">
           <div className="mb-1.5 flex items-baseline justify-between gap-2 px-0.5">
