@@ -111,6 +111,7 @@ export function TodayHub() {
     ready && proteinGap >= 20 && (mealCount === 0 || hour >= 17 || proteinPct < 70)
   const showDemo = ready && !hasHistory && !activeLive && !didTrain
   const showReplay = ready && hasHistory && !activeLive
+  const streakAtRisk = ready && streak > 0 && !didTrain && !activeLive
 
   const demoHref = useMemo(() => {
     if (!DEMO_LEG) return '/train'
@@ -210,11 +211,19 @@ export function TodayHub() {
         ) : null}
 
         <div className="space-y-2.5 mb-4">
+          {streakAtRisk ? (
+            <div className="flex items-center gap-2 rounded-2xl border border-amber-200/80 bg-amber-50/90 px-3.5 py-2 text-[12px] text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+              <Flame className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-300" aria-hidden />
+              <span className="font-medium">連練危機 · 今日未開波</span>
+            </div>
+          ) : null}
           <Link
             href="/train"
             className={cn(
               'flex items-center gap-3 rounded-[20px] border px-4 py-4 shadow-soft transition touch-manipulation',
-              'border-accent/35 bg-gradient-to-br from-accent-soft/80 via-surface to-surface ring-1 ring-accent/20',
+              streakAtRisk
+                ? 'border-amber-300/70 bg-gradient-to-br from-amber-50/90 via-surface to-surface ring-1 ring-amber-200/50 dark:border-amber-500/35 dark:from-amber-500/10 dark:ring-amber-500/20'
+                : 'border-accent/35 bg-gradient-to-br from-accent-soft/80 via-surface to-surface ring-1 ring-accent/20',
               'hover:shadow-hover active:scale-[0.99]'
             )}
           >
@@ -223,10 +232,18 @@ export function TodayHub() {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block font-serif text-lg leading-tight">
-                {activeLive ? '繼續訓練' : '開波訓練'}
+                {activeLive
+                  ? '繼續訓練'
+                  : streakAtRisk
+                    ? `守住連練 ${streak} 日`
+                    : '開波訓練'}
               </span>
               <span className="mt-0.5 block text-[12px] text-muted leading-snug">
-                {activeLive ? '返去記組' : '記重量同次數——完場可以分享 Threads'}
+                {activeLive
+                  ? '返去記組'
+                  : streakAtRisk
+                    ? '今日未打卡——練完就續到'
+                    : '記重量同次數——完場可以分享 Threads'}
               </span>
             </span>
             <ChevronRight className="h-5 w-5 shrink-0 text-accent" aria-hidden />

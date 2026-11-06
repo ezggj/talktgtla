@@ -156,3 +156,56 @@ export function cancelLocalPing(tag: string) {
     /* ignore */
   }
 }
+
+
+/** Persist key: value = tomorrow's HK day (YYYY-MM-DD) when ping already set. */
+export const TOMORROW_TRAIN_PING_TAG = 'talktgtla-tomorrow-train'
+export const TOMORROW_PING_FLAG_KEY = 'talktgtla-tomorrow-ping-v1'
+
+function hkDayKeyLocal(now = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Hong_Kong',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now)
+}
+
+/** Next calendar day YYYY-MM-DD in Asia/Hong_Kong. */
+export function nextHkDayKey(now = new Date()): string {
+  const today = hkDayKeyLocal(now)
+  const [y, m, d] = today.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  dt.setUTCDate(dt.getUTCDate() + 1)
+  const yy = dt.getUTCFullYear()
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(dt.getUTCDate()).padStart(2, '0')
+  return `${yy}-${mm}-${dd}`
+}
+
+/**
+ * Timestamp for tomorrow at `hour`:00 Asia/Hong_Kong.
+ * HK has no DST → always UTC+8.
+ */
+export function tomorrowHkLocalEndAt(hour = 10, now = new Date()): { endAt: number; dayKey: string } {
+  const dayKey = nextHkDayKey(now)
+  const [y, m, d] = dayKey.split('-').map(Number)
+  const endAt = Date.UTC(y, m - 1, d, hour - 8, 0, 0, 0)
+  return { endAt, dayKey }
+}
+
+export function isTomorrowTrainPingScheduled(now = new Date()): boolean {
+  try {
+    return localStorage.getItem(TOMORROW_PING_FLAG_KEY) === nextHkDayKey(now)
+  } catch {
+    return false
+  }
+}
+
+export function markTomorrowTrainPingScheduled(dayKey: string) {
+  try {
+    localStorage.setItem(TOMORROW_PING_FLAG_KEY, dayKey)
+  } catch {
+    /* ignore */
+  }
+}

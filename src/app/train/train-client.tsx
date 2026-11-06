@@ -110,6 +110,15 @@ import {
 } from '@/lib/fitness/train-ai-quota'
 import { InstallPrompt } from '@/components/pwa/install-prompt'
 import {
+  requestNotificationPermissionCantonese,
+  scheduleLocalPing,
+  tomorrowHkLocalEndAt,
+  isTomorrowTrainPingScheduled,
+  markTomorrowTrainPingScheduled,
+  TOMORROW_TRAIN_PING_TAG,
+  notificationPermission,
+} from '@/lib/pwa/notifications'
+import {
   TrainFirstGuide,
   shouldShowTrainFirstGuide,
 } from '@/components/fitness/train-first-guide'
@@ -151,6 +160,7 @@ import { offerNextPlanExercise } from '@/lib/fitness/plan-queue'
 import { LoginPromptBanner } from '@/components/auth/login-card'
 import { MeetupBoard } from '@/components/fitness/meetup-board'
 import { buildTrainCoachBlurb } from '@/lib/fitness/weekly-summary'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { PlateHint } from '@/components/fitness/plate-hint'
@@ -235,6 +245,9 @@ export function TrainClient() {
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [lastFinished, setLastFinished] = useState<WorkoutSession | null>(null)
   const [lastAnalysis, setLastAnalysis] = useState<WorkoutAnalysis | null>(null)
+  const [tomorrowPingBusy, setTomorrowPingBusy] = useState(false)
+  const [tomorrowPingMsg, setTomorrowPingMsg] = useState<string | null>(null)
+  const [tomorrowPingSet, setTomorrowPingSet] = useState(false)
   const [justAdded, setJustAdded] = useState<string | null>(null)
   const [planQueue, setPlanQueue] = useState<string[]>([])
   const [todayHint, setTodayHint] = useState<TodayPlanHint | null>(null)
@@ -420,6 +433,13 @@ export function TrainClient() {
     mq.addEventListener?.('change', apply)
     return () => mq.removeEventListener?.('change', apply)
   }, [])
+
+  useEffect(() => {
+    if (!finishOpen) return
+    setTomorrowPingMsg(null)
+    setTomorrowPingBusy(false)
+    setTomorrowPingSet(isTomorrowTrainPingScheduled())
+  }, [finishOpen])
 
   useEffect(() => {
     if (!ready) return
@@ -1026,7 +1046,47 @@ export function TrainClient() {
     armOrHoldRest(restSec)
   }
 
+  const scheduleTomorrowTrainPing = async () => {
+    if (tomorrowPingBusy || tomorrowPingSet) return
+    setTomorrowPingBusy(true)
+    setTomorrowPingMsg(null)
+    try {
+      let perm = notificationPermission()
+      if (perm !== 'granted') {
+        perm = await requestNotificationPermissionCantonese()
+      }
+      if (perm === 'denied') {
+        setTomorrowPingMsg('你拒絕咗通知')
+        return
+      }
+      if (perm === 'unsupported' || perm !== 'granted') {
+        setTomorrowPingMsg('開唔到通知——可以裝 PWA 再試')
+        return
+      }
+      const { endAt, dayKey } = tomorrowHkLocalEndAt(10)
+      const body =
+        streak > 0
+          ? `連練 ${streak} 日——返嚟 Talk tgt la 記組`
+          : '返嚟 Talk tgt la 記組'
+      await scheduleLocalPing({
+        endAt,
+        title: '開台喇 · 續連練',
+        body,
+        tag: TOMORROW_TRAIN_PING_TAG,
+        url: '/train',
+      })
+      markTomorrowTrainPingScheduled(dayKey)
+      setTomorrowPingSet(true)
+      setTomorrowPingMsg('聽日 10:00 會提你')
+    } catch {
+      setTomorrowPingMsg('開唔到通知——可以裝 PWA 再試')
+    } finally {
+      setTomorrowPingBusy(false)
+    }
+  }
+
   const finishSession = () => {
+
     if (!active) return
     setConfirmFinish(false)
     setRestRunning(false)
@@ -3286,6 +3346,40 @@ export function TrainClient() {
                 >
                   {finishLines[0]}
                 </p>
+              )}
+
+              {!user && lastAnalysis.countsAsDay !== false && (
+                <div className="mb-3 rounded-[20px] border border-accent/30 bg-gradient-to-br from-accent-soft/90 via-surface to-surface px-4 py-3.5 shadow-soft ring-1 ring-accent/15">
+                  <p className="font-serif text-base leading-tight">登入鎖住呢場進度</p>
+                  <p className="mt-1 text-[12px] text-muted leading-snug">
+                    而家淨係呢部機。登入之後換手機都睇到。
+                  </p>
+                  <Link
+                    href="/login?from=finish"
+                    className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-xl bg-accent px-4 text-sm font-semibold text-white touch-manipulation hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+                  >
+                    去登入
+                  </Link>
+                </div>
+              )}
+
+              {lastAnalysis.countsAsDay !== false && (
+                <div className="mb-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full"
+                    disabled={tomorrowPingBusy || tomorrowPingSet}
+                    onClick={() => void scheduleTomorrowTrainPing()}
+                  >
+                    {tomorrowPingSet ? '已設聽日提醒' : tomorrowPingBusy ? '設定緊…' : '聽日提我開台'}
+                  </Button>
+                  {tomorrowPingMsg ? (
+                    <p className="mt-1.5 text-center text-[11px] text-muted" role="status">
+                      {tomorrowPingMsg}
+                    </p>
+                  ) : null}
+                </div>
               )}
 
               {lastFinished && lastAnalysis && lastAnalysis.countsAsDay !== false && (
