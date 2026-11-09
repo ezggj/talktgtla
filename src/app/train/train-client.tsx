@@ -164,6 +164,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { PlateHint } from '@/components/fitness/plate-hint'
+import { FormCheckEntry } from '@/components/fitness/form-check-sheet'
 
 function formatDuration(sec: number) {
   const h = Math.floor(sec / 3600)
@@ -242,6 +243,7 @@ export function TrainClient() {
   const [restRunning, setRestRunning] = useState(false)
   const [prToast, setPrToast] = useState<string | null>(null)
   const [finishOpen, setFinishOpen] = useState(false)
+  const [formCheckNote, setFormCheckNote] = useState<string | null>(null)
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [lastFinished, setLastFinished] = useState<WorkoutSession | null>(null)
   const [lastAnalysis, setLastAnalysis] = useState<WorkoutAnalysis | null>(null)
@@ -672,6 +674,7 @@ export function TrainClient() {
   }, [])
 
   const startSession = (templateId?: string, exerciseIds?: string[]) => {
+    setFormCheckNote(null)
     if (shouldShowTrainFirstGuide()) setShowFirstGuide(true)
     const sess: WorkoutSession = {
       id: newId(),
@@ -734,6 +737,7 @@ export function TrainClient() {
   const addToToday = (exerciseId: string) => {
     if (!exerciseById(exerciseId)) return
     if (!active) {
+      setFormCheckNote(null)
       const sess: WorkoutSession = {
         id: newId(),
         startedAt: new Date().toISOString(),
@@ -1165,6 +1169,7 @@ export function TrainClient() {
   const discardSession = () => {
     if (!window.confirm('放棄呢次訓練？組數唔會留低。')) return
     setConfirmFinish(false)
+    setFormCheckNote(null)
     persistActive(null)
     setSelectedEx(null)
     setRestRunning(false)
@@ -1801,6 +1806,12 @@ export function TrainClient() {
                           <div className="mt-2">
                             <ExerciseHowTo exerciseId={selectedEx} />
                           </div>
+                          <FormCheckEntry
+                            exerciseId={selectedEx}
+                            exerciseName={exerciseById(selectedEx)?.nameZh || ''}
+                            saved={Boolean(formCheckNote)}
+                            onUse={setFormCheckNote}
+                          />
                         </div>
 
                         {(() => {
@@ -3347,6 +3358,12 @@ export function TrainClient() {
                   {finishLines[0]}
                 </p>
               )}
+
+              {formCheckNote ? (
+                <p data-testid="form-check-finish" className="mb-4 text-sm leading-snug">
+                  {formCheckNote}
+                </p>
+              ) : null}
 
               {!user && lastAnalysis.countsAsDay !== false && (
                 <div className="mb-3 rounded-[20px] border border-accent/30 bg-gradient-to-br from-accent-soft/90 via-surface to-surface px-4 py-3.5 shadow-soft ring-1 ring-accent/15">
