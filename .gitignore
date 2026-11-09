@@ -29,6 +29,7 @@
 /coverage
 /node_modules
 /out/
+/public/mediapipe/
 next-env.d.ts
 npm-debug.log*
 supabase/.temp/

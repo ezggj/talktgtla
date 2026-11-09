@@ -313,6 +313,30 @@ body {
 .above-nav-stack {
   bottom: calc(var(--nav-h) + var(--safe-bottom) + 4.5rem);
 }
+/* Optional form-check chip. Portaled to body so page motion transforms do not trap it.
+   Sits above the mobile log button; drops to the thumb line once that bar hides. */
+.form-check-entry {
+  position: fixed;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + 5.15rem);
+  display: flex;
+  justify-content: center;
+  padding-inline: 1rem;
+  pointer-events: none;
+}
+@media (min-width: 640px) {
+  .form-check-entry {
+    bottom: calc(var(--nav-h) + var(--safe-bottom) + 0.75rem);
+  }
+}
+@media (min-width: 768px) {
+  .form-check-entry {
+    bottom: 1.5rem;
+    left: 88px;
+  }
+}
 @media (min-width: 768px) {
   .above-nav {
     bottom: 0;

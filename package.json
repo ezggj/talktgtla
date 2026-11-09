@@ -4,11 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "predev": "node scripts/copy-mediapipe.mjs",
     "build": "next build",
+    "prebuild": "node scripts/copy-mediapipe.mjs",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "copy:mediapipe": "node scripts/copy-mediapipe.mjs",
+    "test": "node --experimental-strip-types --import ./scripts/register-ts.mjs --test src/lib/fitness/*.test.ts src/lib/chat/*.test.ts"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.2.2",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.45.0",
     "ai": "^7.0.159",
