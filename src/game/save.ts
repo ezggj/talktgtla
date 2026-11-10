@@ -2,11 +2,12 @@ import type { Cam } from './iso'
 import { terrainAt } from './map'
 import { MAP_SIZE, type BuildKind, type BusStop, type Cell, type GameState, isBuildKind } from './types'
 
-export const SAVE_KEY = 'ngo-zo-sing:v2'
+export const SAVE_KEY = 'ngo-zo-sing:v3'
+const PREVIOUS_KEY = 'ngo-zo-sing:v2'
 const LEGACY_KEY = 'ngo-zo-sing:v1'
 
 export interface SaveFile {
-  v: 2
+  v: 2 | 3
   map: 'hk'
   seed: number
   day: number
@@ -16,12 +17,17 @@ export interface SaveFile {
   cells: Cell[]
   stations: string[]
   stops: BusStop[]
+  piers?: string[]
+  trams?: string[]
+  guide?: boolean
+  milestones?: string[]
+  sawEight?: boolean
   cam: Cam
 }
 
 export function serialize(state: GameState, cam: Cam): SaveFile {
   return {
-    v: 2,
+    v: 3,
     map: 'hk',
     seed: state.seed,
     day: state.day,
@@ -37,6 +43,11 @@ export function serialize(state: GameState, cam: Cam): SaveFile {
     })),
     stations: [...(state.stations ?? [])],
     stops: (state.stops ?? []).map((stop) => ({ c: stop.c, r: stop.r })),
+    piers: [...(state.piers ?? [])],
+    trams: [...(state.trams ?? [])],
+    guide: state.guide === true,
+    milestones: [...(state.milestones ?? [])],
+    sawEight: state.sawEight === true,
     cam: { x: cam.x, y: cam.y, zoom: cam.zoom },
   }
 }
@@ -44,7 +55,7 @@ export function serialize(state: GameState, cam: Cam): SaveFile {
 export function parseSave(raw: unknown): { state: GameState; cam: Cam } | null {
   if (!raw || typeof raw !== 'object') return null
   const data = raw as Partial<SaveFile>
-  if (data.v !== 2 || data.map !== 'hk') return null
+  if ((data.v !== 2 && data.v !== 3) || data.map !== 'hk') return null
   if (!isFiniteNumber(data.seed) || !isFiniteNumber(data.day) || !isFiniteNumber(data.money)) return null
   if (!data.cam || !isFiniteNumber(data.cam.x) || !isFiniteNumber(data.cam.y) || !isFiniteNumber(data.cam.zoom)) {
     return null
@@ -87,6 +98,11 @@ export function parseSave(raw: unknown): { state: GameState; cam: Cam } | null {
       broke: false,
       stations: cleanIds(data.stations),
       stops: cleanStops(data.stops),
+      piers: cleanIds(data.piers),
+      trams: cleanIds(data.trams),
+      guide: data.guide === true,
+      milestones: cleanIds(data.milestones),
+      sawEight: data.sawEight === true,
     },
     cam: {
       x: data.cam.x,
@@ -119,7 +135,7 @@ function cleanStops(value: unknown): BusStop[] {
 export function readSave(): { state: GameState; cam: Cam } | null {
   if (typeof localStorage === 'undefined') return null
   try {
-    const text = localStorage.getItem(SAVE_KEY)
+    const text = localStorage.getItem(SAVE_KEY) ?? localStorage.getItem(PREVIOUS_KEY)
     if (!text) {
       if (localStorage.getItem(LEGACY_KEY)) return null
       return null

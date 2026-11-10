@@ -1,6 +1,7 @@
 import { nearestLand, regionAt } from './hk-geo'
 import { cellKey } from './map'
 import type { BusStop, GameState } from './types'
+import type { TyphoonSignal } from './weather'
 
 export const STATION_COST = 420
 export const STOP_COST = 70
@@ -187,7 +188,7 @@ export interface TransitFx {
   crossHarbour: boolean
 }
 
-export function transitFx(state: Pick<GameState, 'stations' | 'stops' | 'cells'>): TransitFx {
+export function transitFx(state: Pick<GameState, 'stations' | 'stops' | 'cells'>, signal: TyphoonSignal = 0): TransitFx {
   const linked = linkedIds(state.stations ?? [])
   const tiles = new Set<string>()
   for (const id of linked) {
@@ -206,7 +207,7 @@ export function transitFx(state: Pick<GameState, 'stations' | 'stops' | 'cells'>
   const stops = (state.stops ?? []).filter((stop) => roads.has(cellKey(stop.c, stop.r)))
   const stopRegions = new Set<number>()
   let busLinked = 0
-  if (stops.length >= 2 && stopsConnected(stops, roads)) {
+  if (signal < 8 && stops.length >= 2 && stopsConnected(stops, roads)) {
     busLinked = stops.length
     for (const stop of stops) {
       stopRegions.add(regionAt(stop.c, stop.r))

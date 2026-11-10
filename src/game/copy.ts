@@ -10,6 +10,8 @@ export const TOOLS: { id: Tool; label: string }[] = [
   { id: 'power', label: '電箱' },
   { id: 'mtr', label: '港鐵' },
   { id: 'bus', label: '巴士' },
+  { id: 'ferry', label: '渡輪' },
+  { id: 'tram', label: '電車' },
   { id: 'bulldoze', label: '拆' },
 ]
 

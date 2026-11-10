@@ -1,5 +1,8 @@
 import { cellKey, terrainAt } from './map'
+import { harbourFx } from './harbour'
 import { transitFx } from './transit'
+import { seedLivingCity } from './starter'
+import { shopFactor, signalCopy, typhoonSignal } from './weather'
 import {
   COST,
   DAY_MS,
@@ -56,14 +59,18 @@ export interface Summary {
   transitTiles: Set<string>
   mtrLinked: number
   busLinked: number
+  signal: 0 | 1 | 3 | 8
+  ferries: number
+  trams: number
+  census: Cell[]
 }
 
-export type PlaceReason = 'water' | 'occupied' | 'money' | 'empty' | 'edge' | 'road'
+export type PlaceReason = 'water' | 'occupied' | 'money' | 'empty' | 'edge' | 'road' | 'hill'
 
 export type PlaceResult = { ok: true; cell: Cell } | { ok: false; reason: PlaceReason }
 
-export function newGame(seed = Math.floor(Math.random() * 1_000_000_000)): GameState {
-  return {
+export function newGame(seed = Math.floor(Math.random() * 1_000_000_000), bare = false): GameState {
+  const state: GameState = {
     seed,
     day: 0.34,
     money: START_MONEY,
@@ -74,7 +81,14 @@ export function newGame(seed = Math.floor(Math.random() * 1_000_000_000)): GameS
     broke: false,
     stations: [],
     stops: [],
+    piers: [],
+    trams: [],
+    guide: !bare,
+    milestones: [],
+    sawEight: false,
   }
+  if (!bare) seedLivingCity(state)
+  return state
 }
 
 export function tick(state: GameState, dtMs: number): Summary {
@@ -91,8 +105,10 @@ export function tick(state: GameState, dtMs: number): Summary {
 export function place(state: GameState, tool: Tool, c: number, r: number): PlaceResult {
   if (c < 0 || r < 0 || c >= MAP_SIZE || r >= MAP_SIZE) return { ok: false, reason: 'edge' }
   if (tool === 'bulldoze') return bulldoze(state, c, r)
-  if (tool === 'mtr' || tool === 'bus') return { ok: false, reason: 'edge' }
-  if (terrainAt(c, r, state.seed) === 'water') return { ok: false, reason: 'water' }
+  if (tool === 'mtr' || tool === 'bus' || tool === 'ferry' || tool === 'tram') return { ok: false, reason: 'edge' }
+  const ground = terrainAt(c, r, state.seed)
+  if (ground === 'water') return { ok: false, reason: 'water' }
+  if (ground === 'parkland' || ground === 'slope') return { ok: false, reason: 'hill' }
   if (cellAt(state, c, r)) return { ok: false, reason: 'occupied' }
   if (tool !== 'road' && !neighbors(c, r).some((n) => cellAt(state, n.c, n.r)?.kind === 'road')) {
     return { ok: false, reason: 'road' }
@@ -109,6 +125,7 @@ export function place(state: GameState, tool: Tool, c: number, r: number): Place
   }
   state.cells.push(cell)
   if (state.money > 0) state.broke = false
+  state.guide = false
   return { ok: true, cell }
 }
 
@@ -174,7 +191,9 @@ export function summarize(state: GameState): Summary {
     }
   }
 
-  const transit = transitFx(state)
+  const signal = typhoonSignal(state.day, state.seed)
+  const transit = transitFx(state, signal)
+  const harbour = harbourFx(state, signal)
   const served = new Set<string>()
   let pop = 0
   let jobs = 0
@@ -207,14 +226,14 @@ export function summarize(state: GameState): Summary {
 
     if (cell.stage > 0) upkeep += UPKEEP[cell.kind]
     if (!on || cell.stage <= 0) continue
-    const boosted = transit.tiles.has(cellKey(cell.c, cell.r))
+    const boosted = transit.tiles.has(cellKey(cell.c, cell.r)) || harbour.tiles.has(cellKey(cell.c, cell.r))
     if (cell.kind === 'home') {
       const people = HOME_POP[cell.stage] ?? 0
       pop += boosted ? Math.round(people * 1.35) : people
       income += HOME_TAX[cell.stage] ?? 0
     } else if (cell.kind === 'shop') {
       jobs += SHOP_JOBS[cell.stage] ?? 0
-      income += SHOP_INCOME[cell.stage] ?? 0
+      income += Math.round((SHOP_INCOME[cell.stage] ?? 0) * shopFactor(signal))
     } else if (cell.kind === 'factory') {
       jobs += FACTORY_JOBS[cell.stage] ?? 0
       income += FACTORY_INCOME[cell.stage] ?? 0
@@ -237,17 +256,25 @@ export function summarize(state: GameState): Summary {
       shop: band(pop - counts.shop * 22, 8, -18),
       factory: band(pop * 0.55 - factoryJobs(state, served), 10, -16),
     },
-    income: income + transit.fare,
+    income: income + transit.fare + harbour.fare,
     upkeep,
     nearPark,
     counts,
-    transitTiles: transit.tiles,
+    transitTiles: new Set([...transit.tiles, ...harbour.tiles]),
     mtrLinked: transit.linked,
-    busLinked: transit.busLinked,
+    busLinked: signal >= 8 ? 0 : transit.busLinked,
+    signal,
+    ferries: harbour.ferries,
+    trams: harbour.trams,
+    census: state.cells,
   }
 }
 
 export function coach(state: GameState, summary: Summary): string {
+  const storm = signalCopy(summary.signal)
+  if (storm && summary.signal >= 8) return storm
+  if (state.guide) return '城已經有路有樓。拉條路出去，貼住路起舖或者廠。'
+  if (storm && summary.signal >= 3) return storm
   if (state.broke) return '庫房見底。拆走閒路，等住人交稅。'
   if (summary.counts.road === 0) return '撳「路」，再撳塊地起。'
   if (summary.counts.power === 0) return '電箱貼住條路，樓先有電。'
@@ -288,11 +315,65 @@ export function sunAmount(day: number): number {
 }
 
 export function isRaining(day: number, seed: number): boolean {
+  if (typhoonSignal(day, seed) >= 1) return true
   const block = Math.floor(day / 3)
   const h = fraction(block, seed)
   if (h > 0.28) return false
   const phase = (((day / 3) % 1) + 1) % 1
   return phase > 0.2 && phase < 0.75
+}
+
+export function tileHint(state: GameState, summary: Summary, c: number, r: number, tool: Tool): string | null {
+  const building = cellAt(state, c, r)
+  if (building && building.kind !== 'road' && building.kind !== 'power' && building.kind !== 'park') {
+    const key = cellKey(c, r)
+    if (!summary.served.has(key)) {
+      const besideRoad = neighbors(c, r).some((n) => cellAt(state, n.c, n.r)?.kind === 'road')
+      return besideRoad ? '未有電，所以停咗。' : '未貼路，所以停咗。'
+    }
+    if (
+      building.kind === 'home' &&
+      nearbyJobs(building, summary) < 8 &&
+      !summary.transitTiles.has(key)
+    ) {
+      return '附近冇工做，住宅唔會再高。'
+    }
+    if (building.kind === 'home' && building.stage >= 2 && !summary.nearPark.has(key)) return '想有個休憩，先會再高。'
+    if (building.kind === 'shop' && nearbyPop(building, summary) < 12) return '附近未有人住，舖未開得。'
+    if (building.kind === 'factory' && nearbyPop(building, summary) < 16) return '請唔到人，廠未開得。'
+  }
+  if (tool === 'mtr') return '撳光點起站。兩個站一通先有車費。'
+  if (tool === 'ferry') return '撳碼頭。中環同尖沙咀接通就有維港船。'
+  if (tool === 'tram') return '沿港島北岸撳站，兩站一通先有電車。'
+  if (tool === 'bus') return '巴士站要落喺路上，同一條路先算一條綫。'
+  if (tool === 'bulldoze') return null
+  const ground = terrainAt(c, r, state.seed)
+  if (ground === 'water') return '呢度係海。'
+  if (ground === 'parkland' || ground === 'slope') return '呢度係山或者郊野公園，起唔到。'
+  if (building) return '呢度有嘢。'
+  if (tool !== 'road' && !neighbors(c, r).some((n) => cellAt(state, n.c, n.r)?.kind === 'road')) {
+    return '要貼住條路。'
+  }
+  if (state.money < COST[tool]) return '庫房唔夠。'
+  return null
+}
+
+export function takeMilestones(state: GameState, summary: Summary): string[] {
+  if (!state.milestones) state.milestones = []
+  const have = new Set(state.milestones)
+  const fresh: string[] = []
+  const grant = (id: string, message: string) => {
+    if (have.has(id)) return
+    have.add(id)
+    state.milestones.push(id)
+    fresh.push(message)
+  }
+  if (summary.signal === 8) state.sawEight = true
+  if (state.sawEight && summary.signal < 8) grant('typhoon', '八號風球過咗，大家返工。')
+  if (summary.pop >= 200) grant('pop', '人口過咗二百，城旺咗。')
+  if (summary.ferries >= 2) grant('ferry', '離島船開咗，出到去。')
+  if ((state.trams ?? []).includes('t-cwb')) grant('tram', '電車去到銅鑼灣。')
+  return fresh
 }
 
 export function reasonCopy(reason: PlaceReason): string | null {
@@ -301,6 +382,7 @@ export function reasonCopy(reason: PlaceReason): string | null {
   if (reason === 'money') return '庫房唔夠。'
   if (reason === 'edge') return '出咗界。'
   if (reason === 'road') return '要貼住條路。'
+  if (reason === 'hill') return '呢度係山或者郊野公園，起唔到。'
   return null
 }
 
@@ -328,12 +410,8 @@ function grow(cell: Cell, on: boolean, summary: Summary) {
     summary.transitTiles.has(cellKey(cell.c, cell.r)) ||
     (cell.kind === 'home' && summary.nearPark.has(cellKey(cell.c, cell.r)))
   if (cell.stage === 0) {
-    if (cell.kind === 'shop' && summary.pop < 10) return
-    if (cell.kind === 'factory' && summary.pop < 18) return
-    if (cell.kind === 'park') {
-      cell.stage = 1
-      return
-    }
+    if (cell.kind === 'shop' && nearbyPop(cell, summary) < 12) return
+    if (cell.kind === 'factory' && nearbyPop(cell, summary) < 16) return
     cell.stage = 1
     return
   }
@@ -344,11 +422,41 @@ function grow(cell: Cell, on: boolean, summary: Summary) {
     cell.stage += 1
     return
   }
+  if (
+    cell.kind === 'home' &&
+    nearbyJobs(cell, summary) < 8 &&
+    !summary.transitTiles.has(cellKey(cell.c, cell.r))
+  ) {
+    return
+  }
+  if (cell.kind === 'home' && cell.stage >= 2 && !summary.nearPark.has(cellKey(cell.c, cell.r))) return
+  if (cell.kind === 'shop' && nearbyPop(cell, summary) < 12 * cell.stage) return
+  if (cell.kind === 'factory' && nearbyPop(cell, summary) < 16) return
   const demand =
     cell.kind === 'home' ? summary.demand.home : cell.kind === 'shop' ? summary.demand.shop : summary.demand.factory
   if (demand === 'full') return
   if (cell.stage >= 2 && demand !== 'want') return
   cell.stage += 1
+}
+
+function nearbyPop(cell: Cell, summary: Summary): number {
+  return nearbyKind(cell, summary, 'home', 5)
+}
+
+function nearbyJobs(cell: Cell, summary: Summary): number {
+  return nearbyKind(cell, summary, 'shop', 6) + nearbyKind(cell, summary, 'factory', 6)
+}
+
+function nearbyKind(cell: Cell, summary: Summary, kind: 'home' | 'shop' | 'factory', radius: number): number {
+  const table = kind === 'home' ? HOME_POP : kind === 'shop' ? SHOP_JOBS : FACTORY_JOBS
+  let total = 0
+  for (const other of summary.census) {
+    if (other.kind !== kind || other.stage <= 0) continue
+    if (!summary.served.has(cellKey(other.c, other.r))) continue
+    if (Math.max(Math.abs(other.c - cell.c), Math.abs(other.r - cell.r)) > radius) continue
+    total += table[other.stage] ?? 0
+  }
+  return total
 }
 
 function factoryJobs(state: GameState, served: Set<string>): number {
