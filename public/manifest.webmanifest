@@ -1,16 +1,16 @@
 {
-  "name": "Talk tgt la · 記組同港式飲食",
-  "short_name": "Talk tgt la",
-  "description": "免費記組同港式飲食——練完／食完一掣記",
+  "name": "我座城",
+  "short_name": "我座城",
+  "description": "瀏覽器入面起一座城。香港日常風味，免費，唔使登入。",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#FAFAF9",
-  "theme_color": "#0F766E",
+  "orientation": "any",
+  "background_color": "#10242c",
+  "theme_color": "#10242c",
   "lang": "zh-HK",
   "dir": "ltr",
-  "categories": ["fitness", "health", "lifestyle"],
+  "categories": ["games", "entertainment"],
   "icons": [
     {
       "src": "/icons/icon-192.png",

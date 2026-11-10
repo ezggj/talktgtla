@@ -1,14 +1,25 @@
 import { NextResponse } from 'next/server'
 
-/** Ambient bots disabled — cron no-ops. */
-async function handle() {
-  return NextResponse.json({ ok: true, skipped: true, reason: 'bots_disabled' })
+function gone() {
+  return NextResponse.json({ error: 'gone' }, { status: 410 })
 }
 
-export async function GET() {
-  return handle()
+export function GET() {
+  return gone()
 }
 
-export async function POST() {
-  return handle()
+export function POST() {
+  return gone()
+}
+
+export function PUT() {
+  return gone()
+}
+
+export function PATCH() {
+  return gone()
+}
+
+export function DELETE() {
+  return gone()
 }

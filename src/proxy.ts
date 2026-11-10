@@ -1,8 +1,8 @@
-import { type NextRequest } from 'next/server'
-import { updateSession } from '@/lib/supabase/proxy'
+import { NextResponse, type NextRequest } from 'next/server'
 
-export async function proxy(request: NextRequest) {
-  return await updateSession(request)
+/** Game builds do not refresh the old fitness session. */
+export function proxy(request: NextRequest) {
+  return NextResponse.next({ request })
 }
 
 export const config = {

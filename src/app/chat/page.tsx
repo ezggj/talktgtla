@@ -1,10 +1,5 @@
-import Chat from '../chat'
+import { RetiredNotice } from '@/components/city/retired-notice'
 
-export const metadata = {
-  title: '傾偈',
-  description: '香港 gym 人傾兩句——今日話題一掣開波',
-}
-
-export default function ChatPage() {
-  return <Chat />
+export default function Page() {
+  return <RetiredNotice />
 }

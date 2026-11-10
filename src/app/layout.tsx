@@ -1,48 +1,32 @@
 import type { Metadata, Viewport } from 'next'
-import { Fraunces } from 'next/font/google'
 import { GeistSans } from 'geist/font/sans'
-import { GeistMono } from 'geist/font/mono'
 import './globals.css'
-import { THEME_BOOT_SCRIPT } from '@/lib/theme'
-import { FONT_SCALE_BOOT_SCRIPT } from '@/lib/a11y/font-scale'
-import { PwaBootstrap } from '@/components/pwa/pwa-bootstrap'
-
-const fraunces = Fraunces({
-  subsets: ['latin'],
-  variable: '--font-fraunces',
-  display: 'swap',
-  axes: ['SOFT', 'WONK', 'opsz'],
-})
 
 export const metadata: Metadata = {
-  title: {
-    default: 'Talk tgt la · 免費記組同港式飲食',
-    template: '%s · Talk tgt la',
-  },
-  description:
-    '免費記組同港式飲食——練完／食完一掣記。香港 gym 人用嘅訓練記錄、影餐估營養，想傾先入房。',
-  applicationName: 'Talk tgt la',
+  title: '我座城',
+  description: '瀏覽器入面起一座城。香港日常風味，免費，唔使登入。原創城市遊戲。',
+  applicationName: '我座城',
   metadataBase: new URL('https://talktgtla.com'),
   openGraph: {
-    title: 'Talk tgt la · 免費記組同港式飲食',
-    description: '練完／食完一掣記。港式快加、記組、完場分享 Threads。',
+    title: '我座城',
+    description: '灣邊一塊地，你嚟起。免費，記喺呢部機。',
     url: 'https://talktgtla.com',
-    siteName: 'Talk tgt la',
+    siteName: '我座城',
     locale: 'zh_HK',
     type: 'website',
-    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Talk tgt la · 免費記組同港式飲食' }],
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: '我座城' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Talk tgt la · 免費記組同港式飲食',
-    description: '練完／食完一掣記。港式快加、記組、完場分享。',
+    title: '我座城',
+    description: '灣邊一塊地，你嚟起。',
     images: ['/og.png'],
   },
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
-    title: 'Talk tgt la',
+    statusBarStyle: 'black-translucent',
+    title: '我座城',
   },
   icons: {
     icon: [
@@ -57,28 +41,17 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#FAFAF9' },
-    { media: '(prefers-color-scheme: dark)', color: '#0c0f0e' },
-  ],
+  themeColor: '#10242c',
   width: 'device-width',
   initialScale: 1,
+  maximumScale: 1,
   viewportFit: 'cover',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="zh-HK"
-      className={`${GeistSans.variable} ${GeistMono.variable} ${fraunces.variable}`}
-      suppressHydrationWarning
-    >
-      <body className={`${GeistSans.className} bg-background text-foreground antialiased`}>
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
-        <script dangerouslySetInnerHTML={{ __html: FONT_SCALE_BOOT_SCRIPT }} />
-        <PwaBootstrap />
-        {children}
-      </body>
+    <html lang="zh-HK" className={GeistSans.variable}>
+      <body className={`${GeistSans.className} antialiased`}>{children}</body>
     </html>
   )
 }
