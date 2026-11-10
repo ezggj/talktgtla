@@ -34,6 +34,7 @@ import {
   nearestUnbuilt,
   type LineId,
 } from '@/game/transit'
+import { cityNickname, nextGoal, snapOf, todayStory, tomorrowLine } from '@/game/keep'
 import { cityLabel, paintShareCard, shareCaption } from '@/game/share'
 import { stepTraffic, syncTraffic, type Actor } from '@/game/traffic'
 import { COST, MAP_SIZE, isBuildKind, type GameState, type Tool } from '@/game/types'
@@ -47,6 +48,9 @@ interface Hud {
   pop: string
   jobs: string
   coach: string
+  nick: string
+  story: string
+  tease: string | null
   rain: boolean
   paused: boolean
   fast: boolean
@@ -62,6 +66,9 @@ const EMPTY_HUD: Hud = {
   pop: '0',
   jobs: '0',
   coach: '撳「路」，再撳塊地起。',
+  nick: '',
+  story: '',
+  tease: null,
   rain: false,
   paused: false,
   fast: false,
@@ -87,6 +94,8 @@ export function CityApp() {
   const toastLock = useRef('')
   const hudNow = useRef(false)
   const hintRef = useRef<string | null>(null)
+  const goalSeen = useRef<string | null>(null)
+  const goalText = useRef('')
 
   const [mode, setMode] = useState<'title' | 'play'>('title')
   const [ready, setReady] = useState(false)
@@ -176,14 +185,26 @@ export function CityApp() {
       if (playing && state) summaryRef.current = summary
       if (!state || !summary) return
       const flow = Math.floor(state.day) >= 1 ? state.lastDelta : summary.income - summary.upkeep
+      const snap = snapOf(summary)
+      const goal = nextGoal(state, snap)
+      let finished: string | null = null
+      if (goalSeen.current && goalSeen.current !== goal.id) finished = goalText.current
+      goalSeen.current = goal.id
+      goalText.current = goal.text
+      if (finished) showToast(`做到：${finished}`)
+      const part = dayPart(state.day)
+      const tease = state.paused || part === '夜晚' || part === '凌晨' ? tomorrowLine(state.day, state.seed, snap.ferries >= 1 || snap.mtrLinked >= 2) : null
       setHud({
-        when: `第${dayNumber(state.day)}日 · ${dayPart(state.day)}${typhoonLabel(typhoonSignal(state.day, state.seed))}`,
+        when: `第${dayNumber(state.day)}日 · ${part}${typhoonLabel(typhoonSignal(state.day, state.seed))}`,
         money: formatMoney(state.money),
         delta: formatSigned(flow),
         deltaUp: flow >= 0,
         pop: summary.pop.toLocaleString('en-HK'),
         jobs: summary.jobs.toLocaleString('en-HK'),
         coach: hintRef.current || coach(state, summary),
+        nick: cityNickname(state, snap),
+        story: todayStory(snap, finished),
+        tease,
         rain: isRaining(state.day, state.seed),
         paused: state.paused,
         fast: state.speed === 3,
@@ -613,6 +634,11 @@ export function CityApp() {
   const backToTitle = () => {
     const state = stateRef.current
     const cam = camRef.current
+    if (state) {
+      const summary = summaryRef.current ?? summarize(state)
+      const snap = snapOf(summary)
+      setToast(tomorrowLine(state.day, state.seed, snap.ferries >= 1 || snap.mtrLinked >= 2))
+    }
     if (state && cam) {
       setHasSave(writeSave(state, cam))
     }
@@ -654,7 +680,19 @@ export function CityApp() {
     const ctx = card.getContext('2d')
     if (!ctx) return
     const summary = summaryRef.current ?? summarize(state)
-    paintShareCard(ctx, { name, pop: summary.pop, day: state.day, money: state.money }, canvas)
+    const snap = snapOf(summary)
+    paintShareCard(
+      ctx,
+      {
+        name,
+        pop: summary.pop,
+        day: state.day,
+        money: state.money,
+        nick: cityNickname(state, snap),
+        story: todayStory(snap, null),
+      },
+      canvas,
+    )
     setShareUrl(card.toDataURL('image/png'))
   }
 
@@ -777,6 +815,8 @@ export function CityApp() {
           </header>
           <aside className="side">
             <h1>我座城</h1>
+            {hud.nick ? <p className="nick">{hud.nick}</p> : null}
+            {hud.story ? <p className="story">今日城事：{hud.story}</p> : null}
             <p className="when">
               {hud.when}
               {hud.rain ? ' · 落緊雨' : ''}
@@ -828,6 +868,7 @@ export function CityApp() {
               </button>
             </div>
           </aside>
+          {hud.tease ? <p className="tease">{hud.tease}</p> : null}
           <p className="coach" aria-live="polite">
             {hud.coach}
           </p>

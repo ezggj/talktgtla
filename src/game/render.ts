@@ -361,6 +361,8 @@ function drawHome(
     paintWindows(ctx, box, height, floors, slab ? 3 : 2, cell, seed, 'solid', sun)
     if (!slab && cell.stage >= 1) drawAcAndLaundry(ctx, box, height, cell, cam.zoom)
     if (cell.stage >= 2) drawTank(ctx, box, height, cam.zoom)
+    if (cell.stage >= 2) drawStreetAwning(ctx, box, height, '#c4483d')
+    if (cell.stage >= 3) drawRoofClutter(ctx, box, height, cam.zoom)
     if (slab) drawPodium(ctx, box, cam.zoom)
   } else if (sun < 0.78) {
     paintWindows(ctx, box, height, floors, slab ? 3 : 2, cell, seed, 'glow', sun)
@@ -385,6 +387,7 @@ function drawShop(
     drawAwning(ctx, box, height, awning)
     drawShopDoor(ctx, box, height, cam.zoom)
     if (cell.stage >= 2) drawSign(ctx, box, height, awning, cam.zoom, false)
+    if (cell.stage >= 3) drawRoofClutter(ctx, box, height, cam.zoom)
     paintWindows(ctx, box, height, cell.stage >= 3 ? 2 : 1, 2, cell, seed, 'solid', sun)
   } else if (sun < 0.8) {
     const center = tileCenter(cell.c, cell.r, cam)
@@ -841,6 +844,38 @@ function drawTree(ctx: CanvasRenderingContext2D, center: { x: number; y: number 
   ctx.beginPath()
   ctx.ellipse(center.x - size * 0.15, center.y - size * 0.7, size * 0.32, size * 0.18, 0, 0, Math.PI * 2)
   ctx.fill()
+}
+
+function drawStreetAwning(ctx: CanvasRenderingContext2D, box: Box, height: number, color: string) {
+  const y = box.y + box.h * 0.78 - height * 0.05
+  ctx.fillStyle = color
+  ctx.beginPath()
+  ctx.moveTo(box.x + box.w * 0.08, y)
+  ctx.lineTo(box.x + box.w * 0.48, y + box.h * 0.28)
+  ctx.lineTo(box.x + box.w * 0.48, y + box.h * 0.28 + 3)
+  ctx.lineTo(box.x + box.w * 0.08, y + 3)
+  ctx.closePath()
+  ctx.fill()
+}
+
+function drawRoofClutter(ctx: CanvasRenderingContext2D, box: Box, height: number, zoom: number) {
+  drawPrism(
+    ctx,
+    box.x - box.w * 0.12,
+    box.y - height + box.h * 0.05,
+    box.w * 0.16,
+    box.h * 0.16,
+    5 * zoom,
+    '#c5ced4',
+    '#9aa6ae',
+    '#7d888f',
+  )
+  ctx.strokeStyle = '#8d98a1'
+  ctx.lineWidth = Math.max(1, zoom)
+  ctx.beginPath()
+  ctx.moveTo(box.x - box.w * 0.2, box.y - height + box.h * 0.15)
+  ctx.lineTo(box.x + box.w * 0.2, box.y - height + box.h * 0.35)
+  ctx.stroke()
 }
 
 function drawTank(ctx: CanvasRenderingContext2D, box: Box, height: number, zoom: number) {

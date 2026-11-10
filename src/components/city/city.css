@@ -194,6 +194,34 @@
   cursor: pointer;
 }
 
+.nick {
+  margin: 0;
+  color: var(--amber);
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+}
+
+.story {
+  margin: 2px 0 6px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.tease {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(132px + env(safe-area-inset-bottom));
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(22, 52, 60, 0.92);
+  border: 1px solid rgba(240, 163, 90, 0.45);
+  color: #f6f1e7;
+  font-size: 0.95rem;
+  pointer-events: none;
+}
+
 .coach {
   position: absolute;
   left: 12px;
@@ -501,7 +529,8 @@
     gap: 6px;
   }
 
-  .coach {
+  .coach,
+  .tease {
     left: 262px;
   }
 

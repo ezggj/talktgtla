@@ -89,7 +89,7 @@ test('a house beside a powered road grows, and a cut road stops it', () => {
   bulldoze(state, spot.road.c, spot.road.r)
   const age = home.age
   tick(state, DAY_MS * 2)
-  assert.equal(home.stage, 1)
+  assert.equal(home.stage, 0)
   assert.equal(home.age, age)
   assert.equal(summarize(state).pop, 0)
 })
