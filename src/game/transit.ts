@@ -94,7 +94,7 @@ function placeStations(): Station[] {
   const used = new Set<string>()
   const placed: Station[] = []
   for (const def of DEFS) {
-    const spot = nearestLand(def.lon, def.lat, 4)
+    const spot = nearestLand(def.lon, def.lat, 16)
     if (!spot) continue
     let { c, r } = spot
     if (used.has(`${c},${r}`)) {
@@ -198,6 +198,20 @@ export function transitFx(state: Pick<GameState, 'stations' | 'stops' | 'cells'>
       for (let dc = -3; dc <= 3; dc++) {
         if (Math.max(Math.abs(dc), Math.abs(dr)) > 3) continue
         tiles.add(cellKey(station.c + dc, station.r + dr))
+      }
+    }
+  }
+  for (const line of Object.keys(LINE_ORDER) as LineId[]) {
+    for (const [from, to] of segmentPairs([...linked], line)) {
+      const steps = Math.max(1, Math.max(Math.abs(to.c - from.c), Math.abs(to.r - from.r)))
+      for (let step = 0; step <= steps; step++) {
+        const c = Math.round(from.c + ((to.c - from.c) * step) / steps)
+        const r = Math.round(from.r + ((to.r - from.r) * step) / steps)
+        tiles.add(cellKey(c, r))
+        tiles.add(cellKey(c + 1, r))
+        tiles.add(cellKey(c - 1, r))
+        tiles.add(cellKey(c, r + 1))
+        tiles.add(cellKey(c, r - 1))
       }
     }
   }

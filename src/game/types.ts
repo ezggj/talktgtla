@@ -1,6 +1,6 @@
 /** Shared types and tuning for 我座城. Art, map, and rules are original. */
 
-export const MAP_SIZE = 120
+export const MAP_SIZE = 480
 export const DAY_MS = 20_000
 export const POWER_RANGE = 14
 export const START_MONEY = 6_000

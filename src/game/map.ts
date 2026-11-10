@@ -1,4 +1,5 @@
 import { coastAt, frameTerritory, harbourView, regionAt } from './hk-geo'
+import { defaultZoom, focusCamera } from './iso'
 import type { Terrain } from './types'
 
 /**
@@ -20,6 +21,14 @@ export function startFocus(): { c: number; r: number } {
 
 export function frameLand(viewW: number, viewH: number) {
   return frameTerritory(viewW, viewH)
+}
+
+/** Play starts on the harbour, close enough to read a street. Zoom out still reaches the whole coast. */
+export function framePlay(viewW: number, viewH: number) {
+  const focus = harbourView()
+  const cam = focusCamera(viewW, viewH, defaultZoom(viewW), focus.c, focus.r)
+  if (viewW >= 960) cam.x += Math.min(140, viewW * 0.07)
+  return cam
 }
 
 export function cellKey(c: number, r: number): string {

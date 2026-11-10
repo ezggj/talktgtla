@@ -1,4 +1,4 @@
-import { TILE_H, TILE_W, tileCenter, tileTop, type Cam } from './iso'
+import { TILE_H, TILE_W, screenToTile, tileCenter, tileTop, type Cam } from './iso'
 import { cellKey, terrainAt } from './map'
 import { hash2, mixHex } from './rng'
 import { sunAmount, type Summary } from './sim'
@@ -138,16 +138,43 @@ function drawSky(ctx: CanvasRenderingContext2D, w: number, h: number, sun: numbe
   }
 }
 
+function visibleTiles(cam: Cam, width: number, height: number, margin: number) {
+  const corners = [
+    screenToTile(-margin, -margin, cam),
+    screenToTile(width + margin, -margin, cam),
+    screenToTile(-margin, height + margin, cam),
+    screenToTile(width + margin, height + margin, cam),
+  ]
+  let minC = MAP_SIZE
+  let maxC = 0
+  let minR = MAP_SIZE
+  let maxR = 0
+  for (const corner of corners) {
+    minC = Math.min(minC, corner.c)
+    maxC = Math.max(maxC, corner.c)
+    minR = Math.min(minR, corner.r)
+    maxR = Math.max(maxR, corner.r)
+  }
+  return {
+    minC: Math.max(0, minC - 8),
+    maxC: Math.min(MAP_SIZE - 1, maxC + 8),
+    minR: Math.max(0, minR - 8),
+    maxR: Math.min(MAP_SIZE - 1, maxR + 8),
+  }
+}
+
 function drawWorld(ctx: CanvasRenderingContext2D, frame: Frame, pass: Pass) {
   const { cam, seed, width, height } = frame
   const margin = 180
   const occupied = new Map<string, Cell>()
   for (const cell of frame.cells) occupied.set(cellKey(cell.c, cell.r), cell)
 
-  for (let sum = 0; sum <= (MAP_SIZE - 1) * 2; sum++) {
-    for (let c = 0; c < MAP_SIZE; c++) {
+  const view = visibleTiles(cam, width, height, margin)
+  for (let sum = view.minC + view.minR; sum <= view.maxC + view.maxR; sum++) {
+    const c0 = Math.max(view.minC, sum - view.maxR)
+    const c1 = Math.min(view.maxC, sum - view.minR)
+    for (let c = c0; c <= c1; c++) {
       const r = sum - c
-      if (r < 0 || r >= MAP_SIZE) continue
       const top = tileTop(c, r, cam)
       if (top.x < -margin || top.x > width + margin || top.y < -margin || top.y > height + margin) continue
       const terrain = terrainAt(c, r, seed)
@@ -174,44 +201,60 @@ function drawGround(
   const h = TILE_H * cam.zoom
   if (terrain === 'water') {
     const wave = Math.sin(time / 680 + c * 0.65 + r * 0.4)
-    const deep = hash2(c, r, seed + 3) > 0.58
-    ctx.fillStyle = deep ? (wave > 0.2 ? '#2a6874' : '#1d5560') : wave > 0.15 ? '#3e8c98' : '#327c88'
+    const coastal =
+      terrainAt(c + 1, r, seed) !== 'water' ||
+      terrainAt(c - 1, r, seed) !== 'water' ||
+      terrainAt(c, r + 1, seed) !== 'water' ||
+      terrainAt(c, r - 1, seed) !== 'water'
+    const deep = hash2(c, r, seed + 3) > 0.62
+    ctx.fillStyle = coastal
+      ? wave > 0 ? '#4a9aaa' : '#3d8b9a'
+      : deep
+        ? wave > 0.2
+          ? '#1c4c58'
+          : '#163f4a'
+        : wave > 0.15
+          ? '#2f6f7c'
+          : '#265e6a'
     fillDiamond(ctx, top.x, top.y, w, h)
-    if (wave > 0.55) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.28)'
-      ctx.lineWidth = 1
-      strokeDiamond(ctx, top.x, top.y + 2, w * 0.55, h * 0.55)
+    if (!raining && cam.zoom > 0.35 && hash2(c, r, 17) > 0.78) {
+      const glint = 0.12 + ((Math.sin(time / 520 + c + r) + 1) / 2) * 0.28
+      ctx.save()
+      ctx.globalAlpha = glint
+      ctx.strokeStyle = '#e7f6f8'
+      ctx.lineWidth = Math.max(1, cam.zoom)
+      ctx.beginPath()
+      ctx.moveTo(top.x - w * 0.16, top.y + h * 0.42)
+      ctx.lineTo(top.x + w * 0.1, top.y + h * 0.48)
+      ctx.stroke()
+      ctx.restore()
     }
     return
   }
 
   ctx.fillStyle = groundColor(c, r, seed, terrain)
   fillDiamond(ctx, top.x, top.y, w, h)
-  if (terrain === 'parkland' && (c * 3 + r) % 4 === 0) {
-    const center = tileCenter(c, r, cam)
-    ctx.fillStyle = '#2f5a32'
-    ctx.beginPath()
-    ctx.ellipse(center.x, center.y - 4 * cam.zoom, 7 * cam.zoom, 4 * cam.zoom, 0, 0, Math.PI * 2)
-    ctx.fill()
+  if (terrain === 'parkland') {
+    ctx.fillStyle = 'rgba(18, 42, 16, 0.28)'
+    fillDiamond(ctx, top.x + w * 0.08, top.y + h * 0.2, w * 0.62, h * 0.5)
+    if ((c + r * 2) % 3 !== 0) drawTree(ctx, tileCenter(c, r, cam), cam.zoom * (0.7 + hash2(c, r, 4) * 0.6), '#2c6a3c')
+  } else if (terrain === 'land' && hash2(c, r, seed + 8) > 0.93) {
+    drawTree(ctx, tileCenter(c, r, cam), cam.zoom * 0.55, '#6a8f4e')
   }
-  ctx.strokeStyle = 'rgba(90, 70, 45, 0.18)'
-  ctx.lineWidth = 1
-  strokeDiamond(ctx, top.x, top.y, w, h)
-
   if (terrain === 'shore') {
-    ctx.strokeStyle = raining ? 'rgba(255,255,255,0.35)' : 'rgba(120, 96, 60, 0.35)'
-    ctx.lineWidth = Math.max(1, cam.zoom)
-    const y = top.y
+    ctx.strokeStyle = raining ? 'rgba(255,255,255,0.45)' : 'rgba(255, 248, 230, 0.55)'
+    ctx.lineWidth = Math.max(1.4, 2 * cam.zoom)
+    ctx.lineCap = 'round'
     if (terrainAt(c, r + 1, seed) === 'water') {
       ctx.beginPath()
-      ctx.moveTo(top.x - w / 2, y + h / 2)
-      ctx.lineTo(top.x, y + h)
+      ctx.moveTo(top.x - w / 2, top.y + h / 2)
+      ctx.lineTo(top.x, top.y + h)
       ctx.stroke()
     }
     if (terrainAt(c + 1, r, seed) === 'water') {
       ctx.beginPath()
-      ctx.moveTo(top.x + w / 2, y + h / 2)
-      ctx.lineTo(top.x, y + h)
+      ctx.moveTo(top.x + w / 2, top.y + h / 2)
+      ctx.lineTo(top.x, top.y + h)
       ctx.stroke()
     }
   }
@@ -250,22 +293,23 @@ function drawRoad(ctx: CanvasRenderingContext2D, cell: Cell, cam: Cam, frame: Fr
   const key = cellKey(cell.c, cell.r)
   const powered = frame.summary.poweredRoads.has(key)
   if (pass === 'glow') {
-    if (powered && sun < 0.72 && (cell.c * 3 + cell.r) % 5 === 0) {
+    if (powered && sun < 0.72 && (cell.c + cell.r) % 3 === 0) {
       const center = tileCenter(cell.c, cell.r, cam)
-      glow(ctx, center.x, center.y - 14 * cam.zoom, 28 * cam.zoom, 'rgba(255, 214, 150, 0.95)')
+      glow(ctx, center.x, center.y - 16 * cam.zoom, 34 * cam.zoom, 'rgba(255, 214, 150, 0.95)')
     }
     return
   }
-  ctx.fillStyle = frame.raining ? '#3a424a' : '#4a525b'
+  ctx.fillStyle = '#d9d0bc'
   fillDiamond(ctx, top.x, top.y, w, h)
-  ctx.strokeStyle = 'rgba(255,255,255,0.14)'
-  ctx.lineWidth = 1
-  strokeDiamond(ctx, top.x, top.y, w, h)
-  ctx.strokeStyle = powered ? '#f3ead4' : '#d9d0bc'
-  ctx.lineWidth = Math.max(1, 1.4 * cam.zoom)
-  ctx.lineCap = 'round'
-  ctx.beginPath()
+  ctx.fillStyle = frame.raining ? '#3a424a' : '#4a525b'
+  fillDiamond(ctx, top.x, top.y + h * 0.08, w * 0.78, h * 0.72)
   const here = tileCenter(cell.c, cell.r, cam)
+  ctx.strokeStyle = powered ? '#f4efe4' : '#c9c2b2'
+  ctx.lineWidth = Math.max(1, 1.2 * cam.zoom)
+  ctx.lineCap = 'round'
+  ctx.setLineDash([4 * cam.zoom, 4 * cam.zoom])
+  ctx.beginPath()
+  let linked = 0
   for (const [dc, dr] of [
     [1, 0],
     [-1, 0],
@@ -274,15 +318,21 @@ function drawRoad(ctx: CanvasRenderingContext2D, cell: Cell, cam: Cam, frame: Fr
   ] as const) {
     const neighbor = frame.cells.find((other) => other.kind === 'road' && other.c === cell.c + dc && other.r === cell.r + dr)
     if (!neighbor) continue
+    linked += 1
     const there = tileCenter(neighbor.c, neighbor.r, cam)
     ctx.moveTo(here.x, here.y)
     ctx.lineTo((here.x + there.x) / 2, (here.y + there.y) / 2)
   }
   ctx.stroke()
-  if (!hasRoadNeighbor(frame.cells, cell.c, cell.r)) {
+  ctx.setLineDash([])
+  if (linked && (cell.c + cell.r) % 4 === 0) {
+    ctx.strokeStyle = 'rgba(246, 241, 231, 0.8)'
+    ctx.lineWidth = Math.max(1, 1.6 * cam.zoom)
     ctx.beginPath()
-    ctx.moveTo(here.x - 4 * cam.zoom, here.y)
-    ctx.lineTo(here.x + 4 * cam.zoom, here.y)
+    ctx.moveTo(here.x - 5 * cam.zoom, here.y - 2 * cam.zoom)
+    ctx.lineTo(here.x + 5 * cam.zoom, here.y + 2 * cam.zoom)
+    ctx.moveTo(here.x - 5 * cam.zoom, here.y + 1 * cam.zoom)
+    ctx.lineTo(here.x + 5 * cam.zoom, here.y + 5 * cam.zoom)
     ctx.stroke()
   }
 }
@@ -299,8 +349,9 @@ function drawHome(
   const slab = cell.stage >= 3
   const inset = slab ? 0.06 : 0.12
   const box = footprint(cell.c, cell.r, cam, inset, lift)
-  const floors = cell.stage === 1 ? 3 : cell.stage === 2 ? 5 : 7
-  const height = floors * 13 * cam.zoom
+  const variety = hash2(cell.c, cell.r, seed + 2)
+  const floors = cell.stage === 1 ? 4 + (variety > 0.66 ? 1 : 0) : cell.stage === 2 ? 7 + (variety > 0.5 ? 2 : 0) : 11
+  const height = floors * 11 * cam.zoom
   const wall = slab
     ? { top: '#e6e4de', left: '#d4d2cb', right: '#b7b5ae' }
     : WALLS[Math.floor(hash2(cell.c, cell.r, seed) * WALLS.length) % WALLS.length]
@@ -309,6 +360,7 @@ function drawHome(
     drawPrism(ctx, box.x, box.y, box.w, box.h, height, wall.top, wall.left, wall.right)
     paintWindows(ctx, box, height, floors, slab ? 3 : 2, cell, seed, 'solid', sun)
     if (!slab && cell.stage >= 1) drawAcAndLaundry(ctx, box, height, cell, cam.zoom)
+    if (cell.stage >= 2) drawTank(ctx, box, height, cam.zoom)
     if (slab) drawPodium(ctx, box, cam.zoom)
   } else if (sun < 0.78) {
     paintWindows(ctx, box, height, floors, slab ? 3 : 2, cell, seed, 'glow', sun)
@@ -331,6 +383,7 @@ function drawShop(
     shadow(ctx, cell.c, cell.r, cam, lift)
     drawPrism(ctx, box.x, box.y, box.w, box.h, height, '#f3ece2', '#e4d5c6', '#cbb8a6')
     drawAwning(ctx, box, height, awning)
+    drawShopDoor(ctx, box, height, cam.zoom)
     if (cell.stage >= 2) drawSign(ctx, box, height, awning, cam.zoom, false)
     paintWindows(ctx, box, height, cell.stage >= 3 ? 2 : 1, 2, cell, seed, 'solid', sun)
   } else if (sun < 0.8) {
@@ -768,23 +821,46 @@ function glow(ctx: CanvasRenderingContext2D, x: number, y: number, radius: numbe
 }
 
 function groundColor(c: number, r: number, seed: number, terrain: 'shore' | 'land' | 'slope' | 'water' | 'parkland') {
-  const n = hash2(c, r, seed)
-  if (terrain === 'parkland') return n > 0.5 ? '#4f7d3c' : '#3e6830'
-  if (terrain === 'shore') return n > 0.5 ? '#e7d3aa' : '#dcc7a0'
-  if (terrain === 'slope') return n > 0.5 ? '#c6b88a' : '#d2c29a'
-  if (n > 0.92) return '#c5d09a'
-  return n > 0.45 ? '#e0d0ae' : '#d4c4a0'
+  const n = hash2(Math.floor(c / 2), Math.floor(r / 2), seed + 9)
+  const speck = hash2(c, r, seed)
+  if (terrain === 'parkland') return n > 0.55 ? '#3f7a3a' : '#2f6230'
+  if (terrain === 'shore') return speck > 0.5 ? '#ead7ae' : '#dcc49a'
+  if (terrain === 'slope') return n > 0.5 ? '#b7a67a' : '#c8b88c'
+  if (n > 0.82) return speck > 0.5 ? '#c9d4a4' : '#d5c7a4'
+  return n > 0.4 ? '#e4d4b2' : '#d8c6a6'
 }
 
-function hasRoadNeighbor(cells: Cell[], c: number, r: number) {
-  return cells.some(
-    (other) =>
-      other.kind === 'road' &&
-      ((other.c === c + 1 && other.r === r) ||
-        (other.c === c - 1 && other.r === r) ||
-        (other.c === c && other.r === r + 1) ||
-        (other.c === c && other.r === r - 1)),
+function drawTree(ctx: CanvasRenderingContext2D, center: { x: number; y: number }, size: number, leaf: string) {
+  ctx.fillStyle = '#5c4030'
+  ctx.fillRect(center.x - size * 0.12, center.y - size * 0.2, size * 0.24, size * 0.7)
+  ctx.fillStyle = leaf
+  ctx.beginPath()
+  ctx.ellipse(center.x, center.y - size * 0.55, size * 0.7, size * 0.42, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = 'rgba(255,255,255,0.18)'
+  ctx.beginPath()
+  ctx.ellipse(center.x - size * 0.15, center.y - size * 0.7, size * 0.32, size * 0.18, 0, 0, Math.PI * 2)
+  ctx.fill()
+}
+
+function drawTank(ctx: CanvasRenderingContext2D, box: Box, height: number, zoom: number) {
+  drawPrism(
+    ctx,
+    box.x + box.w * 0.16,
+    box.y - height + box.h * 0.08,
+    box.w * 0.22,
+    box.h * 0.22,
+    7 * zoom,
+    '#d7dee4',
+    '#b4bec6',
+    '#8d98a1',
   )
+}
+
+function drawShopDoor(ctx: CanvasRenderingContext2D, box: Box, height: number, zoom: number) {
+  const door = wallPoint(box.x, box.y, box.w, box.h, height, 'right', 0.62, 0.08)
+  ctx.fillStyle = '#3a342e'
+  ctx.fillRect(door.x - 2.2 * zoom, door.y - 7 * zoom, 4 * zoom, 7 * zoom)
 }
 
 function hexAlpha(hex: string, alpha: number) {
@@ -926,9 +1002,17 @@ function drawDistrictLabels(ctx: CanvasRenderingContext2D, frame: Frame) {
   ctx.lineWidth = 4
   ctx.strokeStyle = 'rgba(255,248,238,0.92)'
   ctx.fillStyle = '#1c140c'
+  const taken: { x: number; y: number }[] = []
+  for (const station of STATIONS) {
+    const p = tileCenter(station.c, station.r, frame.cam)
+    taken.push(p)
+  }
   for (const district of DISTRICTS) {
     const p = tileCenter(district.c, district.r, frame.cam)
     if (p.x < -40 || p.y < -20 || p.x > frame.width + 40 || p.y > frame.height + 20) continue
+    if (taken.some((spot) => Math.hypot(spot.x - p.x, spot.y - p.y) < 28)) continue
+    if (taken.some((spot) => Math.hypot(spot.x - p.x, spot.y - (p.y - 14 * frame.cam.zoom)) < 22)) continue
+    taken.push(p)
     ctx.strokeText(district.name, p.x, p.y - 14 * frame.cam.zoom)
     ctx.fillText(district.name, p.x, p.y - 14 * frame.cam.zoom)
   }
@@ -937,7 +1021,7 @@ function drawDistrictLabels(ctx: CanvasRenderingContext2D, frame: Frame) {
 
 function drawLife(ctx: CanvasRenderingContext2D, frame: Frame, sun: number) {
   const { cam, summary } = frame
-  const scale = Math.max(cam.zoom, 0.72)
+  const scale = Math.max(cam.zoom, 1)
   ctx.save()
   if (summary.event === 'newyear') drawShopCrowds(ctx, frame, scale)
   if (summary.event === 'autumn') drawParkLanterns(ctx, frame, scale)
@@ -972,16 +1056,24 @@ function drawLife(ctx: CanvasRenderingContext2D, frame: Frame, sun: number) {
 }
 
 function drawPerson(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, color: string, time: number) {
-  const bob = Math.sin(time / 90 + x) * 0.8 * s
+  const step = Math.sin(time / 90 + x) * 1.4 * s
   ctx.fillStyle = 'rgba(28, 22, 16, 0.28)'
   ctx.beginPath()
-  ctx.ellipse(x, y + 2 * s, 3.2 * s, 1.4 * s, 0, 0, Math.PI * 2)
+  ctx.ellipse(x, y + 2 * s, 3.4 * s, 1.5 * s, 0, 0, Math.PI * 2)
   ctx.fill()
+  ctx.strokeStyle = '#3a322c'
+  ctx.lineWidth = Math.max(1.4, 1.6 * s)
+  ctx.beginPath()
+  ctx.moveTo(x - 1.2 * s, y - 1 * s)
+  ctx.lineTo(x - 2.2 * s, y + 3 * s + step)
+  ctx.moveTo(x + 1.2 * s, y - 1 * s)
+  ctx.lineTo(x + 2.2 * s, y + 3 * s - step)
+  ctx.stroke()
   ctx.fillStyle = color
-  ctx.fillRect(x - 2.2 * s, y - 7 * s + bob, 4.4 * s, 7 * s)
+  ctx.fillRect(x - 2.4 * s, y - 8 * s, 4.8 * s, 7 * s)
   ctx.fillStyle = '#f0d0b4'
   ctx.beginPath()
-  ctx.arc(x, y - 8.6 * s + bob, 2.1 * s, 0, Math.PI * 2)
+  ctx.arc(x, y - 9.4 * s, 2.3 * s, 0, Math.PI * 2)
   ctx.fill()
 }
 
@@ -994,51 +1086,69 @@ function drawBus(
   s: number,
   stalled: boolean,
 ) {
-  const w = 18 * s
-  const h = 8 * s
+  const w = 22 * s
+  const h = 13 * s
   ctx.save()
-  ctx.translate(x, y - 6 * s)
+  ctx.translate(x, y - 8 * s)
   if (Math.abs(dx) + Math.abs(dy) > 0.5 && dx < 0) ctx.scale(-1, 1)
-  ctx.fillStyle = '#f4efe4'
-  ctx.fillRect(-w / 2, -h, w, h)
-  ctx.fillStyle = '#e7d7b8'
-  ctx.fillRect(-w / 2, -h * 0.55, w, h * 0.45)
-  ctx.fillStyle = '#e07a32'
-  ctx.fillRect(-w / 2, -h * 0.62, w, 1.4 * s)
-  ctx.fillStyle = '#243038'
-  for (let i = 0; i < 3; i++) ctx.fillRect(-w / 2 + 2 * s + i * 5 * s, -h + 1.2 * s, 3 * s, 2.2 * s)
-  ctx.fillStyle = stalled ? '#c4473a' : '#f0a35a'
+  ctx.fillStyle = 'rgba(20,16,12,0.25)'
   ctx.beginPath()
-  ctx.arc(w / 2 - 1.5 * s, -h * 0.3, 1.3 * s, 0, Math.PI * 2)
+  ctx.ellipse(0, h * 0.55, w * 0.42, 2 * s, 0, 0, Math.PI * 2)
   ctx.fill()
+  ctx.fillStyle = '#f6f1e6'
+  ctx.beginPath()
+  ctx.roundRect(-w / 2, -h, w, h, 2 * s)
+  ctx.fill()
+  ctx.fillStyle = '#2a3338'
+  ctx.fillRect(-w / 2 + 1.5 * s, -h + 1.4 * s, w - 5 * s, 3.2 * s)
+  ctx.fillRect(-w / 2 + 1.5 * s, -h * 0.48, w - 5 * s, 2.6 * s)
+  ctx.fillStyle = '#e07a32'
+  ctx.fillRect(-w / 2, -h * 0.58, w, 1.5 * s)
+  ctx.fillStyle = '#1c2226'
+  ctx.beginPath()
+  ctx.arc(-w * 0.28, -0.4 * s, 1.8 * s, 0, Math.PI * 2)
+  ctx.arc(w * 0.22, -0.4 * s, 1.8 * s, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = stalled ? '#c4473a' : '#f0a35a'
+  ctx.fillRect(w / 2 - 2 * s, -h * 0.35, 2 * s, 2 * s)
   ctx.restore()
 }
 
 function drawTram(ctx: CanvasRenderingContext2D, x: number, y: number, dx: number, s: number) {
-  const w = 16 * s
+  const w = 24 * s
   ctx.save()
-  ctx.translate(x, y - 5 * s)
+  ctx.translate(x, y - 6 * s)
   if (dx < 0) ctx.scale(-1, 1)
+  ctx.strokeStyle = '#6b4a32'
+  ctx.lineWidth = Math.max(1, s)
+  ctx.beginPath()
+  ctx.moveTo(-2 * s, -8 * s)
+  ctx.lineTo(-2 * s, -4 * s)
+  ctx.stroke()
   ctx.fillStyle = '#f7f3ea'
-  ctx.fillRect(-w / 2, -5 * s, w, 5 * s)
+  ctx.beginPath()
+  ctx.roundRect(-w / 2, -5.5 * s, w, 6 * s, 1.5 * s)
+  ctx.fill()
   ctx.fillStyle = '#6b4a32'
-  ctx.fillRect(-w / 2, -5.6 * s, w, 1.3 * s)
+  ctx.fillRect(-w / 2, -6.2 * s, w, 1.4 * s)
   ctx.fillStyle = '#243038'
-  ctx.fillRect(-w / 2 + 2 * s, -4 * s, w - 4 * s, 1.6 * s)
+  ctx.fillRect(-w / 2 + 2 * s, -4.2 * s, w - 4 * s, 2 * s)
   ctx.restore()
 }
 
 function drawTrain(ctx: CanvasRenderingContext2D, x: number, y: number, dx: number, s: number, color: string) {
-  const w = 18 * s
+  const w = 26 * s
   ctx.save()
-  ctx.translate(x, y - 8 * s)
+  ctx.translate(x, y - 9 * s)
   if (dx < 0) ctx.scale(-1, 1)
   ctx.fillStyle = color
   ctx.beginPath()
-  ctx.roundRect(-w / 2, -5 * s, w, 5.2 * s, 2 * s)
+  ctx.roundRect(-w / 2, -6 * s, w, 6.4 * s, 2.2 * s)
   ctx.fill()
   ctx.fillStyle = '#f6f1e7'
-  ctx.fillRect(-w / 2 + 2 * s, -3.6 * s, w - 5 * s, 1.8 * s)
+  for (let i = 0; i < 3; i++) ctx.fillRect(-w / 2 + 2.2 * s + i * 7 * s, -4.4 * s, 4.2 * s, 2.2 * s)
+  ctx.fillStyle = '#1c140c'
+  ctx.fillRect(-1 * s, -6 * s, 2 * s, 6.4 * s)
   ctx.restore()
 }
 
@@ -1051,22 +1161,28 @@ function drawFerry(
   s: number,
   color: string,
 ) {
-  const len = 16 * s
+  const len = 22 * s
   ctx.save()
   ctx.translate(x, y)
   const angle = Math.atan2(dy, dx)
   if (Math.abs(dx) + Math.abs(dy) > 0.5) ctx.rotate(angle)
+  ctx.fillStyle = 'rgba(10, 20, 28, 0.25)'
+  ctx.beginPath()
+  ctx.ellipse(0, 3 * s, len * 0.55, 3 * s, 0, 0, Math.PI * 2)
+  ctx.fill()
   ctx.fillStyle = color
   ctx.beginPath()
-  ctx.moveTo(len * 0.65, 0)
-  ctx.lineTo(-len * 0.45, -4.2 * s)
-  ctx.lineTo(-len * 0.45, 4.2 * s)
+  ctx.moveTo(len * 0.7, 0)
+  ctx.lineTo(-len * 0.48, -5.4 * s)
+  ctx.lineTo(-len * 0.36, -3 * s)
+  ctx.lineTo(-len * 0.36, 3 * s)
+  ctx.lineTo(-len * 0.48, 5.4 * s)
   ctx.closePath()
   ctx.fill()
   ctx.fillStyle = '#243038'
-  ctx.fillRect(-len * 0.15, -2.4 * s, 6 * s, 4.8 * s)
+  ctx.fillRect(-len * 0.12, -3.2 * s, 8 * s, 6.4 * s)
   ctx.fillStyle = '#f0a35a'
-  ctx.fillRect(len * 0.35, -0.8 * s, 2 * s, 1.6 * s)
+  ctx.fillRect(len * 0.28, -1.1 * s, 2.4 * s, 2.2 * s)
   ctx.restore()
 }
 

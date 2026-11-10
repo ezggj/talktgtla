@@ -2,13 +2,15 @@ import type { Cam } from './iso'
 import { terrainAt } from './map'
 import { MAP_SIZE, type BuildKind, type BusStop, type Cell, type GameState, isBuildKind } from './types'
 
-export const SAVE_KEY = 'ngo-zo-sing:v3'
-const PREVIOUS_KEY = 'ngo-zo-sing:v2'
+export const SAVE_KEY = 'ngo-zo-sing:v4'
+const COMPACT_KEYS = ['ngo-zo-sing:v3', 'ngo-zo-sing:v2']
 const LEGACY_KEY = 'ngo-zo-sing:v1'
 
 export interface SaveFile {
-  v: 2 | 3
+  v: 4
   map: 'hk'
+  /** Wide grid. Compact v2/v3 cities do not line up with these tiles. */
+  grid: 'wide'
   seed: number
   day: number
   money: number
@@ -28,8 +30,9 @@ export interface SaveFile {
 
 export function serialize(state: GameState, cam: Cam): SaveFile {
   return {
-    v: 3,
+    v: 4,
     map: 'hk',
+    grid: 'wide',
     seed: state.seed,
     day: state.day,
     money: state.money,
@@ -57,7 +60,7 @@ export function serialize(state: GameState, cam: Cam): SaveFile {
 export function parseSave(raw: unknown): { state: GameState; cam: Cam } | null {
   if (!raw || typeof raw !== 'object') return null
   const data = raw as Partial<SaveFile>
-  if ((data.v !== 2 && data.v !== 3) || data.map !== 'hk') return null
+  if (data.v !== 4 || data.map !== 'hk' || data.grid !== 'wide') return null
   if (!isFiniteNumber(data.seed) || !isFiniteNumber(data.day) || !isFiniteNumber(data.money)) return null
   if (!data.cam || !isFiniteNumber(data.cam.x) || !isFiniteNumber(data.cam.y) || !isFiniteNumber(data.cam.zoom)) {
     return null
@@ -135,14 +138,16 @@ function cleanStops(value: unknown): BusStop[] {
   return stops
 }
 
+/** v1 square grids and v2/v3 compact Hong Kong saves do not match the wide tiles. */
+export function rejectedSaveKeys(): readonly string[] {
+  return [LEGACY_KEY, ...COMPACT_KEYS]
+}
+
 export function readSave(): { state: GameState; cam: Cam } | null {
   if (typeof localStorage === 'undefined') return null
   try {
-    const text = localStorage.getItem(SAVE_KEY) ?? localStorage.getItem(PREVIOUS_KEY)
-    if (!text) {
-      if (localStorage.getItem(LEGACY_KEY)) return null
-      return null
-    }
+    const text = localStorage.getItem(SAVE_KEY)
+    if (!text) return null
     return parseSave(JSON.parse(text) as unknown)
   } catch {
     return null

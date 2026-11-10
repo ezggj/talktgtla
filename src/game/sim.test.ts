@@ -4,7 +4,7 @@ import { createDemo } from './demo'
 import { terrainAt } from './map'
 import { parseSave, serialize } from './save'
 import { bulldoze, coach, DAY_MS, newGame, place, summarize, takeMilestones, tick, tileHint } from './sim'
-import { COST, START_MONEY } from './types'
+import { COST, MAP_SIZE, START_MONEY } from './types'
 
 function dry(seed: number, c: number, r: number) {
   const ground = terrainAt(c, r, seed)
@@ -12,8 +12,8 @@ function dry(seed: number, c: number, r: number) {
 }
 
 function findSpine(seed: number) {
-  for (let r = 2; r < 110; r++) {
-    for (let c = 2; c < 110; c++) {
+  for (let r = 2; r < MAP_SIZE - 2; r++) {
+    for (let c = 2; c < MAP_SIZE - 2; c++) {
       const power = { c, r: r + 1 }
       const home = { c: c + 1, r }
       const shop = { c: c - 1, r }
@@ -133,8 +133,8 @@ test('broke stalls construction', () => {
 test('a country park refuses a road', () => {
   const state = newGame(11, true)
   let blocked = false
-  for (let r = 0; r < 120 && !blocked; r++) {
-    for (let c = 0; c < 120 && !blocked; c++) {
+  for (let r = 0; r < MAP_SIZE && !blocked; r++) {
+    for (let c = 0; c < MAP_SIZE && !blocked; c++) {
       if (terrainAt(c, r, 11) !== 'parkland') continue
       const result = place(state, 'road', c, r)
       assert.equal(result.ok, false)
@@ -179,8 +179,8 @@ test('a new city explains the first move, then a refused tile says why', () => {
   assert.equal(takeMilestones(state, summary).length, 0)
   let sea: { c: number; r: number } | null = null
   let hill: { c: number; r: number } | null = null
-  for (let r = 0; r < 120 && (!sea || !hill); r++) {
-    for (let c = 0; c < 120 && (!sea || !hill); c++) {
+  for (let r = 0; r < MAP_SIZE && (!sea || !hill); r++) {
+    for (let c = 0; c < MAP_SIZE && (!sea || !hill); c++) {
       const ground = terrainAt(c, r, 7)
       if (!sea && ground === 'water') sea = { c, r }
       if (!hill && ground === 'parkland') hill = { c, r }

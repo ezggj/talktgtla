@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { TOOLS, demandLine, formatMoney, formatSigned } from '@/game/copy'
 import { createDemo } from '@/game/demo'
 import { clampZoom, screenToTile, type Cam } from '@/game/iso'
-import { frameLand, terrainAt } from '@/game/map'
+import { frameLand, framePlay, terrainAt } from '@/game/map'
 import { renderFrame, type Ghost } from '@/game/render'
 import { clearSave, readSave, writeSave } from '@/game/save'
 import {
@@ -599,7 +599,7 @@ export function CityApp() {
     playActors.current = []
     clearSave()
     const view = viewRef.current
-    camRef.current = frameLand(view.w || 800, view.h || 600)
+    camRef.current = framePlay(view.w || 800, view.h || 600)
     userMoved.current = false
     modeRef.current = 'play'
     hudNow.current = true
@@ -640,7 +640,7 @@ export function CityApp() {
     const state = stateRef.current
     const view = viewRef.current
     if (!state || !view.w) return
-    camRef.current = frameLand(view.w, view.h)
+    camRef.current = framePlay(view.w, view.h)
     userMoved.current = false
   }
 
@@ -804,7 +804,6 @@ export function CityApp() {
                 <li key={line}>{line}</li>
               ))}
             </ul>
-            <p className="when">維港 · 香港島 · 九龍 · 新界。撳港鐵先見到站名。</p>
             <div className="side-actions">
               <button className="mini" type="button" onClick={togglePause}>
                 {hud.paused ? '行住' : '暫停'}
@@ -874,6 +873,7 @@ export function CityApp() {
                   setTool(item.id)
                 }}
               >
+                <ToolMark id={item.id} />
                 {item.label}
                 <small>{toolPrice(item.id)}</small>
               </button>
@@ -942,6 +942,89 @@ export function CityApp() {
         </div>
       ) : null}
     </div>
+  )
+}
+
+function ToolMark({ id }: { id: Tool | 'paint' | 'fast' }) {
+  const common = { width: 18, height: 18, viewBox: '0 0 18 18', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6 }
+  if (id === 'road') {
+    return (
+      <svg {...common}>
+        <path d="M3 9h12M9 3v12" />
+      </svg>
+    )
+  }
+  if (id === 'home') {
+    return (
+      <svg {...common}>
+        <path d="M3 8.5 9 3l6 5.5V15H3z" />
+      </svg>
+    )
+  }
+  if (id === 'shop') {
+    return (
+      <svg {...common}>
+        <path d="M3 8h12l-1.2 3H4.2zM4 11v5h10v-5" />
+      </svg>
+    )
+  }
+  if (id === 'factory') {
+    return (
+      <svg {...common}>
+        <path d="M3 15V8l4 2V8l4 2V7h4v8z" />
+      </svg>
+    )
+  }
+  if (id === 'park') {
+    return (
+      <svg {...common}>
+        <circle cx="9" cy="7" r="3.2" />
+        <path d="M9 10v5" />
+      </svg>
+    )
+  }
+  if (id === 'power') {
+    return (
+      <svg {...common}>
+        <path d="M8 2.5 4.5 10H8l-1 5.5L13.5 8H9.5z" />
+      </svg>
+    )
+  }
+  if (id === 'mtr') {
+    return (
+      <svg {...common}>
+        <rect x="3" y="5" width="12" height="7" rx="2" />
+        <path d="M6 12v2M12 12v2" />
+      </svg>
+    )
+  }
+  if (id === 'bus') {
+    return (
+      <svg {...common}>
+        <rect x="3" y="3" width="12" height="10" rx="2" />
+        <path d="M3 8h12" />
+      </svg>
+    )
+  }
+  if (id === 'ferry') {
+    return (
+      <svg {...common}>
+        <path d="M3 11h12l-1.5 3h-9zM9 4v7" />
+      </svg>
+    )
+  }
+  if (id === 'tram') {
+    return (
+      <svg {...common}>
+        <rect x="2" y="7" width="14" height="5" rx="1" />
+        <path d="M9 3v4" />
+      </svg>
+    )
+  }
+  return (
+    <svg {...common}>
+      <path d="M4 4l10 10M14 4 4 14" />
+    </svg>
   )
 }
 

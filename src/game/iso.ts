@@ -56,5 +56,5 @@ export function mapCenterFocus(): { c: number; r: number } {
 }
 
 export function clampZoom(zoom: number): number {
-  return Math.min(1.85, Math.max(0.16, zoom))
+  return Math.min(1.85, Math.max(0.05, zoom))
 }

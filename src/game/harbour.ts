@@ -69,8 +69,8 @@ function snapPiers(defs: PierDef[]): Pier[] {
     let best: { c: number; r: number } | null = null
     let bestD = Infinity
     if (origin) {
-      for (let dr = -7; dr <= 7; dr++) {
-        for (let dc = -7; dc <= 7; dc++) {
+      for (let dr = -24; dr <= 24; dr++) {
+        for (let dc = -24; dc <= 24; dc++) {
           const c = origin.c + dc
           const r = origin.r + dr
           const ground = coastAt(c, r)
@@ -87,7 +87,7 @@ function snapPiers(defs: PierDef[]): Pier[] {
       }
     }
     if (!best) {
-      const spot = nearestLand(def.lon, def.lat, 5)
+      const spot = nearestLand(def.lon, def.lat, 18)
       if (!spot || used.has(`${spot.c},${spot.r}`)) continue
       best = spot
     }
