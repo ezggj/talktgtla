@@ -1,4 +1,4 @@
-import { nearestLand } from './hk-geo'
+import { coastAt, nearestLand, projectCell } from './hk-geo'
 import { cellKey } from './map'
 import type { GameState } from './types'
 import type { TyphoonSignal } from './weather'
@@ -54,6 +54,49 @@ const TRAM_DEFS: PierDef[] = [
   { id: 't-skw', name: '筲箕灣', lon: 114.228, lat: 22.28 },
 ]
 
+const PIER_SIDE: Record<string, 'south' | 'north'> = {
+  central: 'south',
+  tst: 'north',
+}
+
+/** Put the Star Ferry piers on opposite shores so the boat actually crosses. */
+function snapPiers(defs: PierDef[]): Pier[] {
+  const used = new Set<string>()
+  const out: Pier[] = []
+  for (const def of defs) {
+    const origin = projectCell(def.lon, def.lat)
+    const side = PIER_SIDE[def.id]
+    let best: { c: number; r: number } | null = null
+    let bestD = Infinity
+    if (origin) {
+      for (let dr = -7; dr <= 7; dr++) {
+        for (let dc = -7; dc <= 7; dc++) {
+          const c = origin.c + dc
+          const r = origin.r + dr
+          const ground = coastAt(c, r)
+          if (ground === 'water' || ground === 'parkland' || ground === 'slope') continue
+          if (used.has(`${c},${r}`)) continue
+          if (side === 'south' && r < origin.r + 1) continue
+          if (side === 'north' && r > origin.r) continue
+          const d = dc * dc + dr * dr
+          if (d < bestD) {
+            bestD = d
+            best = { c, r }
+          }
+        }
+      }
+    }
+    if (!best) {
+      const spot = nearestLand(def.lon, def.lat, 5)
+      if (!spot || used.has(`${spot.c},${spot.r}`)) continue
+      best = spot
+    }
+    used.add(`${best.c},${best.r}`)
+    out.push({ id: def.id, name: def.name, c: best.c, r: best.r })
+  }
+  return out
+}
+
 function snap(defs: PierDef[]): Pier[] {
   const used = new Set<string>()
   const out: Pier[] = []
@@ -81,7 +124,7 @@ function snap(defs: PierDef[]): Pier[] {
   return out
 }
 
-export const PIERS: Pier[] = snap(PIER_DEFS)
+export const PIERS: Pier[] = snapPiers(PIER_DEFS)
 export const TRAM_STOPS: TramStop[] = snap(TRAM_DEFS)
 
 const PIER_BY = new Map(PIERS.map((pier) => [pier.id, pier]))

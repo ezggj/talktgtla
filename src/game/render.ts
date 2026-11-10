@@ -7,7 +7,7 @@ import { PIERS, TRAM_STOPS, runningFerries, runningTramPairs } from './harbour'
 import { LINE_COLOR, STATIONS, segmentPairs, type LineId } from './transit'
 import type { TyphoonSignal } from './weather'
 import { MAP_SIZE, type BusStop, type Cell, type Tool } from './types'
-import type { Walker } from './walkers'
+import type { Actor } from './traffic'
 
 export interface Ghost {
   c: number
@@ -27,7 +27,7 @@ export interface Frame {
   cam: Cam
   time: number
   summary: Summary
-  walkers: Walker[]
+  actors: Actor[]
   ghost: Ghost | null
   raining: boolean
   builtStations: string[]
@@ -72,6 +72,7 @@ export function renderFrame(frame: Frame) {
   drawStationLabels(ctx, frame)
   drawHarbourCraft(ctx, frame)
   drawDistrictLabels(ctx, frame)
+  drawLife(ctx, frame, sun)
   if (raining) drawRain(ctx, width, height, time, sun, frame.signal)
   if (frame.ghost) drawGhost(ctx, frame)
 }
@@ -140,17 +141,6 @@ function drawSky(ctx: CanvasRenderingContext2D, w: number, h: number, sun: numbe
 function drawWorld(ctx: CanvasRenderingContext2D, frame: Frame, pass: Pass) {
   const { cam, seed, width, height } = frame
   const margin = 180
-  const walkersAt = new Map<string, Walker[]>()
-  if (pass === 'solid') {
-    for (const walker of frame.walkers) {
-      const c = walker.t < 0.5 ? walker.c : walker.nc
-      const r = walker.t < 0.5 ? walker.r : walker.nr
-      const key = cellKey(c, r)
-      const list = walkersAt.get(key)
-      if (list) list.push(walker)
-      else walkersAt.set(key, [walker])
-    }
-  }
   const occupied = new Map<string, Cell>()
   for (const cell of frame.cells) occupied.set(cellKey(cell.c, cell.r), cell)
 
@@ -165,10 +155,6 @@ function drawWorld(ctx: CanvasRenderingContext2D, frame: Frame, pass: Pass) {
       const cell = occupied.get(cellKey(c, r))
       if (cell) drawCell(ctx, cell, cam, seed, frame, pass)
       else if (pass === 'solid' && terrain === 'water') drawBoat(ctx, c, r, cam, seed, frame.time)
-      if (pass === 'solid') {
-        const people = walkersAt.get(cellKey(c, r))
-        if (people) for (const walker of people) drawWalker(ctx, walker, cam)
-      }
     }
   }
 }
@@ -529,41 +515,6 @@ function drawBoat(ctx: CanvasRenderingContext2D, c: number, r: number, cam: Cam,
   ctx.stroke()
 }
 
-function drawWalker(ctx: CanvasRenderingContext2D, walker: Walker, cam: Cam) {
-  const a = tileCenter(walker.c, walker.r, cam)
-  const b = tileCenter(walker.nc, walker.nr, cam)
-  const x = a.x + (b.x - a.x) * walker.t
-  const y = a.y + (b.y - a.y) * walker.t - 2 * cam.zoom
-  if (walker.kind === 'van') {
-    const w = 16 * cam.zoom
-    const h = 8 * cam.zoom
-    drawPrism(ctx, x, y - h, w, h, 6 * cam.zoom, '#f7f3ea', '#ece4d6', '#ddd2c2')
-    ctx.fillStyle = '#c4473a'
-    const p1 = wallPoint(x, y - h, w, h, 6 * cam.zoom, 'right', 0.1, 0.35)
-    const p2 = wallPoint(x, y - h, w, h, 6 * cam.zoom, 'right', 0.9, 0.35)
-    const p3 = wallPoint(x, y - h, w, h, 6 * cam.zoom, 'right', 0.9, 0.55)
-    const p4 = wallPoint(x, y - h, w, h, 6 * cam.zoom, 'right', 0.1, 0.55)
-    ctx.beginPath()
-    ctx.moveTo(p1.x, p1.y)
-    ctx.lineTo(p2.x, p2.y)
-    ctx.lineTo(p3.x, p3.y)
-    ctx.lineTo(p4.x, p4.y)
-    ctx.closePath()
-    ctx.fill()
-    return
-  }
-  ctx.fillStyle = 'rgba(40, 30, 20, 0.28)'
-  ctx.beginPath()
-  ctx.ellipse(x, y + 2 * cam.zoom, 3 * cam.zoom, 1.5 * cam.zoom, 0, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.fillStyle = walker.shirt
-  ctx.fillRect(x - 1.7 * cam.zoom, y - 5 * cam.zoom, 3.4 * cam.zoom, 5 * cam.zoom)
-  ctx.fillStyle = '#f0d0b4'
-  ctx.beginPath()
-  ctx.arc(x, y - 6.4 * cam.zoom, 1.7 * cam.zoom, 0, Math.PI * 2)
-  ctx.fill()
-}
-
 function drawGhost(ctx: CanvasRenderingContext2D, frame: Frame) {
   const ghost = frame.ghost
   if (!ghost) return
@@ -904,20 +855,6 @@ function drawTransit(ctx: CanvasRenderingContext2D, frame: Frame, sun: number, g
     ctx.strokeStyle = color
     ctx.stroke()
   }
-  if (!glow && builtIds.length >= 2) {
-    const line = frame.activeLine
-    const pairs = segmentPairs(builtIds, line)
-    if (pairs.length) {
-      const [a, b] = pairs[Math.floor(frame.time / 1400) % pairs.length]
-      const t = (frame.time % 1400) / 1400
-      const pa = tileCenter(a.c, a.r, frame.cam)
-      const pb = tileCenter(b.c, b.r, frame.cam)
-      const x = pa.x + (pb.x - pa.x) * t
-      const y = pa.y + (pb.y - pa.y) * t - 8 * zoom
-      ctx.fillStyle = '#f7f3ea'
-      ctx.fillRect(x - 4 * zoom, y - 2.5 * zoom, 8 * zoom, 4 * zoom)
-    }
-  }
 }
 
 function drawStationLabels(ctx: CanvasRenderingContext2D, frame: Frame) {
@@ -954,13 +891,6 @@ function drawHarbourCraft(ctx: CanvasRenderingContext2D, frame: Frame) {
     ctx.moveTo(a.x, a.y)
     ctx.lineTo(b.x, b.y)
     ctx.stroke()
-    const t = (frame.time / 5000 + route.name.length) % 1
-    ctx.setLineDash([])
-    ctx.fillStyle = '#f4efe6'
-    ctx.beginPath()
-    ctx.ellipse(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, 5 * zoom, 2.4 * zoom, 0, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.setLineDash([6 * zoom, 5 * zoom])
   }
   ctx.setLineDash([])
   ctx.strokeStyle = '#6b4a32'
@@ -972,17 +902,6 @@ function drawHarbourCraft(ctx: CanvasRenderingContext2D, frame: Frame) {
     ctx.moveTo(pa.x, pa.y - 3 * zoom)
     ctx.lineTo(pb.x, pb.y - 3 * zoom)
     ctx.stroke()
-  }
-  const pairs = runningTramPairs({ trams: frame.trams ?? [] }, frame.signal)
-  if (pairs.length && frame.signal < 8) {
-    const [a, b] = pairs[Math.floor(frame.time / 1800) % pairs.length]
-    const t = (frame.time % 1800) / 1800
-    const pa = tileCenter(a.c, a.r, frame.cam)
-    const pb = tileCenter(b.c, b.r, frame.cam)
-    ctx.fillStyle = '#f2efe6'
-    ctx.fillRect(pa.x + (pb.x - pa.x) * t - 5 * zoom, pa.y + (pb.y - pa.y) * t - 6 * zoom, 10 * zoom, 4 * zoom)
-    ctx.fillStyle = '#c4473a'
-    ctx.fillRect(pa.x + (pb.x - pa.x) * t - 5 * zoom, pa.y + (pb.y - pa.y) * t - 4 * zoom, 10 * zoom, 1.4 * zoom)
   }
   const pierSet = new Set(frame.piers ?? [])
   for (const pier of PIERS) {
@@ -1014,6 +933,173 @@ function drawDistrictLabels(ctx: CanvasRenderingContext2D, frame: Frame) {
     ctx.fillText(district.name, p.x, p.y - 14 * frame.cam.zoom)
   }
   ctx.restore()
+}
+
+function drawLife(ctx: CanvasRenderingContext2D, frame: Frame, sun: number) {
+  const { cam, summary } = frame
+  const scale = Math.max(cam.zoom, 0.72)
+  ctx.save()
+  if (summary.event === 'newyear') drawShopCrowds(ctx, frame, scale)
+  if (summary.event === 'autumn') drawParkLanterns(ctx, frame, scale)
+  let marks = 0
+  for (const cell of frame.cells) {
+    if (cell.kind !== 'road' || marks > 14) continue
+    const key = `${cell.c},${cell.r}`
+    if (!summary.jamTiles.has(key) && !summary.closed.has(key)) continue
+    const p = tileCenter(cell.c, cell.r, cam)
+    if (p.x < -20 || p.y < -20 || p.x > frame.width + 20 || p.y > frame.height + 20) continue
+    marks += 1
+    ctx.globalAlpha = summary.closed.has(key) ? 0.85 : 0.55 + Math.sin(frame.time / 280) * 0.15
+    ctx.fillStyle = summary.closed.has(key) ? '#3d6f8a' : '#c4473a'
+    fillDiamond(ctx, p.x - (TILE_W * cam.zoom) / 2, p.y - TILE_H * cam.zoom, TILE_W * cam.zoom * 0.72, TILE_H * cam.zoom * 0.72)
+  }
+  ctx.globalAlpha = sun < 0.35 ? 0.92 : 1
+  const order = [...frame.actors].sort((a, b) => a.c + a.r - (b.c + b.r))
+  for (const actor of order) {
+    if (actor.kind === 'person' && cam.zoom < 0.45) continue
+    const a = tileCenter(actor.c, actor.r, cam)
+    const b = tileCenter(actor.nc, actor.nr, cam)
+    const x = a.x + (b.x - a.x) * actor.t
+    const y = a.y + (b.y - a.y) * actor.t
+    if (x < -40 || y < -40 || x > frame.width + 40 || y > frame.height + 40) continue
+    if (actor.kind === 'person') drawPerson(ctx, x, y, scale, actor.color, frame.time)
+    else if (actor.kind === 'bus') drawBus(ctx, x, y, b.x - a.x, b.y - a.y, scale, summary.jam !== 'none')
+    else if (actor.kind === 'tram') drawTram(ctx, x, y, b.x - a.x, scale)
+    else if (actor.kind === 'train') drawTrain(ctx, x, y, b.x - a.x, scale, actor.color)
+    else drawFerry(ctx, x, y, b.x - a.x, b.y - a.y, scale, actor.color)
+  }
+  ctx.restore()
+}
+
+function drawPerson(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, color: string, time: number) {
+  const bob = Math.sin(time / 90 + x) * 0.8 * s
+  ctx.fillStyle = 'rgba(28, 22, 16, 0.28)'
+  ctx.beginPath()
+  ctx.ellipse(x, y + 2 * s, 3.2 * s, 1.4 * s, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = color
+  ctx.fillRect(x - 2.2 * s, y - 7 * s + bob, 4.4 * s, 7 * s)
+  ctx.fillStyle = '#f0d0b4'
+  ctx.beginPath()
+  ctx.arc(x, y - 8.6 * s + bob, 2.1 * s, 0, Math.PI * 2)
+  ctx.fill()
+}
+
+function drawBus(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  dx: number,
+  dy: number,
+  s: number,
+  stalled: boolean,
+) {
+  const w = 18 * s
+  const h = 8 * s
+  ctx.save()
+  ctx.translate(x, y - 6 * s)
+  if (Math.abs(dx) + Math.abs(dy) > 0.5 && dx < 0) ctx.scale(-1, 1)
+  ctx.fillStyle = '#f4efe4'
+  ctx.fillRect(-w / 2, -h, w, h)
+  ctx.fillStyle = '#e7d7b8'
+  ctx.fillRect(-w / 2, -h * 0.55, w, h * 0.45)
+  ctx.fillStyle = '#e07a32'
+  ctx.fillRect(-w / 2, -h * 0.62, w, 1.4 * s)
+  ctx.fillStyle = '#243038'
+  for (let i = 0; i < 3; i++) ctx.fillRect(-w / 2 + 2 * s + i * 5 * s, -h + 1.2 * s, 3 * s, 2.2 * s)
+  ctx.fillStyle = stalled ? '#c4473a' : '#f0a35a'
+  ctx.beginPath()
+  ctx.arc(w / 2 - 1.5 * s, -h * 0.3, 1.3 * s, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+}
+
+function drawTram(ctx: CanvasRenderingContext2D, x: number, y: number, dx: number, s: number) {
+  const w = 16 * s
+  ctx.save()
+  ctx.translate(x, y - 5 * s)
+  if (dx < 0) ctx.scale(-1, 1)
+  ctx.fillStyle = '#f7f3ea'
+  ctx.fillRect(-w / 2, -5 * s, w, 5 * s)
+  ctx.fillStyle = '#6b4a32'
+  ctx.fillRect(-w / 2, -5.6 * s, w, 1.3 * s)
+  ctx.fillStyle = '#243038'
+  ctx.fillRect(-w / 2 + 2 * s, -4 * s, w - 4 * s, 1.6 * s)
+  ctx.restore()
+}
+
+function drawTrain(ctx: CanvasRenderingContext2D, x: number, y: number, dx: number, s: number, color: string) {
+  const w = 18 * s
+  ctx.save()
+  ctx.translate(x, y - 8 * s)
+  if (dx < 0) ctx.scale(-1, 1)
+  ctx.fillStyle = color
+  ctx.beginPath()
+  ctx.roundRect(-w / 2, -5 * s, w, 5.2 * s, 2 * s)
+  ctx.fill()
+  ctx.fillStyle = '#f6f1e7'
+  ctx.fillRect(-w / 2 + 2 * s, -3.6 * s, w - 5 * s, 1.8 * s)
+  ctx.restore()
+}
+
+function drawFerry(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  dx: number,
+  dy: number,
+  s: number,
+  color: string,
+) {
+  const len = 16 * s
+  ctx.save()
+  ctx.translate(x, y)
+  const angle = Math.atan2(dy, dx)
+  if (Math.abs(dx) + Math.abs(dy) > 0.5) ctx.rotate(angle)
+  ctx.fillStyle = color
+  ctx.beginPath()
+  ctx.moveTo(len * 0.65, 0)
+  ctx.lineTo(-len * 0.45, -4.2 * s)
+  ctx.lineTo(-len * 0.45, 4.2 * s)
+  ctx.closePath()
+  ctx.fill()
+  ctx.fillStyle = '#243038'
+  ctx.fillRect(-len * 0.15, -2.4 * s, 6 * s, 4.8 * s)
+  ctx.fillStyle = '#f0a35a'
+  ctx.fillRect(len * 0.35, -0.8 * s, 2 * s, 1.6 * s)
+  ctx.restore()
+}
+
+function drawShopCrowds(ctx: CanvasRenderingContext2D, frame: Frame, s: number) {
+  let drawn = 0
+  for (const cell of frame.cells) {
+    if (cell.kind !== 'shop' || drawn > 16) continue
+    const p = tileCenter(cell.c, cell.r, frame.cam)
+    ctx.fillStyle = drawn % 2 === 0 ? '#c4473a' : '#e6b15a'
+    ctx.beginPath()
+    ctx.arc(p.x, p.y - 10 * s, 2.2 * s, 0, Math.PI * 2)
+    ctx.fill()
+    drawn += 1
+  }
+}
+
+function drawParkLanterns(ctx: CanvasRenderingContext2D, frame: Frame, s: number) {
+  let drawn = 0
+  for (const cell of frame.cells) {
+    if (cell.kind !== 'park' || drawn > 10) continue
+    const p = tileCenter(cell.c, cell.r, frame.cam)
+    ctx.fillStyle = '#f0a35a'
+    ctx.beginPath()
+    ctx.arc(p.x, p.y - 12 * s, 3.4 * s, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = '#6b4a32'
+    ctx.lineWidth = Math.max(1, s)
+    ctx.beginPath()
+    ctx.moveTo(p.x, p.y - 12 * s)
+    ctx.lineTo(p.x, p.y - 4 * s)
+    ctx.stroke()
+    drawn += 1
+  }
 }
 
 function glowDot(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, color: string) {

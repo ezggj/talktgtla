@@ -34,8 +34,9 @@ import {
   nearestUnbuilt,
   type LineId,
 } from '@/game/transit'
+import { cityLabel, paintShareCard, shareCaption } from '@/game/share'
+import { stepTraffic, syncTraffic, type Actor } from '@/game/traffic'
 import { COST, MAP_SIZE, isBuildKind, type GameState, type Tool } from '@/game/types'
-import { stepWalkers, syncWalkers, type Walker } from '@/game/walkers'
 import './city.css'
 
 interface Hud {
@@ -80,8 +81,8 @@ export function CityApp() {
   const camRef = useRef<Cam | null>(null)
   const viewRef = useRef({ w: 0, h: 0, dpr: 1 })
   const ghostRef = useRef<Ghost | null>(null)
-  const playWalkers = useRef<Walker[]>([])
-  const demoWalkers = useRef<Walker[]>([])
+  const playActors = useRef<Actor[]>([])
+  const demoActors = useRef<Actor[]>([])
   const userMoved = useRef(false)
   const toastLock = useRef('')
   const hudNow = useRef(false)
@@ -96,10 +97,27 @@ export function CityApp() {
   const [hud, setHud] = useState<Hud>(EMPTY_HUD)
   const [toast, setToast] = useState<string | null>(null)
   const [confirmNew, setConfirmNew] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [cityName, setCityName] = useState('我座城')
+  const previewRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     modeRef.current = mode
   }, [mode])
+
+  useEffect(() => {
+    if (!shareOpen || !shareUrl || !previewRef.current) return
+    const preview = previewRef.current
+    const image = new Image()
+    image.onload = () => {
+      const ctx = preview.getContext('2d')
+      if (!ctx) return
+      ctx.clearRect(0, 0, preview.width, preview.height)
+      ctx.drawImage(image, 0, 0, preview.width, preview.height)
+    }
+    image.src = shareUrl
+  }, [shareOpen, shareUrl])
 
   useEffect(() => {
     toolRef.current = tool
@@ -348,7 +366,7 @@ export function CityApp() {
       }
       navigator.vibrate?.(10)
       summaryRef.current = summarize(state)
-      syncWalkers(playWalkers.current, state.cells, state.seed)
+      syncTraffic(playActors.current, state, summarize(state))
       publish()
       persist()
     }
@@ -485,9 +503,9 @@ export function CityApp() {
       if (!state || !demoRef.current) return
       const summary = playing ? tick(state, dt) : summarize(state)
       if (playing) summaryRef.current = summary
-      const walkers = playing ? playWalkers.current : demoWalkers.current
-      if (hudClock <= 0) syncWalkers(walkers, state.cells, state.seed)
-      stepWalkers(walkers, state.cells, dt / 1000)
+      const actors = playing ? playActors.current : demoActors.current
+      if (hudClock <= 0) syncTraffic(actors, state, summary)
+      if (!playing || !state.paused) stepTraffic(actors, state, summary, dt / 1000)
       const cam = camRef.current
       if (!cam) return
       ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0)
@@ -502,7 +520,7 @@ export function CityApp() {
         cam,
         time: now,
         summary,
-        walkers,
+        actors,
         ghost: playing ? ghostRef.current : null,
         raining: isRaining(state.day, state.seed),
         builtStations: state.stations ?? [],
@@ -564,9 +582,10 @@ export function CityApp() {
         camRef.current = saved.cam
         userMoved.current = true
         summaryRef.current = summarize(saved.state)
-        syncWalkers(playWalkers.current, saved.state.cells, saved.state.seed)
+        syncTraffic(playActors.current, saved.state, summarize(saved.state))
         modeRef.current = 'play'
         hudNow.current = true
+        setCityName(saved.state.name || '我座城')
         setMode('play')
         setConfirmNew(false)
         return
@@ -574,9 +593,10 @@ export function CityApp() {
     }
     const seed = Math.floor(Math.random() * 1_000_000_000)
     const state = newGame(seed)
+    setCityName(state.name)
     stateRef.current = state
     summaryRef.current = summarize(state)
-    playWalkers.current = []
+    playActors.current = []
     clearSave()
     const view = viewRef.current
     camRef.current = frameLand(view.w || 800, view.h || 600)
@@ -622,6 +642,69 @@ export function CityApp() {
     if (!state || !view.w) return
     camRef.current = frameLand(view.w, view.h)
     userMoved.current = false
+  }
+
+  const paintCard = (name: string) => {
+    const canvas = canvasRef.current
+    const state = stateRef.current
+    if (!canvas || !state) return
+    const card = document.createElement('canvas')
+    card.width = 900
+    card.height = 1200
+    const ctx = card.getContext('2d')
+    if (!ctx) return
+    const summary = summaryRef.current ?? summarize(state)
+    paintShareCard(ctx, { name, pop: summary.pop, day: state.day, money: state.money }, canvas)
+    setShareUrl(card.toDataURL('image/png'))
+  }
+
+  const openShare = () => {
+    const state = stateRef.current
+    if (!state) return
+    const name = cityLabel(state.name)
+    state.name = name
+    setCityName(name)
+    paintCard(name)
+    setShareOpen(true)
+  }
+
+  const renameCity = (value: string) => {
+    const name = value.slice(0, 12)
+    setCityName(name)
+    const state = stateRef.current
+    if (state) state.name = name
+    paintCard(name)
+  }
+
+  const downloadCard = () => {
+    if (!shareUrl) return
+    const link = document.createElement('a')
+    link.href = shareUrl
+    link.download = 'ngo-zo-sing.png'
+    link.click()
+  }
+
+  const shareCard = async () => {
+    const state = stateRef.current
+    if (!shareUrl || !state) return
+    const caption = shareCaption({
+      name: state.name,
+      pop: summaryRef.current?.pop ?? 0,
+      day: state.day,
+      money: state.money,
+    })
+    try {
+      const blob = await (await fetch(shareUrl)).blob()
+      const file = new File([blob], 'ngo-zo-sing.png', { type: 'image/png' })
+      const nav = navigator
+      if (nav.share && (!nav.canShare || nav.canShare({ files: [file] }))) {
+        await nav.share({ files: [file], title: cityLabel(state.name), text: caption })
+        return
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+    }
+    downloadCard()
   }
 
   const saveNow = () => {
@@ -684,6 +767,9 @@ export function CityApp() {
               <button className="mini" type="button" onClick={saveNow}>
                 儲低
               </button>
+              <button className="mini" type="button" onClick={openShare}>
+                分享
+              </button>
               <button className="mini" type="button" onClick={backToTitle}>
                 封面
               </button>
@@ -728,6 +814,9 @@ export function CityApp() {
               </button>
               <button className="mini" type="button" onClick={saveNow}>
                 儲低
+              </button>
+              <button className="mini" type="button" onClick={openShare}>
+                分享
               </button>
               <button className="mini" type="button" onClick={recenter}>
                 返中
@@ -819,6 +908,34 @@ export function CityApp() {
               </button>
               <button className="yes" type="button" onClick={() => begin('new')}>
                 確定
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {shareOpen && shareUrl ? (
+        <div className="modal" role="dialog" aria-modal="true" aria-labelledby="share-title">
+          <div className="modal-card share-card">
+            <p id="share-title">分享呢座城</p>
+            <label className="share-name">
+              城名
+              <input
+                value={cityName}
+                maxLength={12}
+                aria-label="城名"
+                onChange={(event) => renameCity(event.target.value)}
+              />
+            </label>
+            <canvas ref={previewRef} width={900} height={1200} aria-label="城市分享卡" />
+            <div className="modal-actions">
+              <button className="no" type="button" onClick={() => setShareOpen(false)}>
+                收埋
+              </button>
+              <button className="no" type="button" onClick={downloadCard}>
+                儲低圖片
+              </button>
+              <button className="yes" type="button" onClick={() => void shareCard()}>
+                分享
               </button>
             </div>
           </div>

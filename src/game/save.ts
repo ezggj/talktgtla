@@ -22,6 +22,7 @@ export interface SaveFile {
   guide?: boolean
   milestones?: string[]
   sawEight?: boolean
+  name?: string
   cam: Cam
 }
 
@@ -48,6 +49,7 @@ export function serialize(state: GameState, cam: Cam): SaveFile {
     guide: state.guide === true,
     milestones: [...(state.milestones ?? [])],
     sawEight: state.sawEight === true,
+    name: (state.name || '我座城').slice(0, 12),
     cam: { x: cam.x, y: cam.y, zoom: cam.zoom },
   }
 }
@@ -100,6 +102,7 @@ export function parseSave(raw: unknown): { state: GameState; cam: Cam } | null {
       stops: cleanStops(data.stops),
       piers: cleanIds(data.piers),
       trams: cleanIds(data.trams),
+      name: typeof data.name === 'string' && data.name.trim() ? data.name.trim().slice(0, 12) : '我座城',
       guide: data.guide === true,
       milestones: cleanIds(data.milestones),
       sawEight: data.sawEight === true,
