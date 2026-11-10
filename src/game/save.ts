@@ -1,22 +1,28 @@
 import type { Cam } from './iso'
-import { MAP_SIZE, type BuildKind, type Cell, type GameState, isBuildKind } from './types'
+import { terrainAt } from './map'
+import { MAP_SIZE, type BuildKind, type BusStop, type Cell, type GameState, isBuildKind } from './types'
 
-export const SAVE_KEY = 'ngo-zo-sing:v1'
+export const SAVE_KEY = 'ngo-zo-sing:v2'
+const LEGACY_KEY = 'ngo-zo-sing:v1'
 
 export interface SaveFile {
-  v: 1
+  v: 2
+  map: 'hk'
   seed: number
   day: number
   money: number
   speed: 1 | 3
   paused: boolean
   cells: Cell[]
+  stations: string[]
+  stops: BusStop[]
   cam: Cam
 }
 
 export function serialize(state: GameState, cam: Cam): SaveFile {
   return {
-    v: 1,
+    v: 2,
+    map: 'hk',
     seed: state.seed,
     day: state.day,
     money: state.money,
@@ -29,6 +35,8 @@ export function serialize(state: GameState, cam: Cam): SaveFile {
       stage: cell.stage,
       age: cell.age,
     })),
+    stations: [...(state.stations ?? [])],
+    stops: (state.stops ?? []).map((stop) => ({ c: stop.c, r: stop.r })),
     cam: { x: cam.x, y: cam.y, zoom: cam.zoom },
   }
 }
@@ -36,7 +44,7 @@ export function serialize(state: GameState, cam: Cam): SaveFile {
 export function parseSave(raw: unknown): { state: GameState; cam: Cam } | null {
   if (!raw || typeof raw !== 'object') return null
   const data = raw as Partial<SaveFile>
-  if (data.v !== 1) return null
+  if (data.v !== 2 || data.map !== 'hk') return null
   if (!isFiniteNumber(data.seed) || !isFiniteNumber(data.day) || !isFiniteNumber(data.money)) return null
   if (!data.cam || !isFiniteNumber(data.cam.x) || !isFiniteNumber(data.cam.y) || !isFiniteNumber(data.cam.zoom)) {
     return null
@@ -56,6 +64,7 @@ export function parseSave(raw: unknown): { state: GameState; cam: Cam } | null {
     if (c < 0 || r < 0 || c >= MAP_SIZE || r >= MAP_SIZE) return null
     const key = `${c},${r}`
     if (seen.has(key)) return null
+    if (terrainAt(c, r, Math.floor(data.seed)) === 'water' && cell.kind !== 'road') continue
     seen.add(key)
     cells.push({
       c,
@@ -76,20 +85,45 @@ export function parseSave(raw: unknown): { state: GameState; cam: Cam } | null {
       paused: Boolean(data.paused),
       lastDelta: 0,
       broke: false,
+      stations: cleanIds(data.stations),
+      stops: cleanStops(data.stops),
     },
     cam: {
       x: data.cam.x,
       y: data.cam.y,
-      zoom: Math.min(1.85, Math.max(0.52, data.cam.zoom)),
+      zoom: Math.min(1.85, Math.max(0.16, data.cam.zoom)),
     },
   }
+}
+
+function cleanIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((id): id is string => typeof id === 'string' && id.length < 24)
+}
+
+function cleanStops(value: unknown): BusStop[] {
+  if (!Array.isArray(value)) return []
+  const stops: BusStop[] = []
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
+    const stop = item as Partial<BusStop>
+    if (!isFiniteNumber(stop.c) || !isFiniteNumber(stop.r)) continue
+    const c = Math.floor(stop.c)
+    const r = Math.floor(stop.r)
+    if (c < 0 || r < 0 || c >= MAP_SIZE || r >= MAP_SIZE) continue
+    stops.push({ c, r })
+  }
+  return stops
 }
 
 export function readSave(): { state: GameState; cam: Cam } | null {
   if (typeof localStorage === 'undefined') return null
   try {
     const text = localStorage.getItem(SAVE_KEY)
-    if (!text) return null
+    if (!text) {
+      if (localStorage.getItem(LEGACY_KEY)) return null
+      return null
+    }
     return parseSave(JSON.parse(text) as unknown)
   } catch {
     return null

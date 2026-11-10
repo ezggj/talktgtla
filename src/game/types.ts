@@ -1,6 +1,6 @@
 /** Shared types and tuning for 我座城. Art, map, and rules are original. */
 
-export const MAP_SIZE = 32
+export const MAP_SIZE = 120
 export const DAY_MS = 20_000
 export const POWER_RANGE = 14
 export const START_MONEY = 6_000
@@ -8,7 +8,12 @@ export const REFUND_RATE = 0.35
 
 export type Terrain = 'water' | 'shore' | 'land' | 'slope'
 export type BuildKind = 'road' | 'home' | 'shop' | 'factory' | 'park' | 'power'
-export type Tool = BuildKind | 'bulldoze'
+export type Tool = BuildKind | 'bulldoze' | 'mtr' | 'bus'
+
+export interface BusStop {
+  c: number
+  r: number
+}
 export type Demand = 'want' | 'ok' | 'full'
 
 export interface Cell {
@@ -29,6 +34,9 @@ export interface GameState {
   paused: boolean
   lastDelta: number
   broke: boolean
+  /** Built MTR station ids. Empty on a brand new city. */
+  stations: string[]
+  stops: BusStop[]
 }
 
 export const COST: Record<BuildKind, number> = {

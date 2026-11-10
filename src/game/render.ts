@@ -2,7 +2,8 @@ import { TILE_H, TILE_W, tileCenter, tileTop, type Cam } from './iso'
 import { cellKey, terrainAt } from './map'
 import { hash2, mixHex } from './rng'
 import { sunAmount, type Summary } from './sim'
-import { MAP_SIZE, type Cell, type Tool } from './types'
+import { LINE_COLOR, STATIONS, segmentPairs, type LineId } from './transit'
+import { MAP_SIZE, type BusStop, type Cell, type Tool } from './types'
 import type { Walker } from './walkers'
 
 export interface Ghost {
@@ -26,6 +27,10 @@ export interface Frame {
   walkers: Walker[]
   ghost: Ghost | null
   raining: boolean
+  builtStations: string[]
+  stops: BusStop[]
+  transitHints: boolean
+  activeLine: LineId
 }
 
 let world: HTMLCanvasElement | null = null
@@ -40,6 +45,7 @@ export function renderFrame(frame: Frame) {
   wctx.setTransform(frame.dpr, 0, 0, frame.dpr, 0, 0)
   wctx.clearRect(0, 0, width, height)
   drawWorld(wctx, frame, 'solid')
+  drawTransit(wctx, frame, sun, false)
   if (sun < 0.98) {
     wctx.save()
     wctx.globalCompositeOperation = 'multiply'
@@ -50,9 +56,11 @@ export function renderFrame(frame: Frame) {
     wctx.save()
     wctx.globalCompositeOperation = 'lighter'
     drawWorld(wctx, frame, 'glow')
+    drawTransit(wctx, frame, sun, true)
     wctx.restore()
   }
   ctx.drawImage(layer, 0, 0, width, height)
+  drawStationLabels(ctx, frame)
   if (raining) drawRain(ctx, width, height, time, sun)
   if (frame.ghost) drawGhost(ctx, frame)
 }
@@ -814,3 +822,100 @@ const WALLS = [
 ]
 
 const AWNINGS = ['#c4483d', '#e07a32', '#2c7c86', '#b8436c']
+
+function drawTransit(ctx: CanvasRenderingContext2D, frame: Frame, sun: number, glow: boolean) {
+  const builtIds = frame.builtStations ?? []
+  const built = new Set(builtIds)
+  const zoom = frame.cam.zoom
+  if (!glow) {
+    ctx.save()
+    ctx.lineCap = 'round'
+    ctx.lineWidth = Math.max(3, 4 * zoom)
+    for (const line of ['island', 'tsuen', 'kwun', 'east', 'tung'] as const) {
+      ctx.strokeStyle = LINE_COLOR[line]
+      ctx.globalAlpha = 0.9
+      ctx.beginPath()
+      for (const [a, b] of segmentPairs(builtIds, line)) {
+        const pa = tileCenter(a.c, a.r, frame.cam)
+        const pb = tileCenter(b.c, b.r, frame.cam)
+        ctx.moveTo(pa.x, pa.y - 6 * zoom)
+        ctx.lineTo(pb.x, pb.y - 6 * zoom)
+      }
+      ctx.stroke()
+    }
+    ctx.restore()
+    for (const stop of frame.stops ?? []) {
+      const p = tileCenter(stop.c, stop.r, frame.cam)
+      ctx.fillStyle = '#f4efe4'
+      ctx.fillRect(p.x - 1.2 * zoom, p.y - 10 * zoom, 2.2 * zoom, 10 * zoom)
+      ctx.fillStyle = '#c4473a'
+      ctx.beginPath()
+      ctx.arc(p.x, p.y - 11 * zoom, 2.4 * zoom, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+  for (const station of STATIONS) {
+    const on = built.has(station.id)
+    const hinted = frame.transitHints && station.lines.includes(frame.activeLine)
+    const p = tileCenter(station.c, station.r, frame.cam)
+    const color = LINE_COLOR[station.lines[0]]
+    if (glow) {
+      if (!on || sun > 0.72) continue
+      glowDot(ctx, p.x, p.y - 8 * zoom, 10 * zoom, color)
+      continue
+    }
+    const radius = Math.max(on || hinted ? 4.5 : 2.6, (on ? 5.2 : 3.4) * zoom)
+    ctx.beginPath()
+    ctx.arc(p.x, p.y - 7 * zoom, radius, 0, Math.PI * 2)
+    ctx.fillStyle = on ? color : 'rgba(246,241,231,0.2)'
+    ctx.fill()
+    ctx.lineWidth = Math.max(1, zoom)
+    ctx.strokeStyle = color
+    ctx.stroke()
+  }
+  if (!glow && builtIds.length >= 2) {
+    const line = frame.activeLine
+    const pairs = segmentPairs(builtIds, line)
+    if (pairs.length) {
+      const [a, b] = pairs[Math.floor(frame.time / 1400) % pairs.length]
+      const t = (frame.time % 1400) / 1400
+      const pa = tileCenter(a.c, a.r, frame.cam)
+      const pb = tileCenter(b.c, b.r, frame.cam)
+      const x = pa.x + (pb.x - pa.x) * t
+      const y = pa.y + (pb.y - pa.y) * t - 8 * zoom
+      ctx.fillStyle = '#f7f3ea'
+      ctx.fillRect(x - 4 * zoom, y - 2.5 * zoom, 8 * zoom, 4 * zoom)
+    }
+  }
+}
+
+function drawStationLabels(ctx: CanvasRenderingContext2D, frame: Frame) {
+  if (frame.cam.zoom <= 0.28) return
+  const built = new Set(frame.builtStations ?? [])
+  ctx.save()
+  ctx.font = `${Math.max(12, 13 * frame.cam.zoom)}px "PingFang HK", "PingFang TC", "Noto Sans TC", sans-serif`
+  ctx.fillStyle = '#1c140c'
+  ctx.strokeStyle = '#fff8ee'
+  ctx.lineWidth = 4
+  for (const station of STATIONS) {
+    const on = built.has(station.id)
+    const hinted = frame.transitHints && station.lines.includes(frame.activeLine)
+    if (!on && !hinted && frame.cam.zoom < 0.5) continue
+    const p = tileCenter(station.c, station.r, frame.cam)
+    const x = p.x + 6 * frame.cam.zoom
+    const y = p.y - 6 * frame.cam.zoom
+    ctx.strokeText(station.name, x, y)
+    ctx.fillText(station.name, x, y)
+  }
+  ctx.restore()
+}
+
+function glowDot(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, color: string) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, radius)
+  g.addColorStop(0, color)
+  g.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = g
+  ctx.beginPath()
+  ctx.arc(x, y, radius, 0, Math.PI * 2)
+  ctx.fill()
+}

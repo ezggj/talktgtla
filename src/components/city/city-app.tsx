@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { TOOLS, demandLine, formatMoney, formatSigned } from '@/game/copy'
-import { createDemo, demoFocus } from '@/game/demo'
-import { clampZoom, defaultZoom, focusCamera, screenToTile, type Cam } from '@/game/iso'
-import { startFocus, terrainAt } from '@/game/map'
+import { createDemo } from '@/game/demo'
+import { clampZoom, screenToTile, type Cam } from '@/game/iso'
+import { frameLand, terrainAt } from '@/game/map'
 import { renderFrame, type Ghost } from '@/game/render'
 import { clearSave, readSave, writeSave } from '@/game/save'
 import {
@@ -19,7 +19,18 @@ import {
   tick,
   type Summary,
 } from '@/game/sim'
-import { COST, MAP_SIZE, type GameState, type Tool } from '@/game/types'
+import {
+  LINE_COLOR,
+  LINES,
+  STATION_COST,
+  STOP_COST,
+  STATIONS,
+  buildStation,
+  buildStop,
+  nearestUnbuilt,
+  type LineId,
+} from '@/game/transit'
+import { COST, MAP_SIZE, isBuildKind, type GameState, type Tool } from '@/game/types'
 import { stepWalkers, syncWalkers, type Walker } from '@/game/walkers'
 import './city.css'
 
@@ -57,6 +68,7 @@ export function CityApp() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const modeRef = useRef<'title' | 'play'>('title')
   const toolRef = useRef<Tool>('road')
+  const lineRef = useRef<LineId>('island')
   const paintRef = useRef(false)
   const stateRef = useRef<GameState | null>(null)
   const demoRef = useRef<GameState | null>(null)
@@ -74,6 +86,7 @@ export function CityApp() {
   const [ready, setReady] = useState(false)
   const [hasSave, setHasSave] = useState(false)
   const [tool, setTool] = useState<Tool>('road')
+  const [line, setLine] = useState<LineId>('island')
   const [paint, setPaint] = useState(false)
   const [hud, setHud] = useState<Hud>(EMPTY_HUD)
   const [toast, setToast] = useState<string | null>(null)
@@ -86,6 +99,10 @@ export function CityApp() {
   useEffect(() => {
     toolRef.current = tool
   }, [tool])
+
+  useEffect(() => {
+    lineRef.current = line
+  }, [line])
 
   useEffect(() => {
     paintRef.current = paint
@@ -164,25 +181,10 @@ export function CityApp() {
       else setHasSave(true)
     }
 
-    const centerOn = (c: number, r: number, zoom = camRef.current?.zoom ?? defaultZoom(viewRef.current.w || 800)) => {
-      const view = viewRef.current
-      if (!view.w) return
-      camRef.current = focusCamera(view.w, view.h, zoom, c, r)
-    }
-
     const ensureCam = () => {
       if (camRef.current || !viewRef.current.w) return
-      const demo = demoRef.current
-      if (!demo) return
-      if (modeRef.current === 'play' && stateRef.current) {
-        const focus = stateRef.current.cells.length
-          ? centroid(stateRef.current.cells)
-          : startFocus(stateRef.current.seed)
-        centerOn(focus.c, focus.r)
-        return
-      }
-      const focus = demoFocus(demo)
-      centerOn(focus.c, focus.r)
+      const view = viewRef.current
+      camRef.current = frameLand(view.w, view.h)
     }
 
     const resize = () => {
@@ -224,8 +226,11 @@ export function CityApp() {
       })
       let ok = true
       if (!inside) ok = false
-      else if (toolNow === 'bulldoze') ok = occupied
-      else if (water || occupied || state.money < COST[toolNow]) ok = false
+      else if (toolNow === 'mtr') ok = nearestUnbuilt(lineRef.current, tile.c, tile.r, state.stations) !== null && state.money >= STATION_COST
+      else if (toolNow === 'bus') {
+        ok = state.cells.some((cell) => cell.kind === 'road' && cell.c === tile.c && cell.r === tile.r) && state.money >= STOP_COST
+      } else if (toolNow === 'bulldoze') ok = occupied
+      else if (water || occupied || !isBuildKind(toolNow) || state.money < COST[toolNow]) ok = false
       else if (toolNow !== 'road' && !besideRoad) ok = false
       ghostRef.current = { c: tile.c, r: tile.r, tool: toolNow, ok }
     }
@@ -238,7 +243,54 @@ export function CityApp() {
       const key = `${tile.c},${tile.r}`
       if (key === lastPaint) return
       lastPaint = key
-      const result = place(state, toolRef.current, tile.c, tile.r)
+      const toolNow = toolRef.current
+      if (toolNow === 'mtr') {
+        const station = nearestUnbuilt(lineRef.current, tile.c, tile.r, state.stations)
+        if (!station) {
+          if (!quiet) showToast('撳光點先起站。')
+          return
+        }
+        const built = buildStation(state, station.id)
+        if (built === 'money') showToast('庫房唔夠。')
+        else if (built === 'have' && !quiet) showToast('呢個站起咗。')
+        else if (built === 'ok') {
+          navigator.vibrate?.(10)
+          summaryRef.current = summarize(state)
+          publish()
+          persist()
+        }
+        return
+      }
+      if (toolNow === 'bus') {
+        const built = buildStop(state, tile.c, tile.r)
+        if (built === 'road' && !quiet) showToast('巴士站要撳喺路上。')
+        else if (built === 'money') showToast('庫房唔夠。')
+        else if (built === 'have' && !quiet) showToast('呢度有站。')
+        else if (built === 'ok') {
+          navigator.vibrate?.(10)
+          summaryRef.current = summarize(state)
+          publish()
+          persist()
+        }
+        return
+      }
+      if (toolNow === 'bulldoze') {
+        const hit = STATIONS.find(
+          (station) => state.stations.includes(station.id) && (station.c - tile.c) ** 2 + (station.r - tile.r) ** 2 < 0.8,
+        )
+        if (hit && !state.cells.some((cell) => cell.c === tile.c && cell.r === tile.r)) {
+          state.stations = state.stations.filter((id) => id !== hit.id)
+          state.money += Math.round(STATION_COST * 0.35)
+          summaryRef.current = summarize(state)
+          publish()
+          persist()
+          return
+        }
+      }
+      const result = place(state, toolNow, tile.c, tile.r)
+      if (result.ok && toolNow === 'bulldoze') {
+        state.stops = state.stops.filter((stop) => stop.c !== tile.c || stop.r !== tile.r)
+      }
       if (!result.ok) {
         const message = reasonCopy(result.reason)
         if (message && (!quiet || result.reason === 'money')) showToast(message)
@@ -345,7 +397,7 @@ export function CityApp() {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return
-      const keys = ['1', '2', '3', '4', '5', '6', '7']
+      const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
       const index = keys.indexOf(event.key)
       if (index >= 0) {
         const next = TOOLS[index].id
@@ -403,6 +455,10 @@ export function CityApp() {
         walkers,
         ghost: playing ? ghostRef.current : null,
         raining: isRaining(state.day, state.seed),
+        builtStations: state.stations ?? [],
+        stops: state.stops ?? [],
+        transitHints: playing ? toolRef.current === 'mtr' : false,
+        activeLine: lineRef.current,
       })
       hudClock += dt
       if (playing && (hudNow.current || hudClock > 250)) {
@@ -470,8 +526,7 @@ export function CityApp() {
     playWalkers.current = []
     clearSave()
     const view = viewRef.current
-    const focus = startFocus(seed)
-    camRef.current = focusCamera(view.w || 800, view.h || 600, defaultZoom(view.w || 800), focus.c, focus.r)
+    camRef.current = frameLand(view.w || 800, view.h || 600)
     userMoved.current = false
     modeRef.current = 'play'
     hudNow.current = true
@@ -491,10 +546,7 @@ export function CityApp() {
     modeRef.current = 'title'
     setMode('title')
     const view = viewRef.current
-    const demo = demoRef.current
-    if (!demo) return
-    const focus = demoFocus(demo)
-    camRef.current = focusCamera(view.w || 800, view.h || 600, cam?.zoom ?? defaultZoom(view.w || 800), focus.c, focus.r)
+    camRef.current = frameLand(view.w || 800, view.h || 600)
   }
 
   const togglePause = () => {
@@ -515,8 +567,7 @@ export function CityApp() {
     const state = stateRef.current
     const view = viewRef.current
     if (!state || !view.w) return
-    const focus = state.cells.length ? centroid(state.cells) : startFocus(state.seed)
-    camRef.current = focusCamera(view.w, view.h, camRef.current?.zoom ?? defaultZoom(view.w), focus.c, focus.r)
+    camRef.current = frameLand(view.w, view.h)
     userMoved.current = false
   }
 
@@ -541,7 +592,7 @@ export function CityApp() {
           <div className="title-card">
             <p className="title-kicker">原創</p>
             <h1>我座城</h1>
-            <p>灣邊一塊地，你嚟起。</p>
+            <p>維港兩邊，你嚟起。</p>
             {!ready ? (
               <p className="fine">載入緊…</p>
             ) : hasSave ? (
@@ -614,7 +665,7 @@ export function CityApp() {
                 <li key={line}>{line}</li>
               ))}
             </ul>
-            <p className="when">拖動睇城。Shift 拖就一路起。鍵盤 1–7 揀工具。</p>
+            <p className="when">維港 · 香港島 · 九龍 · 新界。撳港鐵先見到站名。</p>
             <div className="side-actions">
               <button className="mini" type="button" onClick={togglePause}>
                 {hud.paused ? '行住' : '暫停'}
@@ -639,6 +690,25 @@ export function CityApp() {
           <p className="coach" aria-live="polite">
             {hud.coach}
           </p>
+          {tool === 'mtr' ? (
+            <div className="lines" role="tablist" aria-label="路綫">
+              {LINES.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="line"
+                  aria-pressed={line === item.id}
+                  style={{ borderColor: LINE_COLOR[item.id], color: line === item.id ? '#24170d' : LINE_COLOR[item.id], background: line === item.id ? LINE_COLOR[item.id] : 'rgba(8,16,22,0.82)' }}
+                  onClick={() => {
+                    lineRef.current = item.id
+                    setLine(item.id)
+                  }}
+                >
+                  {item.name}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <div className="zoom">
             <button type="button" aria-label="放大" onClick={() => zoomCenter(camRef, viewRef, 1.12)}>
               ＋
@@ -663,7 +733,7 @@ export function CityApp() {
                 }}
               >
                 {item.label}
-                <small>{item.id === 'bulldoze' ? '退少少' : formatMoney(COST[item.id])}</small>
+                <small>{toolPrice(item.id)}</small>
               </button>
             ))}
             <button
@@ -705,14 +775,11 @@ export function CityApp() {
   )
 }
 
-function centroid(cells: { c: number; r: number }[]) {
-  let c = 0
-  let r = 0
-  for (const cell of cells) {
-    c += cell.c
-    r += cell.r
-  }
-  return { c: c / cells.length, r: r / cells.length }
+function toolPrice(id: Tool): string {
+  if (id === 'bulldoze') return '退少少'
+  if (id === 'mtr') return formatMoney(STATION_COST)
+  if (id === 'bus') return formatMoney(STOP_COST)
+  return formatMoney(COST[id])
 }
 
 function zoomCenter(
