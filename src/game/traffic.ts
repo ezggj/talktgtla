@@ -82,7 +82,7 @@ export function syncTraffic(actors: Actor[], state: GameState, summary: Summary)
     if (actor.kind === 'person' && actor.path.length === 0) aimPerson(actor, state, summary, roads)
     if (actor.kind === 'bus' && actor.path.length < 2) aimBus(actor, summary, roads, roadSet)
     actor.tag = summary.rush
-    if (actor.kind === 'train') actor.speed = summary.event === 'delay' ? 0.05 : 0.28
+    if (actor.kind === 'train') actor.speed = summary.event === 'delay' ? 0.04 : 0.12
     else if (actor.kind === 'bus') actor.speed = summary.event === 'rain' ? 0.16 : 0.34
     else if (actor.kind === 'person') actor.speed = summary.event === 'rain' ? 0.22 : 0.42
   }
@@ -147,7 +147,7 @@ function makeActor(
   const pairs = segmentPairs(state.stations ?? [], line)
   if (!pairs.length) return null
   return phased(
-    routeActor('train', chainPairs(pairs), LINE_COLOR[line], summary.event === 'delay' ? 0.05 : 0.28, summary.rush),
+    routeActor('train', chainPairs(pairs), LINE_COLOR[line], summary.event === 'delay' ? 0.04 : 0.12, summary.rush),
     index,
   )
 }

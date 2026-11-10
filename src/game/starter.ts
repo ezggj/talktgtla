@@ -18,21 +18,38 @@ export function seedLivingCity(state: GameState): GameState {
     return true
   }
 
+  const open = (c: number, r: number) => {
+    const ground = coastAt(c, r)
+    return ground === 'land' || ground === 'shore'
+  }
+
   const street = (lon: number, lat: number, dc: number, dr: number, length: number) => {
-    const origin = nearestLand(lon, lat, 3)
+    const origin = nearestLand(lon, lat, 8)
     if (!origin) return []
     const tiles: { c: number; r: number }[] = []
-    for (let i = 0; i < length; i++) {
-      const c = origin.c + dc * i
-      const r = origin.r + dr * i
-      if (put(c, r, 'road', 1)) tiles.push({ c, r })
+    let c = origin.c
+    let r = origin.r
+    for (let step = 0; step < length * 4 && tiles.length < length; step++) {
+      if (open(c, r)) put(c, r, 'road', 1) && tiles.push({ c, r })
+      let next = { c: c + dc, r: r + dr }
+      if (!open(next.c, next.r)) {
+        const slide = [
+          { c: next.c + dr, r: next.r + dc },
+          { c: next.c - dr, r: next.r - dc },
+        ].find((cell) => open(cell.c, cell.r))
+        if (!slide) break
+        next = slide
+      }
+      if (tiles.some((tile) => tile.c === next.c && tile.r === next.r)) break
+      c = next.c
+      r = next.r
     }
     return tiles
   }
 
   const central = street(114.158, 22.283, 1, 0, 5)
-  const tst = street(114.172, 22.297, 0, -1, 4)
-  street(114.169, 22.319, 1, 0, 4)
+  const tst = street(114.172, 22.297, 0, -1, 5)
+  const mongkok = street(114.169, 22.319, 1, 0, 4)
 
   const beside = (road: { c: number; r: number } | undefined, kind: BuildKind, stage: number) => {
     if (!road) return false
@@ -47,17 +64,23 @@ export function seedLivingCity(state: GameState): GameState {
     return false
   }
 
-  for (const group of [central, tst]) {
+  for (const group of [central, tst, mongkok]) {
     for (const road of group) {
       if (beside(road, 'power', 1)) break
     }
   }
-  beside(central[1], 'home', 2)
-  beside(central[2], 'shop', 2)
-  beside(central[3], 'home', 2)
-  beside(central[4], 'park', 2)
-  beside(tst[1], 'home', 2)
-  beside(tst[2], 'shop', 1)
+  const dress = (roads: { c: number; r: number }[]) => {
+    roads.forEach((road, index) => {
+      if (index === 2) beside(road, 'park', 2)
+      else if (index % 2 === 0) beside(road, 'shop', 2)
+      else beside(road, 'home', 1)
+      if (index % 2 === 1) beside(road, 'home', 1)
+    })
+  }
+  dress(central)
+  dress(tst)
+  beside(mongkok[1], 'shop', 2)
+  beside(mongkok[2], 'home', 1)
 
   state.stations = ['cen', 'adm', 'tst', 'mk']
   state.piers = ['central', 'tst']

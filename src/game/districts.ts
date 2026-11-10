@@ -1,4 +1,5 @@
 import { nearestLand } from './hk-geo'
+import { STATIONS } from './transit'
 
 /** Area names that are not already a station label. Famous districts that match a station still get a label when you are zoomed out past the station text. */
 const DEFS: { name: string; lon: number; lat: number }[] = [
@@ -27,7 +28,24 @@ export interface DistrictLabel {
   r: number
 }
 
-export const DISTRICTS: DistrictLabel[] = DEFS.flatMap((def) => {
-  const spot = nearestLand(def.lon, def.lat, 4)
-  return spot ? [{ name: def.name, c: spot.c, r: spot.r }] : []
-})
+const STATION_NAMES = new Set(STATIONS.map((station) => station.name))
+
+function nearStation(c: number, r: number): boolean {
+  return STATIONS.some((station) => Math.max(Math.abs(station.c - c), Math.abs(station.r - r)) <= 3)
+}
+
+/** One label per place. A station name wins over a second district tag on the same tiles. */
+export const DISTRICTS: DistrictLabel[] = (() => {
+  const used = new Set<string>()
+  const labels: DistrictLabel[] = []
+  for (const def of DEFS) {
+    if (STATION_NAMES.has(def.name)) continue
+    const spot = nearestLand(def.lon, def.lat, 16)
+    if (!spot || nearStation(spot.c, spot.r)) continue
+    const key = `${spot.c},${spot.r}`
+    if (used.has(key)) continue
+    used.add(key)
+    labels.push({ name: def.name, c: spot.c, r: spot.r })
+  }
+  return labels
+})()

@@ -10,10 +10,12 @@ const LON0 = 113.83
 const LON1 = 114.42
 const LAT_N = 22.565
 const LAT_S = 22.175
-const S0 = 52
-const NROWS = 132
-const NCOLS = 48
-const E_BASE = -48
+/** Four samples per old cell, so a harbour hop is several tiles, not one. */
+const SCALE = 4
+const S0 = 52 * SCALE
+const NROWS = 132 * SCALE
+const NCOLS = 48 * SCALE
+const E_BASE = -48 * SCALE
 
 const WATER = 0
 const LAND = 1
@@ -221,7 +223,7 @@ export function frameTerritory(viewW: number, viewH: number): Cam {
   }
   const bw = Math.max(1, bounds.maxX - bounds.minX)
   const bh = Math.max(1, bounds.maxY - bounds.minY)
-  const zoom = Math.min(1.05, Math.max(0.16, Math.min(viewW / bw, viewH / bh) * 0.92))
+  const zoom = Math.min(1.05, Math.max(0.05, Math.min(viewW / bw, viewH / bh) * 0.92))
   const cx = (bounds.minX + bounds.maxX) / 2
   const cy = (bounds.minY + bounds.maxY) / 2
   return {

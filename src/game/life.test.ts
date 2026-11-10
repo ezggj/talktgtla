@@ -4,11 +4,13 @@ import { cityEvent, eventCopy } from './events'
 import { regionAt } from './hk-geo'
 import { pierById } from './harbour'
 import { terrainAt } from './map'
+import { parseSave, rejectedSaveKeys, serialize } from './save'
 import { rushOf } from './rush'
-import { parseSave, serialize } from './save'
 import { shareCaption } from './share'
 import { newGame, place, roadNote, summarize } from './sim'
-import { stationById } from './transit'
+import { DISTRICTS } from './districts'
+import { stationById, STATIONS } from './transit'
+import { MAP_SIZE } from './types'
 import { stepTraffic, syncTraffic, type Actor } from './traffic'
 import { typhoonSignal } from './weather'
 
@@ -30,8 +32,8 @@ test('morning crowds a road the transit does not reach, and night lets it go', (
   const cen = stationById('cen')
   assert.ok(cen)
   let spot: { c: number; r: number } | null = null
-  for (let r = 4; r < 100 && !spot; r++) {
-    for (let c = 4; c < 100 && !spot; c++) {
+  for (let r = 4; r < MAP_SIZE - 4 && !spot; r++) {
+    for (let c = 4; c < MAP_SIZE - 4 && !spot; c++) {
       if (Math.abs(c - cen.c) + Math.abs(r - cen.r) < 18) continue
       if (!dry(c, r) || !dry(c, r + 1) || !dry(c + 1, r) || !dry(c - 1, r)) continue
       spot = { c, r }
@@ -117,13 +119,37 @@ test('the share line names the city and the population', () => {
   assert.match(shareCaption({ name: '', pop: 12, day: 0, money: 1 }), /^我座城/)
 })
 
-test('an older hong kong save still loads, and gains a name', () => {
+test('a wide save keeps its name, and a compact hong kong save is left behind', () => {
   const state = newGame(3, true)
+  state.name = '海傍'
   const file = serialize(state, { x: 1, y: 2, zoom: 0.8 })
-  const older = { ...file, v: 2 as const }
-  delete (older as { name?: string }).name
-  const loaded = parseSave(older)
+  const loaded = parseSave(file)
   assert.ok(loaded)
-  assert.equal(loaded.state.name, '我座城')
+  assert.equal(loaded.state.name, '海傍')
+  assert.equal(parseSave({ ...file, v: 3, grid: undefined }), null)
+  assert.ok(rejectedSaveKeys().includes('ngo-zo-sing:v3'))
   assert.equal(typhoonSignal(0, 1) >= 0, true)
+})
+
+test('harbour stations are a ride apart and do not share a district label', () => {
+  const cen = stationById('cen')
+  const adm = stationById('adm')
+  const wc = stationById('wc')
+  const cwb = stationById('cwb')
+  const tst = stationById('tst')
+  const ymt = stationById('ymt')
+  assert.ok(cen && adm && wc && cwb && tst && ymt)
+  const gap = (a: { c: number; r: number }, b: { c: number; r: number }) =>
+    Math.max(Math.abs(a.c - b.c), Math.abs(a.r - b.r))
+  assert.ok(gap(cen, adm) >= 3)
+  assert.ok(gap(adm, wc) >= 3)
+  assert.ok(gap(wc, cwb) >= 3)
+  assert.ok(gap(tst, ymt) >= 3)
+  const stationNames = new Set(STATIONS.map((station) => station.name))
+  for (const district of DISTRICTS) {
+    assert.equal(stationNames.has(district.name), false)
+  }
+  for (const name of ['中環', '灣仔', '銅鑼灣', '尖沙咀', '金鐘']) {
+    assert.equal(STATIONS.filter((station) => station.name === name).length, 1)
+  }
 })
