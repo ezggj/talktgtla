@@ -6,9 +6,9 @@ export const POWER_RANGE = 14
 export const START_MONEY = 6_000
 export const REFUND_RATE = 0.35
 
-export type Terrain = 'water' | 'shore' | 'land' | 'slope'
+export type Terrain = 'water' | 'shore' | 'land' | 'slope' | 'parkland'
 export type BuildKind = 'road' | 'home' | 'shop' | 'factory' | 'park' | 'power'
-export type Tool = BuildKind | 'bulldoze' | 'mtr' | 'bus'
+export type Tool = BuildKind | 'bulldoze' | 'mtr' | 'bus' | 'ferry' | 'tram'
 
 export interface BusStop {
   c: number
@@ -37,6 +37,14 @@ export interface GameState {
   /** Built MTR station ids. Empty on a brand new city. */
   stations: string[]
   stops: BusStop[]
+  /** Built ferry pier ids. */
+  piers: string[]
+  /** Built Island tram stop ids. */
+  trams: string[]
+  /** First-session hint. Turns off after the player builds something. */
+  guide: boolean
+  milestones: string[]
+  sawEight: boolean
 }
 
 export const COST: Record<BuildKind, number> = {

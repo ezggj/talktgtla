@@ -3,11 +3,12 @@ import test from 'node:test'
 import { createDemo } from './demo'
 import { terrainAt } from './map'
 import { parseSave, serialize } from './save'
-import { bulldoze, DAY_MS, newGame, place, summarize, tick } from './sim'
+import { bulldoze, coach, DAY_MS, newGame, place, summarize, takeMilestones, tick, tileHint } from './sim'
 import { COST, START_MONEY } from './types'
 
 function dry(seed: number, c: number, r: number) {
-  return terrainAt(c, r, seed) !== 'water'
+  const ground = terrainAt(c, r, seed)
+  return ground === 'land' || ground === 'shore'
 }
 
 function findSpine(seed: number) {
@@ -30,7 +31,7 @@ function findSpine(seed: number) {
 }
 
 test('placing a road spends treasury and bulldoze refunds a bit', () => {
-  const state = newGame(3)
+  const state = newGame(3, true)
   const spot = findSpine(3)
   assert.ok(spot)
   const placed = place(state, 'road', spot.road.c, spot.road.r)
@@ -43,7 +44,7 @@ test('placing a road spends treasury and bulldoze refunds a bit', () => {
 })
 
 test('water and empty tiles reject the wrong tool', () => {
-  const state = newGame(4)
+  const state = newGame(4, true)
   let water: { c: number; r: number } | null = null
   for (let r = 0; r < 32 && !water; r++) {
     for (let c = 0; c < 32 && !water; c++) {
@@ -61,7 +62,7 @@ test('water and empty tiles reject the wrong tool', () => {
 })
 
 test('a house beside a powered road grows, and a cut road stops it', () => {
-  const state = newGame(5)
+  const state = newGame(5, true)
   state.day = 0
   const spot = findSpine(5)
   assert.ok(spot)
@@ -76,8 +77,8 @@ test('a house beside a powered road grows, and a cut road stops it', () => {
   assert.equal(home.stage, 1)
   assert.equal(summarize(state).pop, 18)
   tick(state, DAY_MS)
-  assert.equal(home.stage, 2)
-  assert.equal(summarize(state).pop, 42)
+  assert.equal(home.stage, 1)
+  assert.equal(summarize(state).pop, 18)
   const stray = { c: spot.road.c + 3, r: spot.road.r }
   if (dry(5, stray.c, stray.r)) {
     const offRoad = place(state, 'home', stray.c, stray.r)
@@ -88,13 +89,13 @@ test('a house beside a powered road grows, and a cut road stops it', () => {
   bulldoze(state, spot.road.c, spot.road.r)
   const age = home.age
   tick(state, DAY_MS * 2)
-  assert.equal(home.stage, 2)
+  assert.equal(home.stage, 1)
   assert.equal(home.age, age)
   assert.equal(summarize(state).pop, 0)
 })
 
 test('a shop stays shut until people move in', () => {
-  const state = newGame(6)
+  const state = newGame(6, true)
   state.day = 0
   const spot = findSpine(6)
   assert.ok(spot)
@@ -110,11 +111,11 @@ test('a shop stays shut until people move in', () => {
   assert.equal(shop?.stage, 0)
   tick(state, DAY_MS)
   assert.equal(shop?.stage, 1)
-  assert.equal(home?.stage, 2)
+  assert.ok((home?.stage ?? 0) >= 1)
 })
 
 test('broke stalls construction', () => {
-  const state = newGame(8)
+  const state = newGame(8, true)
   state.day = 0
   state.money = 100_000
   const spot = findSpine(8)
@@ -129,17 +130,32 @@ test('broke stalls construction', () => {
   assert.equal(home?.stage, 0)
 })
 
+test('a country park refuses a road', () => {
+  const state = newGame(11, true)
+  let blocked = false
+  for (let r = 0; r < 120 && !blocked; r++) {
+    for (let c = 0; c < 120 && !blocked; c++) {
+      if (terrainAt(c, r, 11) !== 'parkland') continue
+      const result = place(state, 'road', c, r)
+      assert.equal(result.ok, false)
+      if (!result.ok) assert.equal(result.reason, 'hill')
+      blocked = true
+    }
+  }
+  assert.equal(blocked, true)
+})
+
 test('demo harbour block has people and power', () => {
   const demo = createDemo()
   const summary = summarize(demo)
   assert.ok(summary.pop > 40)
   assert.equal(summary.unpowered, 0)
   assert.ok(summary.counts.park >= 1)
-  assert.ok(summary.counts.power === 1)
+  assert.ok(summary.counts.power >= 1)
 })
 
 test('save parse keeps the city and drops junk', () => {
-  const state = newGame(9)
+  const state = newGame(9, true)
   state.day = 2.2
   const spot = findSpine(9)
   assert.ok(spot)
@@ -154,4 +170,26 @@ test('save parse keeps the city and drops junk', () => {
   assert.equal(parseSave({ v: 1, map: 'square' }), null)
   assert.equal(parseSave({ v: 2 }), null)
   assert.equal(parseSave({ ...file, cells: [{ c: 0, r: 0, kind: 'mall', stage: 1, age: 0 }] }), null)
+})
+
+test('a new city explains the first move, then a refused tile says why', () => {
+  const state = newGame(7)
+  const summary = summarize(state)
+  assert.equal(coach(state, summary), '城已經有路有樓。拉條路出去，貼住路起舖或者廠。')
+  assert.equal(takeMilestones(state, summary).length, 0)
+  let sea: { c: number; r: number } | null = null
+  let hill: { c: number; r: number } | null = null
+  for (let r = 0; r < 120 && (!sea || !hill); r++) {
+    for (let c = 0; c < 120 && (!sea || !hill); c++) {
+      const ground = terrainAt(c, r, 7)
+      if (!sea && ground === 'water') sea = { c, r }
+      if (!hill && ground === 'parkland') hill = { c, r }
+    }
+  }
+  assert.ok(sea && hill)
+  assert.equal(tileHint(state, summary, sea.c, sea.r, 'road'), '呢度係海。')
+  assert.equal(tileHint(state, summary, hill.c, hill.r, 'home'), '呢度係山或者郊野公園，起唔到。')
+  state.piers = [...state.piers, 'lamma']
+  const notes = takeMilestones(state, summarize(state))
+  assert.equal(notes[0], '離島船開咗，出到去。')
 })

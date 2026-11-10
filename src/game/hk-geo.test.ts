@@ -29,7 +29,7 @@ test('Victoria Harbour is water between the island and Kowloon', () => {
 })
 
 test('a linked MTR pair raises the daily take and speeds a nearby home', () => {
-  const state = newGame(3)
+  const state = newGame(3, true)
   const adm = stationById('adm')
   const wc = stationById('wc')
   assert.ok(adm && wc)

@@ -2,7 +2,10 @@ import { TILE_H, TILE_W, tileCenter, tileTop, type Cam } from './iso'
 import { cellKey, terrainAt } from './map'
 import { hash2, mixHex } from './rng'
 import { sunAmount, type Summary } from './sim'
+import { DISTRICTS } from './districts'
+import { PIERS, TRAM_STOPS, runningFerries, runningTramPairs } from './harbour'
 import { LINE_COLOR, STATIONS, segmentPairs, type LineId } from './transit'
+import type { TyphoonSignal } from './weather'
 import { MAP_SIZE, type BusStop, type Cell, type Tool } from './types'
 import type { Walker } from './walkers'
 
@@ -31,6 +34,9 @@ export interface Frame {
   stops: BusStop[]
   transitHints: boolean
   activeLine: LineId
+  signal: TyphoonSignal
+  piers: string[]
+  trams: string[]
 }
 
 let world: HTMLCanvasElement | null = null
@@ -47,10 +53,13 @@ export function renderFrame(frame: Frame) {
   drawWorld(wctx, frame, 'solid')
   drawTransit(wctx, frame, sun, false)
   if (sun < 0.98) {
+    const night = 1 - sun
+    // Slate grade, not ink. Full night stays dim but land, roads and water keep their shapes.
+    const tint = mixHex('#d5deea', '#4a5c78', Math.min(1, night * 1.05))
     wctx.save()
     wctx.globalCompositeOperation = 'multiply'
-    wctx.globalAlpha = (1 - sun) * 0.9
-    wctx.fillStyle = mixHex('#ffffff', '#0a1424', 1 - sun)
+    wctx.globalAlpha = night * 0.58
+    wctx.fillStyle = tint
     wctx.fillRect(0, 0, width, height)
     wctx.restore()
     wctx.save()
@@ -61,7 +70,9 @@ export function renderFrame(frame: Frame) {
   }
   ctx.drawImage(layer, 0, 0, width, height)
   drawStationLabels(ctx, frame)
-  if (raining) drawRain(ctx, width, height, time, sun)
+  drawHarbourCraft(ctx, frame)
+  drawDistrictLabels(ctx, frame)
+  if (raining) drawRain(ctx, width, height, time, sun, frame.signal)
   if (frame.ghost) drawGhost(ctx, frame)
 }
 
@@ -190,6 +201,13 @@ function drawGround(
 
   ctx.fillStyle = groundColor(c, r, seed, terrain)
   fillDiamond(ctx, top.x, top.y, w, h)
+  if (terrain === 'parkland' && (c * 3 + r) % 4 === 0) {
+    const center = tileCenter(c, r, cam)
+    ctx.fillStyle = '#2f5a32'
+    ctx.beginPath()
+    ctx.ellipse(center.x, center.y - 4 * cam.zoom, 7 * cam.zoom, 4 * cam.zoom, 0, 0, Math.PI * 2)
+    ctx.fill()
+  }
   ctx.strokeStyle = 'rgba(90, 70, 45, 0.18)'
   ctx.lineWidth = 1
   strokeDiamond(ctx, top.x, top.y, w, h)
@@ -229,6 +247,14 @@ function drawCell(ctx: CanvasRenderingContext2D, cell: Cell, cam: Cam, seed: num
   else if (cell.kind === 'factory') drawFactory(ctx, cell, cam, seed, pass, sun, lift, frame.time, frame.summary)
   else if (cell.kind === 'park') drawPark(ctx, cell, cam, pass, lift)
   else if (cell.kind === 'power') drawPower(ctx, cell, cam, pass, sun, lift)
+  if (pass !== 'solid') return
+  if (cell.kind !== 'home' && cell.kind !== 'shop' && cell.kind !== 'factory') return
+  if (frame.summary.served.has(cellKey(cell.c, cell.r))) return
+  const mark = tileCenter(cell.c, cell.r, cam)
+  ctx.fillStyle = '#c4483d'
+  ctx.beginPath()
+  ctx.arc(mark.x, mark.y - 18 * cam.zoom, Math.max(3, 3.5 * cam.zoom), 0, Math.PI * 2)
+  ctx.fill()
 }
 
 function drawRoad(ctx: CanvasRenderingContext2D, cell: Cell, cam: Cam, frame: Frame, pass: Pass, sun: number) {
@@ -240,7 +266,7 @@ function drawRoad(ctx: CanvasRenderingContext2D, cell: Cell, cam: Cam, frame: Fr
   if (pass === 'glow') {
     if (powered && sun < 0.72 && (cell.c * 3 + cell.r) % 5 === 0) {
       const center = tileCenter(cell.c, cell.r, cam)
-      glow(ctx, center.x, center.y - 14 * cam.zoom, 20 * cam.zoom, 'rgba(255, 206, 140, 0.85)')
+      glow(ctx, center.x, center.y - 14 * cam.zoom, 28 * cam.zoom, 'rgba(255, 214, 150, 0.95)')
     }
     return
   }
@@ -545,8 +571,8 @@ function drawGhost(ctx: CanvasRenderingContext2D, frame: Frame) {
   const w = TILE_W * frame.cam.zoom
   const h = TILE_H * frame.cam.zoom
   ctx.save()
-  ctx.globalAlpha = 0.55
-  ctx.fillStyle = ghost.ok ? 'rgba(240, 163, 90, 0.55)' : 'rgba(196, 72, 64, 0.45)'
+  ctx.globalAlpha = 0.85
+  ctx.fillStyle = ghost.ok ? 'rgba(240, 163, 90, 0.7)' : 'rgba(196, 60, 52, 0.72)'
   fillDiamond(ctx, top.x, top.y, w, h)
   if (ghost.tool === 'bulldoze') {
     ctx.strokeStyle = '#f2d2cc'
@@ -561,20 +587,24 @@ function drawGhost(ctx: CanvasRenderingContext2D, frame: Frame) {
   ctx.restore()
 }
 
-function drawRain(ctx: CanvasRenderingContext2D, w: number, h: number, time: number, sun: number) {
+function drawRain(ctx: CanvasRenderingContext2D, w: number, h: number, time: number, sun: number, signal: TyphoonSignal) {
   ctx.save()
+  const strong = signal >= 8
+  const mid = signal >= 3
   ctx.strokeStyle = sun > 0.4 ? 'rgba(70, 90, 110, 0.28)' : 'rgba(210, 220, 235, 0.28)'
-  ctx.lineWidth = 1
+  ctx.lineWidth = strong ? 1.6 : 1
   ctx.beginPath()
-  const count = Math.min(90, Math.floor((w * h) / 14000))
+  const count = Math.min(strong ? 220 : mid ? 140 : 90, Math.floor((w * h) / (strong ? 6000 : 14000)))
+  const lean = strong ? 22 : mid ? 12 : 7
   for (let i = 0; i < count; i++) {
-    const x = ((hash2(i, 1, 2) * w + time * 0.22) % (w + 30)) - 15
-    const y = ((hash2(i, 4, 2) * h + time * 0.72) % (h + 30)) - 15
+    const x = ((hash2(i, 1, 2) * w + time * (strong ? 0.55 : 0.22)) % (w + 40)) - 20
+    const y = ((hash2(i, 4, 2) * h + time * (strong ? 1.1 : 0.72)) % (h + 40)) - 20
     ctx.moveTo(x, y)
-    ctx.lineTo(x - 7, y + 16)
+    ctx.lineTo(x - lean, y + (strong ? 10 : 16))
   }
   ctx.stroke()
-  ctx.fillStyle = 'rgba(80, 110, 130, 0.05)'
+  const veil = strong ? 0.1 : mid ? 0.06 : 0.04
+  ctx.fillStyle = `rgba(70, 96, 118, ${veil})`
   ctx.fillRect(0, 0, w, h)
   ctx.restore()
 }
@@ -594,7 +624,7 @@ function paintWindows(
     for (let col = 0; col < cols; col++) {
       const lit = hash2(cell.c * 5 + floor, cell.r * 3 + col, seed + 1) > 0.42
       if (pass === 'glow' && (!lit || sun > 0.78)) continue
-      const color = pass === 'glow' ? '#ffd18a' : lit && sun < 0.35 ? '#ffd18a' : '#243038'
+      const color = pass === 'glow' ? '#ffe1a8' : lit && sun < 0.45 ? '#ffe1a8' : '#243038'
       const u = 0.14 + (col / cols) * 0.72
       const v = 0.14 + (floor / floors) * 0.74
       const uw = 0.16 / Math.max(1, cols / 2)
@@ -786,8 +816,9 @@ function glow(ctx: CanvasRenderingContext2D, x: number, y: number, radius: numbe
   ctx.fill()
 }
 
-function groundColor(c: number, r: number, seed: number, terrain: 'shore' | 'land' | 'slope' | 'water') {
+function groundColor(c: number, r: number, seed: number, terrain: 'shore' | 'land' | 'slope' | 'water' | 'parkland') {
   const n = hash2(c, r, seed)
+  if (terrain === 'parkland') return n > 0.5 ? '#4f7d3c' : '#3e6830'
   if (terrain === 'shore') return n > 0.5 ? '#e7d3aa' : '#dcc7a0'
   if (terrain === 'slope') return n > 0.5 ? '#c6b88a' : '#d2c29a'
   if (n > 0.92) return '#c5d09a'
@@ -906,6 +937,81 @@ function drawStationLabels(ctx: CanvasRenderingContext2D, frame: Frame) {
     const y = p.y - 6 * frame.cam.zoom
     ctx.strokeText(station.name, x, y)
     ctx.fillText(station.name, x, y)
+  }
+  ctx.restore()
+}
+
+function drawHarbourCraft(ctx: CanvasRenderingContext2D, frame: Frame) {
+  const zoom = frame.cam.zoom
+  ctx.save()
+  ctx.lineWidth = Math.max(1.5, 2 * zoom)
+  ctx.setLineDash([6 * zoom, 5 * zoom])
+  for (const route of runningFerries({ piers: frame.piers ?? [] }, frame.signal)) {
+    const a = tileCenter(route.from.c, route.from.r, frame.cam)
+    const b = tileCenter(route.to.c, route.to.r, frame.cam)
+    ctx.strokeStyle = route.kind === 'harbour' ? '#f0a35a' : '#d7e4ea'
+    ctx.beginPath()
+    ctx.moveTo(a.x, a.y)
+    ctx.lineTo(b.x, b.y)
+    ctx.stroke()
+    const t = (frame.time / 5000 + route.name.length) % 1
+    ctx.setLineDash([])
+    ctx.fillStyle = '#f4efe6'
+    ctx.beginPath()
+    ctx.ellipse(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, 5 * zoom, 2.4 * zoom, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.setLineDash([6 * zoom, 5 * zoom])
+  }
+  ctx.setLineDash([])
+  ctx.strokeStyle = '#6b4a32'
+  ctx.lineWidth = Math.max(2, 2.4 * zoom)
+  for (const [a, b] of runningTramPairs({ trams: frame.trams ?? [] }, frame.signal)) {
+    const pa = tileCenter(a.c, a.r, frame.cam)
+    const pb = tileCenter(b.c, b.r, frame.cam)
+    ctx.beginPath()
+    ctx.moveTo(pa.x, pa.y - 3 * zoom)
+    ctx.lineTo(pb.x, pb.y - 3 * zoom)
+    ctx.stroke()
+  }
+  const pairs = runningTramPairs({ trams: frame.trams ?? [] }, frame.signal)
+  if (pairs.length && frame.signal < 8) {
+    const [a, b] = pairs[Math.floor(frame.time / 1800) % pairs.length]
+    const t = (frame.time % 1800) / 1800
+    const pa = tileCenter(a.c, a.r, frame.cam)
+    const pb = tileCenter(b.c, b.r, frame.cam)
+    ctx.fillStyle = '#f2efe6'
+    ctx.fillRect(pa.x + (pb.x - pa.x) * t - 5 * zoom, pa.y + (pb.y - pa.y) * t - 6 * zoom, 10 * zoom, 4 * zoom)
+    ctx.fillStyle = '#c4473a'
+    ctx.fillRect(pa.x + (pb.x - pa.x) * t - 5 * zoom, pa.y + (pb.y - pa.y) * t - 4 * zoom, 10 * zoom, 1.4 * zoom)
+  }
+  const pierSet = new Set(frame.piers ?? [])
+  for (const pier of PIERS) {
+    const p = tileCenter(pier.c, pier.r, frame.cam)
+    ctx.fillStyle = pierSet.has(pier.id) ? '#f0a35a' : 'rgba(240,163,90,0.45)'
+    ctx.fillRect(p.x - 4 * zoom, p.y - 2 * zoom, 8 * zoom, 3.2 * zoom)
+  }
+  const tramSet = new Set(frame.trams ?? [])
+  for (const stop of TRAM_STOPS) {
+    const p = tileCenter(stop.c, stop.r, frame.cam)
+    ctx.strokeStyle = tramSet.has(stop.id) ? '#6b4a32' : 'rgba(107,74,50,0.45)'
+    ctx.strokeRect(p.x - 3 * zoom, p.y - 5 * zoom, 6 * zoom, 3 * zoom)
+  }
+  ctx.restore()
+}
+
+function drawDistrictLabels(ctx: CanvasRenderingContext2D, frame: Frame) {
+  if (frame.cam.zoom < 0.4) return
+  ctx.save()
+  ctx.font = `${Math.max(13, 15 * frame.cam.zoom)}px "PingFang HK", "PingFang TC", "Noto Sans TC", sans-serif`
+  ctx.textAlign = 'center'
+  ctx.lineWidth = 4
+  ctx.strokeStyle = 'rgba(255,248,238,0.92)'
+  ctx.fillStyle = '#1c140c'
+  for (const district of DISTRICTS) {
+    const p = tileCenter(district.c, district.r, frame.cam)
+    if (p.x < -40 || p.y < -20 || p.x > frame.width + 40 || p.y > frame.height + 20) continue
+    ctx.strokeText(district.name, p.x, p.y - 14 * frame.cam.zoom)
+    ctx.fillText(district.name, p.x, p.y - 14 * frame.cam.zoom)
   }
   ctx.restore()
 }

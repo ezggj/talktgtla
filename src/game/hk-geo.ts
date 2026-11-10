@@ -19,6 +19,19 @@ const WATER = 0
 const LAND = 1
 const SHORE = 2
 const SLOPE = 3
+const PARKLAND = 4
+
+/** Steep hills and country parks. Town centres are outside these circles. */
+const PROTECTED = [
+  { lon: 114.149, lat: 22.271, km: 0.95 },
+  { lon: 114.124, lat: 22.411, km: 2.8 },
+  { lon: 114.178, lat: 22.356, km: 1.15 },
+  { lon: 114.35, lat: 22.4, km: 3.4 },
+  { lon: 114.27, lat: 22.49, km: 2.2 },
+  { lon: 113.96, lat: 22.23, km: 2.6 },
+  { lon: 114.155, lat: 22.252, km: 1.05 },
+  { lon: 114.24, lat: 22.24, km: 1.3 },
+]
 
 const mask = new Uint8Array(MAP_SIZE * MAP_SIZE)
 const region = new Int16Array(MAP_SIZE * MAP_SIZE).fill(-1)
@@ -63,10 +76,12 @@ function lonLatOf(ix: number, iy: number): { lon: number; lat: number } {
   }
 }
 
-function nearHill(lon: number, lat: number): boolean {
-  const peak = (lon - 114.149) ** 2 * 94 ** 2 + (lat - 22.271) ** 2 * 111 ** 2
-  const taiMo = (lon - 114.124) ** 2 * 94 ** 2 + (lat - 22.411) ** 2 * 111 ** 2
-  return peak < 1.1 || taiMo < 2.4
+function km2(lon: number, lat: number, zone: { lon: number; lat: number }): number {
+  return (lon - zone.lon) ** 2 * 94 ** 2 + (lat - zone.lat) ** 2 * 111 ** 2
+}
+
+function inProtected(lon: number, lat: number): boolean {
+  return PROTECTED.some((zone) => km2(lon, lat, zone) <= zone.km * zone.km)
 }
 
 function buildMask() {
@@ -79,13 +94,13 @@ function buildMask() {
       if (!onLand(lon, lat)) continue
       const i = cell.r * MAP_SIZE + cell.c
       if (mask[i] !== WATER) continue
-      mask[i] = nearHill(lon, lat) ? SLOPE : LAND
+      mask[i] = inProtected(lon, lat) ? PARKLAND : LAND
       land.push(cell)
     }
   }
   for (const cell of land) {
     const i = cell.r * MAP_SIZE + cell.c
-    if (mask[i] === SLOPE) continue
+    if (mask[i] === SLOPE || mask[i] === PARKLAND) continue
     for (const [dc, dr] of [
       [1, 0],
       [-1, 0],
@@ -129,11 +144,12 @@ function buildMask() {
 
 buildMask()
 
-export type CoastKind = 'water' | 'shore' | 'land' | 'slope'
+export type CoastKind = 'water' | 'shore' | 'land' | 'slope' | 'parkland'
 
 export function coastAt(c: number, r: number): CoastKind {
   if (c < 0 || r < 0 || c >= MAP_SIZE || r >= MAP_SIZE) return 'water'
   const value = mask[r * MAP_SIZE + c]
+  if (value === PARKLAND) return 'parkland'
   if (value === SHORE) return 'shore'
   if (value === SLOPE) return 'slope'
   if (value === LAND) return 'land'

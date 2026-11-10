@@ -16,9 +16,13 @@ import {
   place,
   reasonCopy,
   summarize,
+  takeMilestones,
   tick,
+  tileHint,
   type Summary,
 } from '@/game/sim'
+import { PIER_COST, TRAM_COST, buildPier, buildTram, nearestPier, nearestTram } from '@/game/harbour'
+import { typhoonSignal } from '@/game/weather'
 import {
   LINE_COLOR,
   LINES,
@@ -81,6 +85,7 @@ export function CityApp() {
   const userMoved = useRef(false)
   const toastLock = useRef('')
   const hudNow = useRef(false)
+  const hintRef = useRef<string | null>(null)
 
   const [mode, setMode] = useState<'title' | 'play'>('title')
   const [ready, setReady] = useState(false)
@@ -154,13 +159,13 @@ export function CityApp() {
       if (!state || !summary) return
       const flow = Math.floor(state.day) >= 1 ? state.lastDelta : summary.income - summary.upkeep
       setHud({
-        when: `第${dayNumber(state.day)}日 · ${dayPart(state.day)}`,
+        when: `第${dayNumber(state.day)}日 · ${dayPart(state.day)}${typhoonLabel(typhoonSignal(state.day, state.seed))}`,
         money: formatMoney(state.money),
         delta: formatSigned(flow),
         deltaUp: flow >= 0,
         pop: summary.pop.toLocaleString('en-HK'),
         jobs: summary.jobs.toLocaleString('en-HK'),
-        coach: coach(state, summary),
+        coach: hintRef.current || coach(state, summary),
         rain: isRaining(state.day, state.seed),
         paused: state.paused,
         fast: state.speed === 3,
@@ -171,6 +176,8 @@ export function CityApp() {
         ],
         roads: summary.counts.road,
       })
+      const notes = takeMilestones(state, summary)
+      if (notes[0]) showToast(notes[0])
     }
 
     const persist = () => {
@@ -217,7 +224,9 @@ export function CityApp() {
       const occupied = state.cells.some((cell) => cell.c === tile.c && cell.r === tile.r)
       const toolNow = toolRef.current
       const inside = tile.c >= 0 && tile.r >= 0 && tile.c < MAP_SIZE && tile.r < MAP_SIZE
-      const water = inside && terrainAt(tile.c, tile.r, state.seed) === 'water'
+      const ground = inside ? terrainAt(tile.c, tile.r, state.seed) : 'water'
+      const water = ground === 'water'
+      const hill = ground === 'parkland' || ground === 'slope'
       const besideRoad = [-1, 1].some((d) => {
         return (
           state.cells.some((cell) => cell.kind === 'road' && cell.c === tile.c + d && cell.r === tile.r) ||
@@ -227,12 +236,15 @@ export function CityApp() {
       let ok = true
       if (!inside) ok = false
       else if (toolNow === 'mtr') ok = nearestUnbuilt(lineRef.current, tile.c, tile.r, state.stations) !== null && state.money >= STATION_COST
+      else if (toolNow === 'ferry') ok = nearestPier(tile.c, tile.r, state.piers ?? []) !== null && state.money >= PIER_COST
+      else if (toolNow === 'tram') ok = nearestTram(tile.c, tile.r, state.trams ?? []) !== null && state.money >= TRAM_COST
       else if (toolNow === 'bus') {
         ok = state.cells.some((cell) => cell.kind === 'road' && cell.c === tile.c && cell.r === tile.r) && state.money >= STOP_COST
       } else if (toolNow === 'bulldoze') ok = occupied
-      else if (water || occupied || !isBuildKind(toolNow) || state.money < COST[toolNow]) ok = false
+      else if (water || hill || occupied || !isBuildKind(toolNow) || state.money < COST[toolNow]) ok = false
       else if (toolNow !== 'road' && !besideRoad) ok = false
       ghostRef.current = { c: tile.c, r: tile.r, tool: toolNow, ok }
+      hintRef.current = tileHint(state, summaryRef.current ?? summarize(state), tile.c, tile.r, toolNow)
     }
 
     const actAt = (x: number, y: number, quiet = false) => {
@@ -254,6 +266,43 @@ export function CityApp() {
         if (built === 'money') showToast('庫房唔夠。')
         else if (built === 'have' && !quiet) showToast('呢個站起咗。')
         else if (built === 'ok') {
+          state.guide = false
+          navigator.vibrate?.(10)
+          summaryRef.current = summarize(state)
+          publish()
+          persist()
+        }
+        return
+      }
+      if (toolNow === 'ferry') {
+        const pier = nearestPier(tile.c, tile.r, state.piers ?? [])
+        if (!pier) {
+          if (!quiet) showToast('撳碼頭光點先開船。')
+          return
+        }
+        const built = buildPier(state, pier.id)
+        if (built === 'money') showToast('庫房唔夠。')
+        else if (built === 'have' && !quiet) showToast('呢個碼頭開咗。')
+        else if (built === 'ok') {
+          state.guide = false
+          navigator.vibrate?.(10)
+          summaryRef.current = summarize(state)
+          publish()
+          persist()
+        }
+        return
+      }
+      if (toolNow === 'tram') {
+        const stop = nearestTram(tile.c, tile.r, state.trams ?? [])
+        if (!stop) {
+          if (!quiet) showToast('撳電車站先鋪軌。')
+          return
+        }
+        const built = buildTram(state, stop.id)
+        if (built === 'money') showToast('庫房唔夠。')
+        else if (built === 'have' && !quiet) showToast('呢個站起咗。')
+        else if (built === 'ok') {
+          state.guide = false
           navigator.vibrate?.(10)
           summaryRef.current = summarize(state)
           publish()
@@ -267,6 +316,7 @@ export function CityApp() {
         else if (built === 'money') showToast('庫房唔夠。')
         else if (built === 'have' && !quiet) showToast('呢度有站。')
         else if (built === 'ok') {
+          state.guide = false
           navigator.vibrate?.(10)
           summaryRef.current = summarize(state)
           publish()
@@ -457,8 +507,11 @@ export function CityApp() {
         raining: isRaining(state.day, state.seed),
         builtStations: state.stations ?? [],
         stops: state.stops ?? [],
-        transitHints: playing ? toolRef.current === 'mtr' : false,
+        transitHints: playing ? toolRef.current === 'mtr' : true,
         activeLine: lineRef.current,
+        signal: typhoonSignal(state.day, state.seed),
+        piers: state.piers ?? [],
+        trams: state.trams ?? [],
       })
       hudClock += dt
       if (playing && (hudNow.current || hudClock > 250)) {
@@ -779,7 +832,16 @@ function toolPrice(id: Tool): string {
   if (id === 'bulldoze') return '退少少'
   if (id === 'mtr') return formatMoney(STATION_COST)
   if (id === 'bus') return formatMoney(STOP_COST)
+  if (id === 'ferry') return formatMoney(PIER_COST)
+  if (id === 'tram') return formatMoney(TRAM_COST)
   return formatMoney(COST[id])
+}
+
+function typhoonLabel(signal: 0 | 1 | 3 | 8): string {
+  if (signal === 8) return ' · 掛八號'
+  if (signal === 3) return ' · 掛三號'
+  if (signal === 1) return ' · 掛一號'
+  return ''
 }
 
 function zoomCenter(
