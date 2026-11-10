@@ -1,8 +1,25 @@
 import { NextResponse } from 'next/server'
-import { ADMIN_COOKIE, adminCookieOptions } from '@/lib/admin-auth'
 
-export async function POST() {
-  const res = NextResponse.json({ ok: true })
-  res.cookies.set(ADMIN_COOKIE, '', { ...adminCookieOptions(0), maxAge: 0 })
-  return res
+function gone() {
+  return NextResponse.json({ error: 'gone' }, { status: 410 })
+}
+
+export function GET() {
+  return gone()
+}
+
+export function POST() {
+  return gone()
+}
+
+export function PUT() {
+  return gone()
+}
+
+export function PATCH() {
+  return gone()
+}
+
+export function DELETE() {
+  return gone()
 }

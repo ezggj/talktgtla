@@ -243,10 +243,9 @@ test('Hong Kong day rolls across month boundaries', () => {
   assert.equal(hk, '2026-11-01')
 })
 
-test('train ask route does not call an LLM', () => {
+test('train ask route is retired and does not call an LLM', () => {
   const src = readFileSync(new URL('../../app/api/train/ask/route.ts', import.meta.url), 'utf8')
   assert.equal(src.includes("from 'ai'"), false)
   assert.equal(src.includes('generateText'), false)
-  assert.match(src, /source: 'rules'/)
-  assert.match(src, /free_limit/)
+  assert.match(src, /410/)
 })

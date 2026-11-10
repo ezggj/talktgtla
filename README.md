@@ -1,73 +1,41 @@
-# Talk tgt la
+# 我座城
 
-香港人一齊傾偈 · 訓練 · 飲食。公開聊天室＋健身日誌＋影餐營養估算＋課表生成。
+瀏覽器入面起一座城。香港日常風味：唐樓同公屋味道嘅住宅、樓下街舖、工廈、休憩處、電箱。免費，唔使登入，進度記喺呢部機。
 
-## 路由
+**呢個係原創遊戲。** 淨係借用「等軸城市建造」呢個類型，畫面、地圖、音樂、介面都係自己寫、自己畫。
+**唔係《香城模擬器》，同佢冇任何關係**，冇用佢嘅名、圖、地圖、音樂或者介面。
 
-| 路徑 | 說明 |
-|------|------|
-| `/` | 傾偈（Realtime 聊天，匿名友善） |
-| `/train` | 訓練日誌（組數／重量／時間、課表、PR、雲端同步） |
-| `/eat` | 飲食（影相估算＋日／週／月歷史匯總） |
-| `/me` | 登入、目標、課表生成器 |
-| `/admin` | 管理員（不公開連結；長按標題 / Ctrl+Shift+A） |
-| `/auth/confirm` · `/auth/callback` | Google／舊連結回跳 |
-
-## Auth 同雲端
-
-- Supabase Auth：**Google OAuth（建議）**＋電郵六位數字（次選，唔係 magic link）
-- 登入後：訓練、飲食、目標、課表同步去你個帳戶；RLS 只得自己
-- 訪客仍可用本機 localStorage；登入會遷移本機資料
-- `authRedirectTo()` 永遠用 `https://talktgtla.com`（`NEXT_PUBLIC_SITE_URL`），避免電郵／OAuth 跳去 localhost
-- **Dashboard 必須設定**（Authentication → URL Configuration）：
-  - Site URL: `https://talktgtla.com`
-  - Redirect URLs: `https://talktgtla.com/**`, `https://talktgtla.com/auth/confirm`, `https://talktgtla.com/auth/callback`, `http://localhost:3000/**`
-- **電郵六位數字**（Authentication → Email Templates → Magic Link）：Supabase 用呢個模板寄 `signInWithOtp`。主旨改成「你嘅六位數字」，內容用 `supabase/templates/magic_link.html`（只顯示 `{{ .Token }}`）。唔好留「Sign in」／`{{ .ConfirmationURL }}`，否則用戶會收到 magic link 而唔係六位數字。App 寄碼時**唔會**傳 `emailRedirectTo`。
-
-### 開 Google 登入
-
-1. [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials → Create OAuth client ID（Web application）
-2. Authorized redirect URI（必須係 Supabase callback，唔係自己網站）：
-   `https://etbgulbuzezrdoqvvamy.supabase.co/auth/v1/callback`
-3. Supabase Dashboard → Authentication → Providers → **Google** → Enable，貼上 Client ID + Client Secret（secret 只放 dashboard，**唔好**寫入 Next.js env）
-4. 儲存後喺 `/me` 撳「用 Google 登入」試
-
-
-## 飲食匯總
-
-- 每餐 `eaten_at` 永久保存（登入）
-- UI：日／週／月切換＋日曆熱圖
-- SQL：`meal_period_totals`（`date_trunc`，Asia/Hong_Kong）
-
-## 課表生成
-
-`/me` 五步表單（目標／經驗／日數／時長／器材）→ 規則引擎出一週 split → 「開波」帶動作入 `/train`。
-
-
-## 影相估營養（免費限次 + 可改）
-
-- 路徑：`POST /api/eat/estimate`（Vercel AI Gateway + AI SDK `generateText` + vision）
-- 預設模型：`AI_GATEWAY_MODEL`（production 設咗 `google/gemini-2.5-flash`）
-- Production 用 **Vercel OIDC** 打 Gateway，唔使喺 client 暴露 key
-- **免費限次（預設每日 3 次，`EAT_AI_FREE_DAILY_LIMIT`）**：按登入 user id／訪客 fingerprint／IP，計香港日曆日；持久化於 Supabase `eat_ai_daily_quota`（`peek_eat_ai_quota` / `consume_eat_ai_quota`）
-- 超出限次 → `code: free_limit`，前端開可改數字卡（唔逼 Gateway 收費）
-- 成功：`meals.source = 'ai'`；Gateway billing／失敗 → 溫和手動／示範卡，數字一律可改
-- UI：卡路里／蛋白／碳水／脂肪撳格即改；份量滑桿即時重算
-
-> **AI Gateway note (#2)：** 優先走 **免費限次 + 用戶可改** 路徑；真 AI 有 Gateway Credits 就用，冇／billing 失敗就 fallback 手動編輯，唔阻擋核心 UX。加卡買 Credits 係可選加速，唔係必須。
-
-
-## 環境變數
-
-見 `.env.example`。Production 已有 `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`。
-
-## 設計
-
-Linear + Stripe + Apple：`#FAFAF9`、accent `#0F766E`、**Fraunces**（標題）、Geist（內文）、Framer Motion。文案用口語香港廣東話。
-
-## 開發
+## 點玩
 
 ```bash
 npm install && npm run dev
-npm run build
 ```
+
+打開 [http://localhost:3000](http://localhost:3000)。
+
+1. 封面撳 **開波**（有存檔就撳 **繼續**）。
+2. 撳 **路**，再撳塊地。拖動可以睇四周，按鈕或者滾輪放大。手機兩指放大。
+3. **電箱**貼住條路，電力先沿路送出去。
+4. 起 **住宅**、**街舖**、**工業**、**休憩**。有電先會起高，人多咗庫房先有稅。
+5. 休憩附近嘅住宅起得快啲。
+6. **拆** 會退返少少錢。**儲低** 或者放低都會記喺呢部機（`localStorage`）。
+7. 想一路起，撳 **連續** 再拖；電腦可以按住 Shift 拖。鍵盤 `1`–`7` 揀工具，空白鍵暫停。
+
+日夜會自己轉，間中落雨。撳 **快** 可以睇快啲。
+
+`npm run build` 會出 Vercel / Next.js 生產版本。遊戲唔使環境變數，亦唔使登入。
+
+## 舊版健身同傾偈
+
+取代之前，`main` 嗰個 tip 已經推去分支 [`archive/talk-tgt-la-fitness`](https://github.com/ezggj/talktgtla/tree/archive/talk-tgt-la-fitness)，冇改寫 git history。想返去記組、飲食、傾偈嗰版：
+
+```bash
+git fetch origin archive/talk-tgt-la-fitness
+git checkout archive/talk-tgt-la-fitness
+```
+
+而家 `/train`、`/eat`、`/chat` 呢類舊網址會見到收檔提示，唔會再打開健身頁。
+
+## 之後先做（呢版未有）
+
+巴士公司、地鐵、風球、區議會法案、節日、新聞、股市、桌面版。模擬層而家得電力沿路送，預留咗位置之後先加。

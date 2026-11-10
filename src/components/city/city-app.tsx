@@ -1,0 +1,732 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { TOOLS, demandLine, formatMoney, formatSigned } from '@/game/copy'
+import { createDemo, demoFocus } from '@/game/demo'
+import { clampZoom, defaultZoom, focusCamera, screenToTile, type Cam } from '@/game/iso'
+import { startFocus, terrainAt } from '@/game/map'
+import { renderFrame, type Ghost } from '@/game/render'
+import { clearSave, readSave, writeSave } from '@/game/save'
+import {
+  coach,
+  dayNumber,
+  dayPart,
+  isRaining,
+  newGame,
+  place,
+  reasonCopy,
+  summarize,
+  tick,
+  type Summary,
+} from '@/game/sim'
+import { COST, MAP_SIZE, type GameState, type Tool } from '@/game/types'
+import { stepWalkers, syncWalkers, type Walker } from '@/game/walkers'
+import './city.css'
+
+interface Hud {
+  when: string
+  money: string
+  delta: string
+  deltaUp: boolean
+  pop: string
+  jobs: string
+  coach: string
+  rain: boolean
+  paused: boolean
+  fast: boolean
+  demands: string[]
+  roads: number
+}
+
+const EMPTY_HUD: Hud = {
+  when: '第1日 · 日頭',
+  money: formatMoney(6000),
+  delta: '',
+  deltaUp: true,
+  pop: '0',
+  jobs: '0',
+  coach: '撳「路」，再撳塊地起。',
+  rain: false,
+  paused: false,
+  fast: false,
+  demands: ['住宅 想多啲', '街舖 夠', '工業 夠'],
+  roads: 0,
+}
+
+export function CityApp() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const modeRef = useRef<'title' | 'play'>('title')
+  const toolRef = useRef<Tool>('road')
+  const paintRef = useRef(false)
+  const stateRef = useRef<GameState | null>(null)
+  const demoRef = useRef<GameState | null>(null)
+  const summaryRef = useRef<Summary | null>(null)
+  const camRef = useRef<Cam | null>(null)
+  const viewRef = useRef({ w: 0, h: 0, dpr: 1 })
+  const ghostRef = useRef<Ghost | null>(null)
+  const playWalkers = useRef<Walker[]>([])
+  const demoWalkers = useRef<Walker[]>([])
+  const userMoved = useRef(false)
+  const toastLock = useRef('')
+  const hudNow = useRef(false)
+
+  const [mode, setMode] = useState<'title' | 'play'>('title')
+  const [ready, setReady] = useState(false)
+  const [hasSave, setHasSave] = useState(false)
+  const [tool, setTool] = useState<Tool>('road')
+  const [paint, setPaint] = useState(false)
+  const [hud, setHud] = useState<Hud>(EMPTY_HUD)
+  const [toast, setToast] = useState<string | null>(null)
+  const [confirmNew, setConfirmNew] = useState(false)
+
+  useEffect(() => {
+    modeRef.current = mode
+  }, [mode])
+
+  useEffect(() => {
+    toolRef.current = tool
+  }, [tool])
+
+  useEffect(() => {
+    paintRef.current = paint
+  }, [paint])
+
+  useEffect(() => {
+    const demo = createDemo()
+    demoRef.current = demo
+    summaryRef.current = summarize(demo)
+    const readyTimer = window.setTimeout(() => {
+      setHasSave(Boolean(readSave()))
+      setReady(true)
+    }, 0)
+    const canvas = canvasRef.current
+    const parent = canvas?.parentElement
+    if (!canvas || !parent) return () => window.clearTimeout(readyTimer)
+
+    const pointers = new Map<number, { x: number; y: number; ox: number; oy: number; moved: boolean }>()
+    let painting = false
+    let pinched = false
+    let lastPaint = ''
+    let panOrigin: { x: number; y: number; camX: number; camY: number } | null = null
+    let pinch: { d: number; midX: number; midY: number } | null = null
+    let last = performance.now()
+    let hudClock = 0
+    let saveClock = 0
+    let raf = 0
+
+    const pointOf = (event: { clientX: number; clientY: number }) => {
+      const rect = canvas.getBoundingClientRect()
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top }
+    }
+
+    const showToast = (message: string) => {
+      if (toastLock.current === message) return
+      toastLock.current = message
+      setToast(message)
+      window.setTimeout(() => {
+        setToast((current) => (current === message ? null : current))
+        if (toastLock.current === message) toastLock.current = ''
+      }, 1600)
+    }
+
+    const publish = () => {
+      const playing = modeRef.current === 'play'
+      const state = playing ? stateRef.current : null
+      const summary = playing && state ? summarize(state) : summaryRef.current
+      if (playing && state) summaryRef.current = summary
+      if (!state || !summary) return
+      const flow = Math.floor(state.day) >= 1 ? state.lastDelta : summary.income - summary.upkeep
+      setHud({
+        when: `第${dayNumber(state.day)}日 · ${dayPart(state.day)}`,
+        money: formatMoney(state.money),
+        delta: formatSigned(flow),
+        deltaUp: flow >= 0,
+        pop: summary.pop.toLocaleString('en-HK'),
+        jobs: summary.jobs.toLocaleString('en-HK'),
+        coach: coach(state, summary),
+        rain: isRaining(state.day, state.seed),
+        paused: state.paused,
+        fast: state.speed === 3,
+        demands: [
+          demandLine('home', summary.demand.home),
+          demandLine('shop', summary.demand.shop),
+          demandLine('factory', summary.demand.factory),
+        ],
+        roads: summary.counts.road,
+      })
+    }
+
+    const persist = () => {
+      const state = stateRef.current
+      const cam = camRef.current
+      if (modeRef.current !== 'play' || !state || !cam) return
+      if (!writeSave(state, cam)) showToast('呢部機記唔到。')
+      else setHasSave(true)
+    }
+
+    const centerOn = (c: number, r: number, zoom = camRef.current?.zoom ?? defaultZoom(viewRef.current.w || 800)) => {
+      const view = viewRef.current
+      if (!view.w) return
+      camRef.current = focusCamera(view.w, view.h, zoom, c, r)
+    }
+
+    const ensureCam = () => {
+      if (camRef.current || !viewRef.current.w) return
+      const demo = demoRef.current
+      if (!demo) return
+      if (modeRef.current === 'play' && stateRef.current) {
+        const focus = stateRef.current.cells.length
+          ? centroid(stateRef.current.cells)
+          : startFocus(stateRef.current.seed)
+        centerOn(focus.c, focus.r)
+        return
+      }
+      const focus = demoFocus(demo)
+      centerOn(focus.c, focus.r)
+    }
+
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect()
+      const dpr = Math.min(2, window.devicePixelRatio || 1)
+      viewRef.current = { w: rect.width, h: rect.height, dpr }
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr))
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr))
+      ensureCam()
+    }
+
+    const zoomAt = (sx: number, sy: number, next: number) => {
+      const cam = camRef.current
+      if (!cam) return
+      const zoom = clampZoom(next)
+      const wx = (sx - cam.x) / cam.zoom
+      const wy = (sy - cam.y) / cam.zoom
+      camRef.current = { zoom, x: sx - wx * zoom, y: sy - wy * zoom }
+      userMoved.current = true
+    }
+
+    const ghostAt = (x: number, y: number) => {
+      const cam = camRef.current
+      const state = stateRef.current
+      if (!cam || !state || modeRef.current !== 'play') {
+        ghostRef.current = null
+        return
+      }
+      const tile = screenToTile(x, y, cam)
+      const occupied = state.cells.some((cell) => cell.c === tile.c && cell.r === tile.r)
+      const toolNow = toolRef.current
+      const inside = tile.c >= 0 && tile.r >= 0 && tile.c < MAP_SIZE && tile.r < MAP_SIZE
+      const water = inside && terrainAt(tile.c, tile.r, state.seed) === 'water'
+      const besideRoad = [-1, 1].some((d) => {
+        return (
+          state.cells.some((cell) => cell.kind === 'road' && cell.c === tile.c + d && cell.r === tile.r) ||
+          state.cells.some((cell) => cell.kind === 'road' && cell.c === tile.c && cell.r === tile.r + d)
+        )
+      })
+      let ok = true
+      if (!inside) ok = false
+      else if (toolNow === 'bulldoze') ok = occupied
+      else if (water || occupied || state.money < COST[toolNow]) ok = false
+      else if (toolNow !== 'road' && !besideRoad) ok = false
+      ghostRef.current = { c: tile.c, r: tile.r, tool: toolNow, ok }
+    }
+
+    const actAt = (x: number, y: number, quiet = false) => {
+      const cam = camRef.current
+      const state = stateRef.current
+      if (!cam || !state || modeRef.current !== 'play') return
+      const tile = screenToTile(x, y, cam)
+      const key = `${tile.c},${tile.r}`
+      if (key === lastPaint) return
+      lastPaint = key
+      const result = place(state, toolRef.current, tile.c, tile.r)
+      if (!result.ok) {
+        const message = reasonCopy(result.reason)
+        if (message && (!quiet || result.reason === 'money')) showToast(message)
+        return
+      }
+      navigator.vibrate?.(10)
+      summaryRef.current = summarize(state)
+      syncWalkers(playWalkers.current, state.cells, state.seed)
+      publish()
+      persist()
+    }
+
+    const onDown = (event: PointerEvent) => {
+      canvas.setPointerCapture(event.pointerId)
+      const point = pointOf(event)
+      pointers.set(event.pointerId, { x: point.x, y: point.y, ox: point.x, oy: point.y, moved: false })
+      pinched = false
+      lastPaint = ''
+      painting = (event.pointerType === 'mouse' && event.shiftKey) || paintRef.current
+      if (pointers.size === 1) {
+        const cam = camRef.current
+        panOrigin = cam ? { x: point.x, y: point.y, camX: cam.x, camY: cam.y } : null
+        pinch = null
+        if (painting) actAt(point.x, point.y, true)
+      } else if (pointers.size === 2) {
+        pinch = pairMetrics()
+        painting = false
+      }
+    }
+
+    const onMove = (event: PointerEvent) => {
+      const point = pointOf(event)
+      const tracked = pointers.get(event.pointerId)
+      if (tracked) {
+        if ((point.x - tracked.ox) ** 2 + (point.y - tracked.oy) ** 2 > 36) tracked.moved = true
+        tracked.x = point.x
+        tracked.y = point.y
+      }
+      if (pointers.size >= 2 && pinch) {
+        const next = pairMetrics()
+        if (next && camRef.current) {
+          zoomAt(next.midX, next.midY, camRef.current.zoom * (next.d / pinch.d))
+          const cam = camRef.current
+          if (cam) {
+            cam.x += next.midX - pinch.midX
+            cam.y += next.midY - pinch.midY
+          }
+          pinch = next
+          pinched = true
+        }
+        ghostRef.current = null
+        return
+      }
+      if (painting && tracked?.moved) {
+        actAt(point.x, point.y, true)
+        userMoved.current = true
+        return
+      }
+      if (panOrigin && tracked?.moved && camRef.current && !painting) {
+        camRef.current = {
+          ...camRef.current,
+          x: panOrigin.camX + (point.x - panOrigin.x),
+          y: panOrigin.camY + (point.y - panOrigin.y),
+        }
+        userMoved.current = true
+        ghostRef.current = null
+        return
+      }
+      ghostAt(point.x, point.y)
+    }
+
+    const onUp = (event: PointerEvent) => {
+      const tracked = pointers.get(event.pointerId)
+      pointers.delete(event.pointerId)
+      if (pointers.size < 2) pinch = null
+      if (!tracked || pinched || pointers.size > 0) return
+      if (!tracked.moved) {
+        const point = pointOf(event)
+        lastPaint = ''
+        actAt(point.x, point.y)
+      }
+      painting = false
+      panOrigin = null
+    }
+
+    const pairMetrics = () => {
+      const pts = [...pointers.values()]
+      if (pts.length < 2) return null
+      return {
+        d: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1,
+        midX: (pts[0].x + pts[1].x) / 2,
+        midY: (pts[0].y + pts[1].y) / 2,
+      }
+    }
+
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      const point = pointOf(event)
+      const cam = camRef.current
+      if (!cam) return
+      zoomAt(point.x, point.y, cam.zoom * (event.deltaY > 0 ? 0.92 : 1.08))
+    }
+
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return
+      const keys = ['1', '2', '3', '4', '5', '6', '7']
+      const index = keys.indexOf(event.key)
+      if (index >= 0) {
+        const next = TOOLS[index].id
+        toolRef.current = next
+        setTool(next)
+      }
+      if (event.key === ' ') {
+        event.preventDefault()
+        const state = stateRef.current
+        if (state && modeRef.current === 'play') {
+          state.paused = !state.paused
+          publish()
+        }
+      }
+      const cam = camRef.current
+      if (!cam) return
+      const step = 48
+      if (event.key === 'ArrowLeft' || event.key === 'a') cam.x += step
+      if (event.key === 'ArrowRight' || event.key === 'd') cam.x -= step
+      if (event.key === 'ArrowUp' || event.key === 'w') cam.y += step
+      if (event.key === 'ArrowDown' || event.key === 's') cam.y -= step
+      if (event.key === '+' || event.key === '=') zoomAt(viewRef.current.w / 2, viewRef.current.h / 2, cam.zoom * 1.1)
+      if (event.key === '-' || event.key === '_') zoomAt(viewRef.current.w / 2, viewRef.current.h / 2, cam.zoom / 1.1)
+    }
+
+    const draw = (now: number) => {
+      raf = window.requestAnimationFrame(draw)
+      const dt = Math.min(100, now - last)
+      last = now
+      const view = viewRef.current
+      const ctx = canvas.getContext('2d')
+      if (!ctx || view.w < 2) return
+      const playing = modeRef.current === 'play' && stateRef.current
+      const state = playing ? stateRef.current : demoRef.current
+      if (!state || !demoRef.current) return
+      const summary = playing ? tick(state, dt) : summarize(state)
+      if (playing) summaryRef.current = summary
+      const walkers = playing ? playWalkers.current : demoWalkers.current
+      if (hudClock <= 0) syncWalkers(walkers, state.cells, state.seed)
+      stepWalkers(walkers, state.cells, dt / 1000)
+      const cam = camRef.current
+      if (!cam) return
+      ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0)
+      renderFrame({
+        ctx,
+        width: view.w,
+        height: view.h,
+        dpr: view.dpr,
+        seed: state.seed,
+        day: state.day,
+        cells: state.cells,
+        cam,
+        time: now,
+        summary,
+        walkers,
+        ghost: playing ? ghostRef.current : null,
+        raining: isRaining(state.day, state.seed),
+      })
+      hudClock += dt
+      if (playing && (hudNow.current || hudClock > 250)) {
+        hudClock = 0
+        hudNow.current = false
+        publish()
+      }
+      saveClock += dt
+      if (playing && saveClock > 4000) {
+        saveClock = 0
+        persist()
+      }
+    }
+
+    resize()
+    const observer = new ResizeObserver(resize)
+    observer.observe(parent)
+    canvas.addEventListener('pointerdown', onDown)
+    canvas.addEventListener('pointermove', onMove)
+    canvas.addEventListener('pointerup', onUp)
+    canvas.addEventListener('pointercancel', onUp)
+    canvas.addEventListener('wheel', onWheel, { passive: false })
+    window.addEventListener('keydown', onKey)
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') persist()
+    }
+    document.addEventListener('visibilitychange', onHide)
+    raf = window.requestAnimationFrame(draw)
+    publish()
+
+    return () => {
+      window.clearTimeout(readyTimer)
+      window.cancelAnimationFrame(raf)
+      observer.disconnect()
+      canvas.removeEventListener('pointerdown', onDown)
+      canvas.removeEventListener('pointermove', onMove)
+      canvas.removeEventListener('pointerup', onUp)
+      canvas.removeEventListener('pointercancel', onUp)
+      canvas.removeEventListener('wheel', onWheel)
+      window.removeEventListener('keydown', onKey)
+      document.removeEventListener('visibilitychange', onHide)
+    }
+  }, [])
+
+  const begin = (kind: 'new' | 'continue') => {
+    if (kind === 'continue') {
+      const saved = readSave()
+      if (saved) {
+        stateRef.current = saved.state
+        camRef.current = saved.cam
+        userMoved.current = true
+        summaryRef.current = summarize(saved.state)
+        syncWalkers(playWalkers.current, saved.state.cells, saved.state.seed)
+        modeRef.current = 'play'
+        hudNow.current = true
+        setMode('play')
+        setConfirmNew(false)
+        return
+      }
+    }
+    const seed = Math.floor(Math.random() * 1_000_000_000)
+    const state = newGame(seed)
+    stateRef.current = state
+    summaryRef.current = summarize(state)
+    playWalkers.current = []
+    clearSave()
+    const view = viewRef.current
+    const focus = startFocus(seed)
+    camRef.current = focusCamera(view.w || 800, view.h || 600, defaultZoom(view.w || 800), focus.c, focus.r)
+    userMoved.current = false
+    modeRef.current = 'play'
+    hudNow.current = true
+    setHasSave(false)
+    setMode('play')
+    setConfirmNew(false)
+    setTool('road')
+    toolRef.current = 'road'
+  }
+
+  const backToTitle = () => {
+    const state = stateRef.current
+    const cam = camRef.current
+    if (state && cam) {
+      setHasSave(writeSave(state, cam))
+    }
+    modeRef.current = 'title'
+    setMode('title')
+    const view = viewRef.current
+    const demo = demoRef.current
+    if (!demo) return
+    const focus = demoFocus(demo)
+    camRef.current = focusCamera(view.w || 800, view.h || 600, cam?.zoom ?? defaultZoom(view.w || 800), focus.c, focus.r)
+  }
+
+  const togglePause = () => {
+    const state = stateRef.current
+    if (!state) return
+    state.paused = !state.paused
+    setHud((current) => ({ ...current, paused: state.paused }))
+  }
+
+  const toggleFast = () => {
+    const state = stateRef.current
+    if (!state) return
+    state.speed = state.speed === 3 ? 1 : 3
+    setHud((current) => ({ ...current, fast: state.speed === 3 }))
+  }
+
+  const recenter = () => {
+    const state = stateRef.current
+    const view = viewRef.current
+    if (!state || !view.w) return
+    const focus = state.cells.length ? centroid(state.cells) : startFocus(state.seed)
+    camRef.current = focusCamera(view.w, view.h, camRef.current?.zoom ?? defaultZoom(view.w), focus.c, focus.r)
+    userMoved.current = false
+  }
+
+  const saveNow = () => {
+    const state = stateRef.current
+    const cam = camRef.current
+    if (!state || !cam) return
+    if (writeSave(state, cam)) {
+      setHasSave(true)
+      setToast('儲低咗。')
+      window.setTimeout(() => setToast((current) => (current === '儲低咗。' ? null : current)), 1200)
+    } else {
+      setToast('呢部機記唔到。')
+    }
+  }
+
+  return (
+    <div className="city-root">
+      <canvas ref={canvasRef} aria-label="城市地圖" />
+      {mode === 'title' ? (
+        <div className="title-wrap">
+          <div className="title-card">
+            <p className="title-kicker">原創</p>
+            <h1>我座城</h1>
+            <p>灣邊一塊地，你嚟起。</p>
+            {!ready ? (
+              <p className="fine">載入緊…</p>
+            ) : hasSave ? (
+              <>
+                <button className="btn-go" type="button" onClick={() => begin('continue')}>
+                  繼續
+                </button>
+                <button className="btn-text" type="button" onClick={() => setConfirmNew(true)}>
+                  開新城
+                </button>
+              </>
+            ) : (
+              <button className="btn-go" type="button" onClick={() => begin('new')}>
+                開波
+              </button>
+            )}
+            <p className="fine">記喺呢部機，唔使登入。</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <header className="topbar">
+            <strong>{hud.when}</strong>
+            {hud.rain ? <span>落緊雨</span> : null}
+            <span className="stat">
+              庫房 <b>{hud.money}</b>{' '}
+              <span className={hud.deltaUp ? 'delta-up' : 'delta-down'}>{hud.delta}</span>
+            </span>
+            <span className="stat">
+              人口 <b>{hud.pop}</b>
+            </span>
+            <div className="top-actions">
+              <button className="mini" type="button" onClick={togglePause}>
+                {hud.paused ? '行住' : '暫停'}
+              </button>
+              <button className="mini" type="button" onClick={saveNow}>
+                儲低
+              </button>
+              <button className="mini" type="button" onClick={backToTitle}>
+                封面
+              </button>
+            </div>
+          </header>
+          <aside className="side">
+            <h1>我座城</h1>
+            <p className="when">
+              {hud.when}
+              {hud.rain ? ' · 落緊雨' : ''}
+            </p>
+            <div className="side-stats">
+              <div>
+                <span>庫房</span>
+                <strong>{hud.money}</strong>
+              </div>
+              <div>
+                <span>今日</span>
+                <strong className={hud.deltaUp ? 'delta-up' : 'delta-down'}>{hud.delta}</strong>
+              </div>
+              <div>
+                <span>人口</span>
+                <strong>{hud.pop}</strong>
+              </div>
+              <div>
+                <span>職位</span>
+                <strong>{hud.jobs}</strong>
+              </div>
+            </div>
+            <ul className="demands">
+              {hud.demands.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <p className="when">拖動睇城。Shift 拖就一路起。鍵盤 1–7 揀工具。</p>
+            <div className="side-actions">
+              <button className="mini" type="button" onClick={togglePause}>
+                {hud.paused ? '行住' : '暫停'}
+              </button>
+              <button className="mini" type="button" onClick={toggleFast} aria-pressed={hud.fast}>
+                快
+              </button>
+              <button className="mini" type="button" onClick={saveNow}>
+                儲低
+              </button>
+              <button className="mini" type="button" onClick={recenter}>
+                返中
+              </button>
+              <button className="mini" type="button" onClick={backToTitle}>
+                封面
+              </button>
+              <button className="mini" type="button" onClick={() => setConfirmNew(true)}>
+                開新城
+              </button>
+            </div>
+          </aside>
+          <p className="coach" aria-live="polite">
+            {hud.coach}
+          </p>
+          <div className="zoom">
+            <button type="button" aria-label="放大" onClick={() => zoomCenter(camRef, viewRef, 1.12)}>
+              ＋
+            </button>
+            <button type="button" aria-label="縮細" onClick={() => zoomCenter(camRef, viewRef, 1 / 1.12)}>
+              －
+            </button>
+            <button type="button" onClick={recenter}>
+              返中
+            </button>
+          </div>
+          <div className="dock" role="toolbar" aria-label="建造">
+            {TOOLS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={item.id === 'road' && hud.roads === 0 ? 'tool pulse' : 'tool'}
+                aria-pressed={tool === item.id}
+                onClick={() => {
+                  toolRef.current = item.id
+                  setTool(item.id)
+                }}
+              >
+                {item.label}
+                <small>{item.id === 'bulldoze' ? '退少少' : formatMoney(COST[item.id])}</small>
+              </button>
+            ))}
+            <button
+              type="button"
+              className="tool"
+              aria-pressed={paint}
+              onClick={() => {
+                paintRef.current = !paint
+                setPaint((value) => !value)
+              }}
+            >
+              連續
+              <small>拖住起</small>
+            </button>
+            <button type="button" className="tool" aria-pressed={hud.fast} onClick={toggleFast}>
+              快
+              <small>{hud.fast ? '行緊' : '平時'}</small>
+            </button>
+          </div>
+        </>
+      )}
+      {toast ? <div className="toast">{toast}</div> : null}
+      {confirmNew ? (
+        <div className="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+          <div className="modal-card">
+            <p id="confirm-title">開新城會清咗而家呢座。確定？</p>
+            <div className="modal-actions">
+              <button className="no" type="button" onClick={() => setConfirmNew(false)}>
+                算
+              </button>
+              <button className="yes" type="button" onClick={() => begin('new')}>
+                確定
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function centroid(cells: { c: number; r: number }[]) {
+  let c = 0
+  let r = 0
+  for (const cell of cells) {
+    c += cell.c
+    r += cell.r
+  }
+  return { c: c / cells.length, r: r / cells.length }
+}
+
+function zoomCenter(
+  camRef: { current: Cam | null },
+  viewRef: { current: { w: number; h: number } },
+  factor: number,
+) {
+  const cam = camRef.current
+  const view = viewRef.current
+  if (!cam || !view.w) return
+  const sx = view.w / 2
+  const sy = view.h / 2
+  const zoom = clampZoom(cam.zoom * factor)
+  const wx = (sx - cam.x) / cam.zoom
+  const wy = (sy - cam.y) / cam.zoom
+  camRef.current = { zoom, x: sx - wx * zoom, y: sy - wy * zoom }
+}

@@ -1,33 +1,25 @@
 import { NextResponse } from 'next/server'
-import {
-  ADMIN_COOKIE,
-  adminCookieOptions,
-  createAdminSessionToken,
-  verifyAdminPassword,
-} from '@/lib/admin-auth'
 
-export async function POST(req: Request) {
-  let body: { password?: string } = {}
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: 'invalid_body' }, { status: 400 })
-  }
+function gone() {
+  return NextResponse.json({ error: 'gone' }, { status: 410 })
+}
 
-  if (!process.env.ADMIN_PASSWORD?.trim()) {
-    return NextResponse.json({ error: 'admin_not_configured' }, { status: 503 })
-  }
+export function GET() {
+  return gone()
+}
 
-  if (!verifyAdminPassword(body.password || '')) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  }
+export function POST() {
+  return gone()
+}
 
-  const token = createAdminSessionToken()
-  if (!token) {
-    return NextResponse.json({ error: 'admin_not_configured' }, { status: 503 })
-  }
+export function PUT() {
+  return gone()
+}
 
-  const res = NextResponse.json({ ok: true })
-  res.cookies.set(ADMIN_COOKIE, token, adminCookieOptions(60 * 60 * 12))
-  return res
+export function PATCH() {
+  return gone()
+}
+
+export function DELETE() {
+  return gone()
 }
