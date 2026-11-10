@@ -41,6 +41,8 @@ export interface GameState {
   piers: string[]
   /** Built Island tram stop ids. */
   trams: string[]
+  /** Player-chosen name on the share card. */
+  name: string
   /** First-session hint. Turns off after the player builds something. */
   guide: boolean
   milestones: string[]

@@ -353,6 +353,38 @@
   color: var(--ink);
 }
 
+.share-card {
+  width: min(440px, 100%);
+  text-align: left;
+}
+
+.share-card canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 8px 0 14px;
+  background: #f3ecdf;
+}
+
+.share-name {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.share-name input {
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  font: inherit;
+  padding: 0 12px;
+}
+
 .retired {
   min-height: 100dvh;
   display: grid;
