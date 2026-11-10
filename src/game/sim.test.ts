@@ -11,12 +11,18 @@ function dry(seed: number, c: number, r: number) {
 }
 
 function findSpine(seed: number) {
-  for (let r = 1; r < 18; r++) {
-    for (let c = 1; c < 28; c++) {
+  for (let r = 2; r < 110; r++) {
+    for (let c = 2; c < 110; c++) {
       const power = { c, r: r + 1 }
       const home = { c: c + 1, r }
-      if (dry(seed, c, r) && dry(seed, power.c, power.r) && dry(seed, home.c, home.r)) {
-        return { road: { c, r }, power, home }
+      const shop = { c: c - 1, r }
+      if (
+        dry(seed, c, r) &&
+        dry(seed, power.c, power.r) &&
+        dry(seed, home.c, home.r) &&
+        dry(seed, shop.c, shop.r)
+      ) {
+        return { road: { c, r }, power, home, shop }
       }
     }
   }
@@ -92,11 +98,10 @@ test('a shop stays shut until people move in', () => {
   state.day = 0
   const spot = findSpine(6)
   assert.ok(spot)
-  const shopAt = { c: spot.road.c - 1, r: spot.road.r }
-  assert.equal(dry(6, shopAt.c, shopAt.r), true)
+  assert.ok(spot.shop)
   place(state, 'road', spot.road.c, spot.road.r)
   place(state, 'power', spot.power.c, spot.power.r)
-  place(state, 'shop', shopAt.c, shopAt.r)
+  assert.equal(place(state, 'shop', spot.shop.c, spot.shop.r).ok, true)
   place(state, 'home', spot.home.c, spot.home.r)
   tick(state, DAY_MS)
   const shop = state.cells.find((cell) => cell.kind === 'shop')
@@ -146,6 +151,7 @@ test('save parse keeps the city and drops junk', () => {
   assert.equal(loaded.state.cells.length, 2)
   assert.equal(loaded.state.cells.some((cell) => cell.kind === 'park'), true)
   assert.equal(loaded.cam.zoom, 0.9)
+  assert.equal(parseSave({ v: 1, map: 'square' }), null)
   assert.equal(parseSave({ v: 2 }), null)
   assert.equal(parseSave({ ...file, cells: [{ c: 0, r: 0, kind: 'mall', stage: 1, age: 0 }] }), null)
 })

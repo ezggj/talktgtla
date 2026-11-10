@@ -1,4 +1,5 @@
 import { cellKey, terrainAt } from './map'
+import { transitFx } from './transit'
 import {
   COST,
   DAY_MS,
@@ -52,6 +53,9 @@ export interface Summary {
   upkeep: number
   nearPark: Set<string>
   counts: Record<BuildKind, number>
+  transitTiles: Set<string>
+  mtrLinked: number
+  busLinked: number
 }
 
 export type PlaceReason = 'water' | 'occupied' | 'money' | 'empty' | 'edge' | 'road'
@@ -68,6 +72,8 @@ export function newGame(seed = Math.floor(Math.random() * 1_000_000_000)): GameS
     paused: false,
     lastDelta: 0,
     broke: false,
+    stations: [],
+    stops: [],
   }
 }
 
@@ -85,6 +91,7 @@ export function tick(state: GameState, dtMs: number): Summary {
 export function place(state: GameState, tool: Tool, c: number, r: number): PlaceResult {
   if (c < 0 || r < 0 || c >= MAP_SIZE || r >= MAP_SIZE) return { ok: false, reason: 'edge' }
   if (tool === 'bulldoze') return bulldoze(state, c, r)
+  if (tool === 'mtr' || tool === 'bus') return { ok: false, reason: 'edge' }
   if (terrainAt(c, r, state.seed) === 'water') return { ok: false, reason: 'water' }
   if (cellAt(state, c, r)) return { ok: false, reason: 'occupied' }
   if (tool !== 'road' && !neighbors(c, r).some((n) => cellAt(state, n.c, n.r)?.kind === 'road')) {
@@ -167,6 +174,7 @@ export function summarize(state: GameState): Summary {
     }
   }
 
+  const transit = transitFx(state)
   const served = new Set<string>()
   let pop = 0
   let jobs = 0
@@ -199,8 +207,10 @@ export function summarize(state: GameState): Summary {
 
     if (cell.stage > 0) upkeep += UPKEEP[cell.kind]
     if (!on || cell.stage <= 0) continue
+    const boosted = transit.tiles.has(cellKey(cell.c, cell.r))
     if (cell.kind === 'home') {
-      pop += HOME_POP[cell.stage] ?? 0
+      const people = HOME_POP[cell.stage] ?? 0
+      pop += boosted ? Math.round(people * 1.35) : people
       income += HOME_TAX[cell.stage] ?? 0
     } else if (cell.kind === 'shop') {
       jobs += SHOP_JOBS[cell.stage] ?? 0
@@ -227,10 +237,13 @@ export function summarize(state: GameState): Summary {
       shop: band(pop - counts.shop * 22, 8, -18),
       factory: band(pop * 0.55 - factoryJobs(state, served), 10, -16),
     },
-    income,
+    income: income + transit.fare,
     upkeep,
     nearPark,
     counts,
+    transitTiles: transit.tiles,
+    mtrLinked: transit.linked,
+    busLinked: transit.busLinked,
   }
 }
 
@@ -246,6 +259,8 @@ export function coach(state: GameState, summary: Summary): string {
   if (summary.counts.shop === 0 && summary.pop >= 10) return '人多咗，可以開街舖。'
   if (summary.counts.park === 0 && summary.counts.home > 0) return '休憩附近嘅住宅起得快啲。'
   if (summary.counts.factory === 0 && summary.pop >= 18) return '想多啲職位，起工業。'
+  if (summary.mtrLinked < 2) return '沿光點起港鐵，兩個站一通，附近樓起得快啲。'
+  if (summary.busLinked < 2) return '喺路上面撳巴士站，站要駁到同一條路。'
   return '樓會慢慢起高。想睇快啲，撳「快」。'
 }
 
@@ -309,7 +324,9 @@ function endOfDay(state: GameState) {
 function grow(cell: Cell, on: boolean, summary: Summary) {
   if (!on) return
   cell.age += 1
-  const near = cell.kind === 'home' && summary.nearPark.has(cellKey(cell.c, cell.r))
+  const near =
+    summary.transitTiles.has(cellKey(cell.c, cell.r)) ||
+    (cell.kind === 'home' && summary.nearPark.has(cellKey(cell.c, cell.r)))
   if (cell.stage === 0) {
     if (cell.kind === 'shop' && summary.pop < 10) return
     if (cell.kind === 'factory' && summary.pop < 18) return
