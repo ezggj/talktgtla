@@ -1,11 +1,12 @@
 import { cityEvent, closedRoads, eventCopy, eventShopMul } from './events'
+import { nextGoal, snapOf } from './keep'
 import { harbourFx, pierById } from './harbour'
 import { regionAt } from './hk-geo'
 import { cellKey, terrainAt } from './map'
 import { jamCopy, jamShopMul, nightOf, rushBonus, rushOf, type JamKind, type Rush } from './rush'
 import { linkedIds, stationById, transitFx } from './transit'
 import { seedLivingCity } from './starter'
-import { shopFactor, signalCopy, typhoonSignal } from './weather'
+import { shopFactor, typhoonSignal } from './weather'
 import {
   COST,
   DAY_MS,
@@ -399,26 +400,8 @@ function assessPressure(input: {
 }
 
 export function coach(state: GameState, summary: Summary): string {
-  const storm = signalCopy(summary.signal)
-  if (storm && summary.signal >= 8) return storm
   if (state.guide) return '城已經有路有樓。拉條路出去，貼住路起舖或者廠。'
-  if (summary.eventCopy) return summary.eventCopy
-  if (summary.jamCopy) return summary.jamCopy
-  if (storm && summary.signal >= 3) return storm
-  if (state.broke) return '庫房見底。拆走閒路，等住人交稅。'
-  if (summary.counts.road === 0) return '撳「路」，再撳塊地起。'
-  if (summary.counts.power === 0) return '電箱貼住條路，樓先有電。'
-  if (!summary.powerTouchesRoad) return '電箱貼住條路，先送得到電。'
-  if (summary.counts.home === 0) return '而家起住宅，人會慢慢搬入嚟。'
-  if (summary.offRoad > 0) return '有樓未貼路。搬去路旁邊先有電。'
-  if (summary.tooFar > 0) return '電箱送得唔夠遠，近啲再放一個。'
-  if (summary.unconnected > 0) return '有樓未駁到電。路要連住電箱。'
-  if (summary.counts.shop === 0 && summary.pop >= 10) return '人多咗，可以開街舖。'
-  if (summary.counts.park === 0 && summary.counts.home > 0) return '休憩附近嘅住宅起得快啲。'
-  if (summary.counts.factory === 0 && summary.pop >= 18) return '想多啲職位，起工業。'
-  if (summary.mtrLinked < 2) return '沿光點起港鐵，兩個站一通，附近樓起得快啲。'
-  if (summary.busLinked < 2) return '喺路上面撳巴士站，站要駁到同一條路。'
-  return '樓會慢慢起高。想睇快啲，撳「快」。'
+  return nextGoal(state, snapOf(summary)).text
 }
 
 export function dayNumber(day: number): number {
@@ -549,7 +532,10 @@ function endOfDay(state: GameState) {
 }
 
 function grow(cell: Cell, on: boolean, summary: Summary) {
-  if (!on) return
+  if (!on) {
+    if ((cell.kind === 'home' || cell.kind === 'shop') && cell.stage > 0) cell.stage -= 1
+    return
+  }
   cell.age += 1
   const near =
     summary.transitTiles.has(cellKey(cell.c, cell.r)) ||
@@ -577,8 +563,17 @@ function grow(cell: Cell, on: boolean, summary: Summary) {
   ) {
     return
   }
-  if (cell.kind === 'home' && cell.stage >= 2 && !summary.nearPark.has(cellKey(cell.c, cell.r))) return
-  if (cell.kind === 'shop' && nearbyPop(cell, summary) < 12 * cell.stage) return
+  if (cell.kind === 'home' && !summary.nearPark.has(cellKey(cell.c, cell.r))) {
+    if (cell.stage >= 3) {
+      cell.stage -= 1
+      return
+    }
+    if (cell.stage >= 2) return
+  }
+  if (cell.kind === 'shop' && nearbyPop(cell, summary) < 12 * cell.stage) {
+    if (cell.stage > 1) cell.stage -= 1
+    return
+  }
   if (cell.kind === 'factory' && nearbyPop(cell, summary) < 16) return
   const demand =
     cell.kind === 'home' ? summary.demand.home : cell.kind === 'shop' ? summary.demand.shop : summary.demand.factory

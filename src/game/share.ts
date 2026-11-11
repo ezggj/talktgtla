@@ -5,6 +5,8 @@ export interface ShareFacts {
   pop: number
   day: number
   money: number
+  nick?: string
+  story?: string
 }
 
 export function cityLabel(name: string): string {
@@ -34,10 +36,13 @@ export function paintShareCard(
   ctx.fillRect(0, 168, width, 8)
 
   const name = cityLabel(facts.name)
+  ctx.fillStyle = '#f0a35a'
+  ctx.font = '500 24px "PingFang HK", "Noto Sans TC", sans-serif'
+  ctx.textAlign = 'left'
+  if (facts.nick) ctx.fillText(facts.nick, 48, 58)
   ctx.fillStyle = '#f6f1e7'
   ctx.font = '600 54px "PingFang HK", "Noto Sans TC", sans-serif'
-  ctx.textAlign = 'left'
-  ctx.fillText(name, 48, 104)
+  ctx.fillText(name, 48, 112)
 
   ctx.save()
   ctx.beginPath()
@@ -56,7 +61,9 @@ export function paintShareCard(
   ctx.fillText(`庫房 ${facts.money}`, 520, 900)
 
   ctx.font = '400 32px "PingFang HK", "Noto Sans TC", sans-serif'
-  wrapText(ctx, shareCaption(facts), 48, 980, 800, 46)
+  const story = facts.story ? `今日城事：${facts.story}` : ''
+  if (story) wrapText(ctx, story, 48, 960, 800, 42)
+  wrapText(ctx, shareCaption(facts), 48, story ? 1048 : 980, 800, 46)
 
   ctx.fillStyle = '#6d6256'
   ctx.font = '400 22px "PingFang HK", "Noto Sans TC", sans-serif'
