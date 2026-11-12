@@ -1,14 +1,31 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { cityNickname, nextGoal, snapOf, todayStory, tomorrowLine } from './keep'
+import { coastAt } from './hk-geo'
+import { screenToTile } from './iso'
+import { cityNickname, goalTool, nextGoal, snapOf, todayStory, tomorrowLine } from './keep'
+import { framePlay, terrainAt } from './map'
 import { DAY_MS, newGame, place, summarize, tick } from './sim'
-import { terrainAt } from './map'
+
+test('opening view looks at the street, not the empty harbour', () => {
+  for (const [w, h, x, y] of [
+    [1440, 900, 860, 420],
+    [390, 844, 200, 360],
+  ] as const) {
+    const cam = framePlay(w, h)
+    const tile = screenToTile(x, y, cam)
+    const ground = coastAt(tile.c, tile.r)
+    assert.ok(ground === 'land' || ground === 'shore', `${w}x${h} center is ${ground}`)
+  }
+})
 
 test('after the first hint the next goal is a real tram link', () => {
   const state = newGame(7)
   state.guide = false
   const summary = summarize(state)
   assert.equal(nextGoal(state, snapOf(summary)).text, '將電車駁去銅鑼灣')
+  assert.equal(goalTool('tram'), 'tram')
+  assert.equal(goalTool('ferry'), 'ferry')
+  assert.equal(goalTool('eight'), null)
   state.trams = [...state.trams, 't-cwb']
   assert.equal(nextGoal(state, summarize(state) && snapOf(summarize(state))).text, '港島綫駁到灣仔')
 })
