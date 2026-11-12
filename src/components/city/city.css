@@ -236,6 +236,22 @@
   pointer-events: none;
 }
 
+.more-sheet {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: calc(86px + env(safe-area-inset-bottom));
+  z-index: 7;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 8px;
+  border-radius: 16px;
+  background: rgba(8, 16, 22, 0.96);
+  border: 1px solid var(--line);
+  pointer-events: auto;
+}
+
 .dock {
   position: absolute;
   left: 0;
@@ -248,6 +264,27 @@
   background: rgba(8, 16, 22, 0.92);
   border-top: 1px solid var(--line);
   scrollbar-width: none;
+}
+
+@media (max-width: 719px) {
+  .topbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+
+  .dock {
+    overflow: hidden;
+  }
+
+  .dock .tool,
+  .more-sheet .tool {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    min-height: 52px;
+    padding: 4px 2px;
+  }
 }
 
 .dock::-webkit-scrollbar {

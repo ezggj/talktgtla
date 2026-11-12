@@ -34,7 +34,7 @@ import {
   nearestUnbuilt,
   type LineId,
 } from '@/game/transit'
-import { cityNickname, nextGoal, snapOf, todayStory, tomorrowLine } from '@/game/keep'
+import { cityNickname, goalTool, nextGoal, snapOf, todayStory, tomorrowLine } from '@/game/keep'
 import { cityLabel, paintShareCard, shareCaption } from '@/game/share'
 import { stepTraffic, syncTraffic, type Actor } from '@/game/traffic'
 import { COST, MAP_SIZE, isBuildKind, type GameState, type Tool } from '@/game/types'
@@ -56,6 +56,7 @@ interface Hud {
   fast: boolean
   demands: string[]
   roads: number
+  goalId: string
 }
 
 const EMPTY_HUD: Hud = {
@@ -74,6 +75,7 @@ const EMPTY_HUD: Hud = {
   fast: false,
   demands: ['住宅 想多啲', '街舖 夠', '工業 夠'],
   roads: 0,
+  goalId: 'tram',
 }
 
 export function CityApp() {
@@ -106,6 +108,8 @@ export function CityApp() {
   const [hud, setHud] = useState<Hud>(EMPTY_HUD)
   const [toast, setToast] = useState<string | null>(null)
   const [confirmNew, setConfirmNew] = useState(false)
+  const [narrow, setNarrow] = useState(false)
+  const [moreTools, setMoreTools] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [cityName, setCityName] = useState('我座城')
@@ -114,6 +118,13 @@ export function CityApp() {
   useEffect(() => {
     modeRef.current = mode
   }, [mode])
+
+  useEffect(() => {
+    const apply = () => setNarrow(window.innerWidth < 720)
+    apply()
+    window.addEventListener('resize', apply)
+    return () => window.removeEventListener('resize', apply)
+  }, [])
 
   useEffect(() => {
     if (!shareOpen || !shareUrl || !previewRef.current) return
@@ -205,6 +216,7 @@ export function CityApp() {
         nick: cityNickname(state, snap),
         story: todayStory(snap, finished),
         tease,
+        goalId: goal.id,
         rain: isRaining(state.day, state.seed),
         paused: state.paused,
         fast: state.speed === 3,
@@ -902,8 +914,54 @@ export function CityApp() {
               返中
             </button>
           </div>
+          {narrow && moreTools ? (
+            <div className="more-sheet" role="toolbar" aria-label="其他工具">
+              {phoneDock(hud.goalId).more.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="tool"
+                  aria-pressed={tool === item.id}
+                  onClick={() => {
+                    toolRef.current = item.id
+                    setTool(item.id)
+                    setMoreTools(false)
+                  }}
+                >
+                  <ToolMark id={item.id} />
+                  {item.label}
+                  <small>{toolPrice(item.id)}</small>
+                </button>
+              ))}
+              <button
+                type="button"
+                className="tool"
+                aria-pressed={paint}
+                onClick={() => {
+                  paintRef.current = !paint
+                  setPaint((value) => !value)
+                  setMoreTools(false)
+                }}
+              >
+                連續
+                <small>拖住起</small>
+              </button>
+              <button
+                type="button"
+                className="tool"
+                aria-pressed={hud.fast}
+                onClick={() => {
+                  toggleFast()
+                  setMoreTools(false)
+                }}
+              >
+                快
+                <small>{hud.fast ? '行緊' : '平時'}</small>
+              </button>
+            </div>
+          ) : null}
           <div className="dock" role="toolbar" aria-label="建造">
-            {TOOLS.map((item) => (
+            {(narrow ? phoneDock(hud.goalId).main : TOOLS).map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -919,22 +977,31 @@ export function CityApp() {
                 <small>{toolPrice(item.id)}</small>
               </button>
             ))}
-            <button
-              type="button"
-              className="tool"
-              aria-pressed={paint}
-              onClick={() => {
-                paintRef.current = !paint
-                setPaint((value) => !value)
-              }}
-            >
-              連續
-              <small>拖住起</small>
-            </button>
-            <button type="button" className="tool" aria-pressed={hud.fast} onClick={toggleFast}>
-              快
-              <small>{hud.fast ? '行緊' : '平時'}</small>
-            </button>
+            {narrow ? (
+              <button type="button" className="tool" aria-pressed={moreTools} onClick={() => setMoreTools((open) => !open)}>
+                更多
+                <small>{moreTools ? '收埋' : '其餘'}</small>
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="tool"
+                  aria-pressed={paint}
+                  onClick={() => {
+                    paintRef.current = !paint
+                    setPaint((value) => !value)
+                  }}
+                >
+                  連續
+                  <small>拖住起</small>
+                </button>
+                <button type="button" className="tool" aria-pressed={hud.fast} onClick={toggleFast}>
+                  快
+                  <small>{hud.fast ? '行緊' : '平時'}</small>
+                </button>
+              </>
+            )}
           </div>
         </>
       )}
@@ -984,6 +1051,16 @@ export function CityApp() {
       ) : null}
     </div>
   )
+}
+
+function phoneDock(goalId: string): { main: typeof TOOLS; more: typeof TOOLS } {
+  const wanted = goalTool(goalId)
+  const mainIds: Tool[] = []
+  if (wanted && wanted !== 'road' && wanted !== 'home' && wanted !== 'shop' && wanted !== 'bulldoze') mainIds.push(wanted)
+  mainIds.push('road', 'home', 'shop', 'bulldoze')
+  const main = mainIds.map((id) => TOOLS.find((item) => item.id === id)).filter((item): item is (typeof TOOLS)[number] => Boolean(item))
+  const more = TOOLS.filter((item) => !mainIds.includes(item.id))
+  return { main, more }
 }
 
 function ToolMark({ id }: { id: Tool | 'paint' | 'fast' }) {

@@ -1,5 +1,5 @@
-import { coastAt, frameTerritory, harbourView, regionAt } from './hk-geo'
-import { defaultZoom, focusCamera } from './iso'
+import { coastAt, frameTerritory, harbourView, nearestLand, regionAt } from './hk-geo'
+import { focusCamera } from './iso'
 import type { Terrain } from './types'
 
 /**
@@ -23,11 +23,16 @@ export function frameLand(viewW: number, viewH: number) {
   return frameTerritory(viewW, viewH)
 }
 
-/** Play starts on the harbour, close enough to read a street. Zoom out still reaches the whole coast. */
+/**
+ * Play starts on the streets that already exist, not the empty harbour.
+ * The bottom bar covers the lower part of the screen, so the street sits above it.
+ */
 export function framePlay(viewW: number, viewH: number) {
-  const focus = harbourView()
-  const cam = focusCamera(viewW, viewH, defaultZoom(viewW), focus.c, focus.r)
-  if (viewW >= 960) cam.x += Math.min(140, viewW * 0.07)
+  const focus = nearestLand(114.158, 22.282, 10) ?? harbourView()
+  const zoom = viewW < 720 ? 0.78 : 1.05
+  const cam = focusCamera(viewW, viewH, zoom, focus.c, focus.r)
+  cam.y -= viewW < 720 ? 150 : 140
+  if (viewW >= 960) cam.x += 40
   return cam
 }
 
