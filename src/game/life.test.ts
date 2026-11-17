@@ -3,13 +3,14 @@ import test from 'node:test'
 import { cityEvent, eventCopy } from './events'
 import { regionAt } from './hk-geo'
 import { pierById } from './harbour'
-import { terrainAt } from './map'
+import { framePlay, terrainAt } from './map'
 import { parseSave, rejectedSaveKeys, serialize } from './save'
 import { rushOf } from './rush'
 import { shareCaption } from './share'
 import { newGame, place, roadNote, summarize } from './sim'
 import { DISTRICTS } from './districts'
-import { stationById, STATIONS } from './transit'
+import { labelStations, stationById, STATIONS } from './transit'
+import { tileCenter } from './iso'
 import { MAP_SIZE } from './types'
 import { stepTraffic, syncTraffic, type Actor } from './traffic'
 import { typhoonSignal } from './weather'
@@ -152,4 +153,16 @@ test('harbour stations are a ride apart and do not share a district label', () =
   for (const name of ['中環', '灣仔', '銅鑼灣', '尖沙咀', '金鐘']) {
     assert.equal(STATIONS.filter((station) => station.name === name).length, 1)
   }
+  const labels = labelStations(STATIONS, new Set(['cen', 'adm', 'tst', 'mk']), 0.78)
+  const names = labels.map((station) => station.name)
+  assert.equal(new Set(names).size, names.length)
+  assert.equal(labels.filter((station) => station.name === '上環').length, 1)
+  assert.equal(labels.filter((station) => station.name === '中環').length, 1)
+  assert.equal(labels.some((station) => station.name === '香港'), false)
+  const cam = framePlay(390, 844)
+  const sw = stationById('sw')
+  assert.ok(sw && cen)
+  const a = tileCenter(sw.c, sw.r, cam)
+  const b = tileCenter(cen.c, cen.r, cam)
+  assert.ok(Math.hypot(a.x - b.x, a.y - b.y) >= 48)
 })
