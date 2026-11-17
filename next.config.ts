@@ -40,6 +40,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // The dev badge is a round N at the bottom-left. It sat on 電車. Hide it so the toolbar stays readable.
+  devIndicators: false,
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

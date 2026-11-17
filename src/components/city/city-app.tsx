@@ -34,7 +34,7 @@ import {
   nearestUnbuilt,
   type LineId,
 } from '@/game/transit'
-import { cityNickname, nextGoal, snapOf, todayStory, tomorrowLine } from '@/game/keep'
+import { cityNickname, goalTool, nextGoal, snapOf, todayStory, tomorrowLine } from '@/game/keep'
 import { cityLabel, paintShareCard, shareCaption } from '@/game/share'
 import { stepTraffic, syncTraffic, type Actor } from '@/game/traffic'
 import { COST, MAP_SIZE, isBuildKind, type GameState, type Tool } from '@/game/types'
@@ -42,6 +42,7 @@ import './city.css'
 
 interface Hud {
   when: string
+  signal: string
   money: string
   delta: string
   deltaUp: boolean
@@ -56,10 +57,12 @@ interface Hud {
   fast: boolean
   demands: string[]
   roads: number
+  goalId: string
 }
 
 const EMPTY_HUD: Hud = {
   when: '第1日 · 日頭',
+  signal: '',
   money: formatMoney(6000),
   delta: '',
   deltaUp: true,
@@ -74,6 +77,7 @@ const EMPTY_HUD: Hud = {
   fast: false,
   demands: ['住宅 想多啲', '街舖 夠', '工業 夠'],
   roads: 0,
+  goalId: 'tram',
 }
 
 export function CityApp() {
@@ -106,6 +110,8 @@ export function CityApp() {
   const [hud, setHud] = useState<Hud>(EMPTY_HUD)
   const [toast, setToast] = useState<string | null>(null)
   const [confirmNew, setConfirmNew] = useState(false)
+  const [narrow, setNarrow] = useState(false)
+  const [moreTools, setMoreTools] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [cityName, setCityName] = useState('我座城')
@@ -114,6 +120,13 @@ export function CityApp() {
   useEffect(() => {
     modeRef.current = mode
   }, [mode])
+
+  useEffect(() => {
+    const apply = () => setNarrow(window.innerWidth < 720)
+    apply()
+    window.addEventListener('resize', apply)
+    return () => window.removeEventListener('resize', apply)
+  }, [])
 
   useEffect(() => {
     if (!shareOpen || !shareUrl || !previewRef.current) return
@@ -195,7 +208,8 @@ export function CityApp() {
       const part = dayPart(state.day)
       const tease = state.paused || part === '夜晚' || part === '凌晨' ? tomorrowLine(state.day, state.seed, snap.ferries >= 1 || snap.mtrLinked >= 2) : null
       setHud({
-        when: `第${dayNumber(state.day)}日 · ${part}${typhoonLabel(typhoonSignal(state.day, state.seed))}`,
+        when: `第${dayNumber(state.day)}日 · ${part}`,
+        signal: typhoonChip(typhoonSignal(state.day, state.seed)),
         money: formatMoney(state.money),
         delta: formatSigned(flow),
         deltaUp: flow >= 0,
@@ -205,6 +219,7 @@ export function CityApp() {
         nick: cityNickname(state, snap),
         story: todayStory(snap, finished),
         tease,
+        goalId: goal.id,
         rain: isRaining(state.day, state.seed),
         paused: state.paused,
         fast: state.speed === 3,
@@ -789,28 +804,37 @@ export function CityApp() {
       ) : (
         <>
           <header className="topbar">
-            <strong>{hud.when}</strong>
-            {hud.rain ? <span>落緊雨</span> : null}
-            <span className="stat">
-              庫房 <b>{hud.money}</b>{' '}
-              <span className={hud.deltaUp ? 'delta-up' : 'delta-down'}>{hud.delta}</span>
-            </span>
-            <span className="stat">
-              人口 <b>{hud.pop}</b>
-            </span>
-            <div className="top-actions">
-              <button className="mini" type="button" onClick={togglePause}>
-                {hud.paused ? '行住' : '暫停'}
-              </button>
-              <button className="mini" type="button" onClick={saveNow}>
-                儲低
-              </button>
-              <button className="mini" type="button" onClick={openShare}>
-                分享
-              </button>
-              <button className="mini" type="button" onClick={backToTitle}>
-                封面
-              </button>
+            <div className="top-when">
+              <strong>{hud.when}</strong>
+              {hud.signal ? <span className="chip">{hud.signal}</span> : null}
+              {hud.rain ? <span className="chip">落緊雨</span> : null}
+            </div>
+            <div className="top-row">
+              <span className="stat">
+                庫房 <b>{hud.money}</b>{' '}
+                <span className={hud.deltaUp ? 'delta-up' : 'delta-down'}>{hud.delta}</span>
+              </span>
+              <span className="stat">
+                人口 <b>{hud.pop}</b>
+              </span>
+              <div className="top-actions">
+                <button className="mini" type="button" onClick={togglePause}>
+                  {hud.paused ? '行住' : '暫停'}
+                </button>
+                <button className="mini" type="button" onClick={saveNow}>
+                  儲低
+                </button>
+                {narrow ? null : (
+                  <>
+                    <button className="mini" type="button" onClick={openShare}>
+                      分享
+                    </button>
+                    <button className="mini" type="button" onClick={backToTitle}>
+                      封面
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </header>
           <aside className="side">
@@ -819,6 +843,7 @@ export function CityApp() {
             {hud.story ? <p className="story">今日城事：{hud.story}</p> : null}
             <p className="when">
               {hud.when}
+              {hud.signal ? ` · ${hud.signal}` : ''}
               {hud.rain ? ' · 落緊雨' : ''}
             </p>
             <div className="side-stats">
@@ -868,10 +893,12 @@ export function CityApp() {
               </button>
             </div>
           </aside>
-          {hud.tease ? <p className="tease">{hud.tease}</p> : null}
-          <p className="coach" aria-live="polite">
-            {hud.coach}
-          </p>
+          {hud.tease && !(narrow && moreTools) ? <p className="tease">{hud.tease}</p> : null}
+          {narrow && moreTools ? null : (
+            <p className="coach" aria-live="polite">
+              {hud.coach}
+            </p>
+          )}
           {tool === 'mtr' ? (
             <div className="lines" role="tablist" aria-label="路綫">
               {LINES.map((item) => (
@@ -902,8 +929,60 @@ export function CityApp() {
               返中
             </button>
           </div>
+          {narrow && moreTools ? (
+            <div className="more-sheet" role="toolbar" aria-label="其他工具">
+              {phoneDock(hud.goalId).more.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="tool"
+                  aria-pressed={tool === item.id}
+                  onClick={() => {
+                    toolRef.current = item.id
+                    setTool(item.id)
+                    setMoreTools(false)
+                  }}
+                >
+                  <ToolMark id={item.id} />
+                  <span className="tool-name">{item.label}</span>
+                  <small>{toolPrice(item.id)}</small>
+                </button>
+              ))}
+              <button
+                type="button"
+                className="tool"
+                aria-pressed={paint}
+                onClick={() => {
+                  paintRef.current = !paint
+                  setPaint((value) => !value)
+                  setMoreTools(false)
+                }}
+              >
+                連續
+                <small>拖住起</small>
+              </button>
+              <button
+                type="button"
+                className="tool"
+                aria-pressed={hud.fast}
+                onClick={() => {
+                  toggleFast()
+                  setMoreTools(false)
+                }}
+              >
+                快
+                <small>{hud.fast ? '行緊' : '平時'}</small>
+              </button>
+              <button type="button" className="tool" onClick={openShare}>
+                <span className="tool-name">分享</span>
+              </button>
+              <button type="button" className="tool" onClick={backToTitle}>
+                <span className="tool-name">封面</span>
+              </button>
+            </div>
+          ) : null}
           <div className="dock" role="toolbar" aria-label="建造">
-            {TOOLS.map((item) => (
+            {(narrow ? phoneDock(hud.goalId).main : TOOLS).map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -915,26 +994,35 @@ export function CityApp() {
                 }}
               >
                 <ToolMark id={item.id} />
-                {item.label}
+                <span className="tool-name">{item.label}</span>
                 <small>{toolPrice(item.id)}</small>
               </button>
             ))}
-            <button
-              type="button"
-              className="tool"
-              aria-pressed={paint}
-              onClick={() => {
-                paintRef.current = !paint
-                setPaint((value) => !value)
-              }}
-            >
-              連續
-              <small>拖住起</small>
-            </button>
-            <button type="button" className="tool" aria-pressed={hud.fast} onClick={toggleFast}>
-              快
-              <small>{hud.fast ? '行緊' : '平時'}</small>
-            </button>
+            {narrow ? (
+              <button type="button" className="tool" aria-pressed={moreTools} onClick={() => setMoreTools((open) => !open)}>
+                更多
+                <small>{moreTools ? '收埋' : '其餘'}</small>
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="tool"
+                  aria-pressed={paint}
+                  onClick={() => {
+                    paintRef.current = !paint
+                    setPaint((value) => !value)
+                  }}
+                >
+                  連續
+                  <small>拖住起</small>
+                </button>
+                <button type="button" className="tool" aria-pressed={hud.fast} onClick={toggleFast}>
+                  快
+                  <small>{hud.fast ? '行緊' : '平時'}</small>
+                </button>
+              </>
+            )}
           </div>
         </>
       )}
@@ -984,6 +1072,16 @@ export function CityApp() {
       ) : null}
     </div>
   )
+}
+
+function phoneDock(goalId: string): { main: typeof TOOLS; more: typeof TOOLS } {
+  const wanted = goalTool(goalId)
+  const mainIds: Tool[] = []
+  if (wanted && wanted !== 'road' && wanted !== 'home' && wanted !== 'shop' && wanted !== 'bulldoze') mainIds.push(wanted)
+  mainIds.push('road', 'home', 'shop', 'bulldoze')
+  const main = mainIds.map((id) => TOOLS.find((item) => item.id === id)).filter((item): item is (typeof TOOLS)[number] => Boolean(item))
+  const more = TOOLS.filter((item) => !mainIds.includes(item.id))
+  return { main, more }
 }
 
 function ToolMark({ id }: { id: Tool | 'paint' | 'fast' }) {
@@ -1057,8 +1155,10 @@ function ToolMark({ id }: { id: Tool | 'paint' | 'fast' }) {
   if (id === 'tram') {
     return (
       <svg {...common}>
-        <rect x="2" y="7" width="14" height="5" rx="1" />
-        <path d="M9 3v4" />
+        <rect x="1" y="6" width="16" height="7" rx="1.4" />
+        <path d="M4.5 6v7M9 6v7M13.5 6v7" />
+        <circle cx="5" cy="14.2" r="1.15" fill="currentColor" stroke="none" />
+        <circle cx="13" cy="14.2" r="1.15" fill="currentColor" stroke="none" />
       </svg>
     )
   }
@@ -1078,10 +1178,10 @@ function toolPrice(id: Tool): string {
   return formatMoney(COST[id])
 }
 
-function typhoonLabel(signal: 0 | 1 | 3 | 8): string {
-  if (signal === 8) return ' · 掛八號'
-  if (signal === 3) return ' · 掛三號'
-  if (signal === 1) return ' · 掛一號'
+function typhoonChip(signal: 0 | 1 | 3 | 8): string {
+  if (signal === 8) return '掛八號'
+  if (signal === 3) return '掛三號'
+  if (signal === 1) return '掛一號'
   return ''
 }
 

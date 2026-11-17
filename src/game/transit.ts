@@ -137,6 +137,31 @@ export function stationById(id: string): Station | undefined {
   return BY_ID.get(id)
 }
 
+/** One readable name per place. A built station keeps its label; a neighbour that is not built stays off it. */
+export function labelStations(
+  stations: readonly Station[],
+  built: ReadonlySet<string>,
+  zoom: number,
+  hinted: ReadonlySet<string> = new Set(),
+): Station[] {
+  if (zoom <= 0.28) return []
+  const showAll = zoom >= 0.5
+  const ordered = stations
+    .filter((station) => built.has(station.id) || hinted.has(station.id) || showAll)
+    .slice()
+    .sort((a, b) => Number(built.has(b.id)) - Number(built.has(a.id)))
+  const kept: Station[] = []
+  for (const station of ordered) {
+    if (kept.some((other) => other.name === station.name)) continue
+    const beside = kept.some(
+      (other) => !built.has(station.id) && Math.max(Math.abs(other.c - station.c), Math.abs(other.r - station.r)) <= 3,
+    )
+    if (beside) continue
+    kept.push(station)
+  }
+  return kept
+}
+
 export function stationsOn(line: LineId): Station[] {
   const out: Station[] = []
   for (const id of LINE_ORDER[line]) {

@@ -4,7 +4,7 @@ import { hash2, mixHex } from './rng'
 import { sunAmount, type Summary } from './sim'
 import { DISTRICTS } from './districts'
 import { PIERS, TRAM_STOPS, runningFerries, runningTramPairs } from './harbour'
-import { LINE_COLOR, STATIONS, segmentPairs, type LineId } from './transit'
+import { LINE_COLOR, STATIONS, labelStations, segmentPairs, type LineId, type Station } from './transit'
 import type { TyphoonSignal } from './weather'
 import { MAP_SIZE, type BusStop, type Cell, type Tool } from './types'
 import type { Actor } from './traffic'
@@ -968,23 +968,41 @@ function drawTransit(ctx: CanvasRenderingContext2D, frame: Frame, sun: number, g
   }
 }
 
+function labelAnchor(station: Station, frame: Frame): { x: number; y: number } {
+  const p = tileCenter(station.c, station.r, frame.cam)
+  let rise = 28
+  for (const cell of frame.cells) {
+    if (cell.stage <= 0) continue
+    if (cell.kind !== 'home' && cell.kind !== 'shop' && cell.kind !== 'factory') continue
+    if (Math.max(Math.abs(cell.c - station.c), Math.abs(cell.r - station.r)) > 1) continue
+    const floors =
+      cell.kind === 'home' ? (cell.stage >= 3 ? 12 : cell.stage === 2 ? 9 : 5) : cell.kind === 'shop' ? 3 : 4
+    rise = Math.max(rise, floors * 12 + 16)
+  }
+  return { x: p.x, y: p.y - rise * frame.cam.zoom }
+}
+
 function drawStationLabels(ctx: CanvasRenderingContext2D, frame: Frame) {
-  if (frame.cam.zoom <= 0.28) return
   const built = new Set(frame.builtStations ?? [])
+  const hinted = new Set(
+    frame.transitHints ? STATIONS.filter((station) => station.lines.includes(frame.activeLine)).map((station) => station.id) : [],
+  )
+  const labels = labelStations(STATIONS, built, frame.cam.zoom, hinted)
+  if (!labels.length) return
   ctx.save()
   ctx.font = `${Math.max(12, 13 * frame.cam.zoom)}px "PingFang HK", "PingFang TC", "Noto Sans TC", sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'bottom'
   ctx.fillStyle = '#1c140c'
-  ctx.strokeStyle = '#fff8ee'
-  ctx.lineWidth = 4
-  for (const station of STATIONS) {
-    const on = built.has(station.id)
-    const hinted = frame.transitHints && station.lines.includes(frame.activeLine)
-    if (!on && !hinted && frame.cam.zoom < 0.5) continue
-    const p = tileCenter(station.c, station.r, frame.cam)
-    const x = p.x + 6 * frame.cam.zoom
-    const y = p.y - 6 * frame.cam.zoom
-    ctx.strokeText(station.name, x, y)
-    ctx.fillText(station.name, x, y)
+  ctx.strokeStyle = 'rgba(255,248,238,0.94)'
+  ctx.lineWidth = 3
+  const drawn: { x: number; y: number }[] = []
+  for (const station of labels) {
+    const spot = labelAnchor(station, frame)
+    if (drawn.some((other) => Math.hypot(other.x - spot.x, other.y - spot.y) < 36)) continue
+    drawn.push(spot)
+    ctx.strokeText(station.name, spot.x, spot.y)
+    ctx.fillText(station.name, spot.x, spot.y)
   }
   ctx.restore()
 }

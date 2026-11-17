@@ -1,6 +1,17 @@
 import { cityEvent } from './events'
-import type { GameState } from './types'
+import type { GameState, Tool } from './types'
 import { typhoonSignal } from './weather'
+
+/** The tool a goal asks for, so a narrow screen can keep it on the first row. */
+export function goalTool(id: string): Tool | null {
+  if (id === 'tram') return 'tram'
+  if (id === 'wc' || id === 'cwb') return 'mtr'
+  if (id === 'pop' || id === 'pop2') return 'home'
+  if (id === 'ferry') return 'ferry'
+  if (id === 'bus') return 'bus'
+  if (id === 'factory') return 'factory'
+  return null
+}
 
 export interface KeepSnap {
   pop: number
