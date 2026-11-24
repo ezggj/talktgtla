@@ -65,10 +65,10 @@ body:has(.desk) {
   font-size: 0.98rem;
 }
 
-.equity-row {
+.tape {
   display: flex;
   gap: 8px;
-  padding: 12px 16px 0;
+  padding: 10px 16px 0;
 }
 
 .equity,
@@ -169,14 +169,16 @@ body:has(.desk) {
 }
 
 .pane.on {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .list,
 .ticket,
 .book {
   display: grid;
-  gap: 8px;
+  gap: 4px;
 }
 
 .row,
@@ -187,11 +189,48 @@ body:has(.desk) {
   align-items: center;
   width: 100%;
   text-align: left;
-  padding: 10px 12px;
-  border-radius: 6px;
+  padding: 7px 10px;
+  border-radius: 4px;
   border: 1px solid var(--line);
   background: var(--card);
   color: inherit;
+}
+
+.pos {
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+.pos-top,
+.pos-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pos-pnl {
+  margin-left: auto;
+  text-align: right;
+}
+
+.pos-pnl small,
+.pos-meta {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.pos-meta b,
+.pos-pnl b {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.blotter-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
 }
 
 .row.picked {
@@ -324,10 +363,6 @@ body:has(.desk) {
   opacity: 0.4;
 }
 
-.pos {
-  grid-template-columns: 1fr auto;
-}
-
 .pos button,
 .order-line button {
   border: 1px solid var(--line);
@@ -443,8 +478,15 @@ body:has(.desk) {
 }
 
 @media (max-width: 719px) {
-  .equity,
-  .mini-stat {
+  .tape {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .tape .equity,
+  .tape .mini-stat {
+    flex: 0 0 auto;
+    min-width: max-content;
     padding: 6px 8px;
   }
 
@@ -473,16 +515,70 @@ body:has(.desk) {
 }
 
 @media (min-width: 960px) {
-  .stage {
-    display: grid;
-    grid-template-columns: 300px minmax(0, 1fr) 320px;
-    gap: 12px;
-    align-items: start;
-    padding-bottom: 28px;
+  .desk {
+    height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
-  .pane {
-    display: block;
+  .stage {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr) 300px;
+    grid-template-rows: minmax(0, 1fr) 196px;
+    gap: 8px;
+    align-items: stretch;
+    padding-bottom: 12px;
+  }
+
+  .pane,
+  .pane.on {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .markets {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    overflow: auto;
+  }
+
+  .chart-col {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .ticket-col {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    overflow: auto;
+  }
+
+  .book-col {
+    grid-column: 2;
+    grid-row: 2;
+    overflow: auto;
+  }
+
+  .chart-col,
+  .chart-wrap {
+    overflow: hidden;
+  }
+
+  .chart-wrap {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .book-col {
+    background: var(--floor);
+  }
+
+  .ticket {
+    margin-top: 0;
   }
 
   .nav {
@@ -491,17 +587,6 @@ body:has(.desk) {
 
   .toast {
     bottom: 24px;
-  }
-
-  .trade-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 300px;
-    gap: 12px;
-    align-items: start;
-  }
-
-  .ticket {
-    margin-top: 0;
   }
 }
 

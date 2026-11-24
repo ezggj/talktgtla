@@ -10,8 +10,10 @@ export function CandleChart({ candles }: { candles: Candle[] }) {
     const canvas = ref.current
     if (!canvas) return
     const draw = () => {
-      const width = canvas.parentElement?.clientWidth || 320
-      const height = width < 520 ? 84 : 280
+      const wrap = canvas.parentElement
+      const width = wrap?.clientWidth || 320
+      const room = wrap?.clientHeight || 0
+      const height = width < 520 ? 84 : Math.max(220, Math.min(room || 420, 560))
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
       canvas.width = Math.floor(width * dpr)
       canvas.height = Math.floor(height * dpr)

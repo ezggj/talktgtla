@@ -319,10 +319,18 @@ export function ExchangeApp() {
         {offline && !feed?.quotes.length ? '報價暫時攞唔到，市況暫停。' : line}
         {streak ? ` ${streak}` : ''}
       </p>
-      <div className="equity-row">
+      <div className="tape">
         <div className={`equity ${pulse} ${openPnl > 0 ? 'up' : openPnl < 0 ? 'down' : ''}`}>
           <span>權益</span>
           <strong>{money(worth)}</strong>
+        </div>
+        <div className="mini-stat">
+          <span>可用</span>
+          <strong>{money(account.cash)}</strong>
+        </div>
+        <div className="mini-stat">
+          <span>保證金</span>
+          <strong>{money(usedMargin(account))}</strong>
         </div>
         <div className="mini-stat">
           <span>未平倉</span>
@@ -342,7 +350,7 @@ export function ExchangeApp() {
         </div>
       ) : null}
       <div className="stage">
-        <section className={view === 'market' ? 'pane on' : 'pane'} aria-label="市況">
+        <section className={view === 'market' ? 'pane markets on' : 'pane markets'} aria-label="市況">
           <div className="list">
             {(feed?.quotes.length ? feed.quotes : []).map((item) => {
               const pct = changePct(item)
@@ -366,21 +374,20 @@ export function ExchangeApp() {
             {!feed?.quotes.length ? <p className="quiet">{offline ? '報價暫時攞唔到。' : '等緊報價。'}</p> : null}
           </div>
         </section>
-        <section className={view === 'trade' ? 'pane on' : 'pane'} aria-label="落單">
-          <div className="trade-grid">
-            <div>
-              <h2>
-                {quote?.name ?? marketBySymbol(symbol)?.name}{' '}
-                <span className={quote && changePct(quote) != null && changePct(quote)! < 0 ? 'down price' : 'up price'}>
-                  {quote ? money(quote.hkd) : '—'}
-                </span>
-              </h2>
-              <p className="quiet">{quote?.session === 'close' ? '收市價，唔係即時成交價。' : tradable ? '跟住最新成交價。' : '報價滯後，而家落唔到單。'}</p>
-              <div className="chart-wrap">
-                <CandleChart candles={quote?.candles ?? []} />
-              </div>
-            </div>
-            <form
+        <section className={view === 'trade' ? 'pane chart-col on' : 'pane chart-col'} aria-label="圖">
+          <h2>
+            {quote?.name ?? marketBySymbol(symbol)?.name}{' '}
+            <span className={quote && changePct(quote) != null && changePct(quote)! < 0 ? 'down price' : 'up price'}>
+              {quote ? money(quote.hkd) : '—'}
+            </span>
+          </h2>
+          <p className="quiet">{quote?.session === 'close' ? '收市價，唔係即時成交價。' : tradable ? '跟住最新成交價。' : '報價滯後，而家落唔到單。'}</p>
+          <div className="chart-wrap">
+            <CandleChart candles={quote?.candles ?? []} />
+          </div>
+        </section>
+        <section className={view === 'trade' ? 'pane ticket-col on' : 'pane ticket-col'} aria-label="落單">
+          <form
               className="ticket"
               onSubmit={(event) => {
                 event.preventDefault()
@@ -456,13 +463,10 @@ export function ExchangeApp() {
                 </div>
               ) : null}
             </form>
-          </div>
         </section>
-        <section className={view === 'book' ? 'pane on' : 'pane'} aria-label="持倉">
+        <section className={view === 'book' ? 'pane book-col on' : 'pane book-col'} aria-label="持倉">
           <div className="book">
-            <p className="quiet">
-              可用 {money(account.cash)} · 保證金 {money(usedMargin(account))}
-            </p>
+            <p className="blotter-title">持倉</p>
             {account.positions.length === 0 ? <p>未有持倉。</p> : null}
             {account.positions.map((position) => {
               const mark = marks[position.symbol]
@@ -470,21 +474,26 @@ export function ExchangeApp() {
               const name = marketBySymbol(position.symbol)?.name ?? position.symbol
               return (
                 <div key={position.symbol} className="pos">
-                  <span>
+                  <div className="pos-top">
                     <b>
                       {name} {position.side === 'long' ? '多' : '空'} {Math.max(1, Math.round(effectiveLeverage(position)))}倍
                     </b>
-                    <small>
-                      開倉 {money(position.entry)} · 爆倉 {money(liquidationPrice(position))}
-                      {pnl == null ? ' · 未有報價' : ''}
-                    </small>
-                  </span>
-                  <span>
-                    <b className={pnl != null && pnl < 0 ? 'down' : 'up'}>{pnl == null ? '—' : signed(pnl)}</b>
+                    <span className="pos-pnl">
+                      <small>未平倉</small>
+                      <b className={pnl != null && pnl < 0 ? 'down' : 'up'}>{pnl == null ? '未有報價' : signed(pnl)}</b>
+                    </span>
                     <button type="button" onClick={() => flatten(position.symbol)}>
                       平倉
                     </button>
-                  </span>
+                  </div>
+                  <div className="pos-meta">
+                    <span>
+                      開倉價 <b>{money(position.entry)}</b>
+                    </span>
+                    <span>
+                      爆倉價 <b>{money(liquidationPrice(position))}</b>
+                    </span>
+                  </div>
                 </div>
               )
             })}
