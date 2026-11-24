@@ -309,12 +309,18 @@ export function ExchangeApp() {
   const working = account.orders.find((order) => order.symbol === symbol)
 
   return (
-    <main className="desk">
+    <main className={account.positions.length || account.fills.length ? 'desk' : 'desk shut'}>
       <header className="top">
         <h1>試盤</h1>
-        <span className="clock">{clock ? `${clock} 港時` : '等緊報價'}</span>
+        <span className="top-side">
+          <button className="text-btn" type="button" onClick={() => setResetOpen(true)}>
+            重新開始
+          </button>
+          <span className="clock">{clock ? `${clock} 港時` : '等緊報價'}</span>
+        </span>
       </header>
       <p className="disclaimer">呢個係模擬盤，用虛擬資金，唔係真錢交易</p>
+      {toast ? <p className="toast">{toast}</p> : null}
       <p className="story" aria-live="polite">
         {offline && !feed?.quotes.length ? '報價暫時攞唔到，市況暫停。' : line}
         {streak ? ` ${streak}` : ''}
@@ -506,9 +512,6 @@ export function ExchangeApp() {
                 ))}
               </ul>
             ) : null}
-            <button className="text-btn" type="button" onClick={() => setResetOpen(true)}>
-              重新開始
-            </button>
           </div>
         </section>
       </div>
@@ -523,7 +526,6 @@ export function ExchangeApp() {
           持倉
         </button>
       </nav>
-      {toast ? <div className="toast">{toast}</div> : null}
       {resetOpen ? (
         <div className="modal" role="dialog" aria-modal="true">
           <div>
