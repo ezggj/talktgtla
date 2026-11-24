@@ -1,5 +1,5 @@
-import { CityApp } from '@/components/city/city-app'
+import { ExchangeApp } from '@/components/exchange/exchange-app'
 
 export default function Home() {
-  return <CityApp />
+  return <ExchangeApp />
 }
