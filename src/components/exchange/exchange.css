@@ -7,15 +7,15 @@ body:has(.desk) {
 }
 
 .desk {
-  --ink: #e7edf4;
-  --muted: #8b95a3;
+  --ink: #f2f5f8;
+  --muted: #c5ced8;
   --floor: #07090c;
   --card: #12171f;
   --card-2: #1a212c;
   --line: rgba(231, 237, 244, 0.12);
   --up: #3dd68c;
   --down: #ff5c6a;
-  --steel: #9eb6d4;
+  --steel: #d5deea;
   min-height: 100dvh;
   background: var(--floor);
   color: var(--ink);
@@ -43,7 +43,9 @@ body:has(.desk) {
 .top-side {
   display: flex;
   align-items: center;
-  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 12px;
 }
 
 .clock {
@@ -58,7 +60,7 @@ body:has(.desk) {
   padding: 4px 0;
   border-bottom: 1px solid var(--line);
   color: var(--steel);
-  font-size: 0.78rem;
+  font-size: 0.86rem;
 }
 
 .story {
@@ -116,7 +118,7 @@ body:has(.desk) {
 .quiet {
   display: block;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.86rem;
   letter-spacing: 0.04em;
 }
 
@@ -228,6 +230,7 @@ body:has(.desk) {
 .pos-meta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   min-width: 0;
 }
@@ -414,10 +417,16 @@ body:has(.desk) {
 .fills li {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
   padding-top: 6px;
   border-top: 1px solid var(--line);
-  white-space: nowrap;
+}
+
+.fills small {
+  width: 100%;
+  color: var(--muted);
+  font-size: 0.84rem;
 }
 
 .nav {
@@ -435,12 +444,24 @@ body:has(.desk) {
 }
 
 .nav button {
+  position: relative;
   flex: 1;
   min-height: 52px;
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--muted);
+  color: #d7e0ea;
+  font-size: 0.95rem;
+}
+
+.nav .dot {
+  position: absolute;
+  top: 8px;
+  right: 22%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--down);
 }
 
 .nav button.on {
@@ -479,6 +500,13 @@ body:has(.desk) {
   display: flex;
   justify-content: space-between;
   gap: 4px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  text-align: left;
 }
 
 .ladder .ask {
@@ -526,6 +554,62 @@ body:has(.desk) {
   display: none;
 }
 
+.teach h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.teach p {
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+
+.teach.warn {
+  border: 1px solid var(--down);
+}
+
+.share-card {
+  display: grid;
+  gap: 8px;
+  min-width: min(100%, 320px);
+  padding: 8px;
+  background: #10151c;
+}
+
+.share-card strong {
+  font-size: 1.8rem;
+}
+
+.slider {
+  width: 100%;
+  accent-color: var(--steel);
+}
+
+.follow {
+  display: grid;
+  gap: 8px;
+}
+
+.follow-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.follow-row small,
+.follow-row span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.groups,
+.tf {
+  margin: 8px 12px 0;
+  flex-wrap: wrap;
+}
+
 .modal {
   position: fixed;
   inset: 0;
@@ -568,6 +652,14 @@ body:has(.desk) {
     right: 12px;
     bottom: calc(70px + env(safe-area-inset-bottom));
     z-index: 6;
+  }
+
+  .chart-col.chart-open.on ~ .ticket-col .ticket .primary {
+    position: static;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    margin: 8px 0 4px;
   }
 
   .stage {

@@ -11,6 +11,7 @@ import {
   equity,
   freshAccount,
   liquidationPrice,
+  movePct,
   placeLimit,
   realizedPnl,
   settle,
@@ -24,10 +25,15 @@ import {
   type TradeError,
 } from '@/exchange/book'
 import { canPublishRank, cleanNick, mergeStanding, rankGains, rankLosses, type BoardRow } from '@/exchange/board'
+import { drawdown, hongKongDay, hongKongWeek, rankSteady, rankWeekProfit, type Standing } from '@/exchange/challenges'
 import { fromDisplay, toDisplay, type DisplayCcy } from '@/exchange/display'
+import { DEMO_TRADERS, demoSide } from '@/exchange/follow'
 import { referenceLadder } from '@/exchange/ladder'
-import { marketBySymbol } from '@/exchange/markets'
-import { leverageWarning, marketLine, streakLine } from '@/exchange/story'
+import { freshnessLabel, marketBySymbol, MARKETS, type MarketGroup, type MarketKind } from '@/exchange/markets'
+import { GLOSSARY, tradeRecap } from '@/exchange/recap'
+import { deskHighlight, leverageWarning, streakLine } from '@/exchange/story'
+import { type Timeframe } from '@/exchange/timeframes'
+import { highLeverageWarning, isTutorialDone, TUTORIAL_KEY, TUTORIAL_STEPS } from '@/exchange/tutorial'
 import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/env'
 import { useUser } from '@/lib/auth/use-user'
@@ -43,7 +49,8 @@ interface PublicQuote {
   symbol: string
   name: string
   code: string
-  kind: 'crypto' | 'stock'
+  kind: MarketKind
+  feed: 'live' | 'delayed'
   hkd: number
   prevHkd: number
   at: number
@@ -59,7 +66,7 @@ interface Feed {
   quotes: PublicQuote[]
 }
 
-type View = 'market' | 'trade' | 'book' | 'board' | 'login'
+type View = 'market' | 'trade' | 'book' | 'board' | 'login' | 'help'
 
 function money(value: number): string {
   const abs = Math.abs(value)
@@ -158,10 +165,23 @@ export function ExchangeApp() {
   const [ccy, setCcy] = useState<DisplayCcy>('HKD')
   const [nick, setNick] = useState('')
   const [board, setBoard] = useState<BoardRow[]>([])
-  const [boardTab, setBoardTab] = useState<'loss' | 'gain'>('loss')
+  const [boardTab, setBoardTab] = useState<'loss' | 'gain' | 'week' | 'steady'>('loss')
   const [underTab, setUnderTab] = useState<'orders' | 'pos'>('pos')
   const [chartOpen, setChartOpen] = useState(false)
   const [authNote, setAuthNote] = useState<string | null>(null)
+  const [group, setGroup] = useState<MarketGroup>('hot')
+  const [tf, setTf] = useState<Timeframe>('5m')
+  const [extraCandles, setExtraCandles] = useState<Candle[] | null>(null)
+  const [showMa, setShowMa] = useState(true)
+  const [showEma, setShowEma] = useState(true)
+  const [showVolume, setShowVolume] = useState(true)
+  const [teachOpen, setTeachOpen] = useState(false)
+  const [teachStep, setTeachStep] = useState(0)
+  const [levGuard, setLevGuard] = useState<number | null>(null)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [weekPnl, setWeekPnl] = useState(0)
+  const [peak, setPeak] = useState(STARTING_HKD)
+  const warned = useRef(new Set<number>())
   const auth = useUser()
   const accountRef = useRef(account)
   accountRef.current = account
@@ -172,6 +192,7 @@ export function ExchangeApp() {
     if (saved === 'USD' || saved === 'HKD') setCcy(saved)
     const savedNick = localStorage.getItem('si-pan:nick')
     if (savedNick) setNick(savedNick)
+    setTeachOpen(!isTutorialDone(localStorage.getItem(TUTORIAL_KEY)))
     setReady(true)
     const params = new URLSearchParams(window.location.search)
     if (params.get('auth') === 'error') {
@@ -253,7 +274,7 @@ export function ExchangeApp() {
     if (view !== 'board') return
     void fetch('/api/board', { cache: 'no-store' })
       .then((response) => response.json())
-      .then((data: { rows?: BoardRow[]; me?: { nickname: string } | null }) => {
+      .then((data: { rows?: Array<BoardRow & { peakHkd?: number | null; weekPnlHkd?: number | null }>; me?: { nickname: string } | null }) => {
         if (data.rows) setBoard(data.rows)
         if (data.me?.nickname) setNick((current) => current || data.me!.nickname)
       })
@@ -269,7 +290,15 @@ export function ExchangeApp() {
       void fetch('/api/board', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ nickname, equityHkd: worth, traded, displayCcy: ccy }),
+        body: JSON.stringify({
+          nickname,
+          equityHkd: worth,
+          traded,
+          displayCcy: ccy,
+          peakHkd: Math.max(peak, worth),
+          weekPnlHkd: weekPnl,
+          weekKey: hongKongWeek(new Date()),
+        }),
       })
         .then((response) => response.json())
         .then((data: { note?: string; previous?: number | null }) => {
@@ -287,12 +316,12 @@ export function ExchangeApp() {
   }, [auth.user, nick, worth, ccy, ready, account.fills.length, account.positions.length])
   const openPnl = unrealizedTotal(account, marks)
   const closedPnl = realizedPnl(account, marks)
-  const line = marketLine((feed?.quotes ?? []).map((item) => ({ name: item.name, pct: changePct(item) })))
+  const line = deskHighlight((feed?.quotes ?? []).map((item) => ({ name: item.name, pct: changePct(item) })))
   const streak = streakLine(account.streak)
   const notional = fromDisplay(Number(amount), ccy, fx)
   const limitPrice = Number(limitText)
   const orderPrice = mode === 'limit' ? limitPrice : quote?.hkd ?? null
-  const tradable = Boolean(quote && feed?.ok && !feed.stale && !offline && (quote.kind === 'stock' || Date.now() - quote.at < 90_000))
+  const tradable = Boolean(quote && feed?.ok && !feed.stale && !offline && (quote.kind !== 'crypto' || Date.now() - quote.at < 90_000))
   const previewOk = tradable && notional != null && notional >= MIN_NOTIONAL && orderPrice != null && orderPrice > 0
   const margin = previewOk && orderPrice && notional ? notional / leverage : 0
   const fee = previewOk && notional ? notional * FEE_RATE : 0
@@ -307,6 +336,51 @@ export function ExchangeApp() {
   }, [quote, limitText])
 
   useEffect(() => {
+    if (tf === '5m') {
+      setExtraCandles(null)
+      return
+    }
+    let stop = false
+    void fetch(`/api/market?symbol=${encodeURIComponent(symbol)}&tf=${tf}`, { cache: 'no-store' })
+      .then((response) => response.json())
+      .then((data: { candles?: Candle[] }) => {
+        if (!stop) setExtraCandles(data.candles ?? [])
+      })
+      .catch(() => {
+        if (!stop) setExtraCandles([])
+      })
+    return () => {
+      stop = true
+    }
+  }, [symbol, tf])
+
+  useEffect(() => {
+    if (!ready) return
+    const week = hongKongWeek(new Date())
+    const raw = localStorage.getItem('si-pan:week')
+    let start = worth
+    if (raw) {
+      try {
+        const saved = JSON.parse(raw) as { key?: string; start?: number }
+        if (saved.key === week && typeof saved.start === 'number') start = saved.start
+      } catch {
+        start = worth
+      }
+    }
+    localStorage.setItem('si-pan:week', JSON.stringify({ key: week, start }))
+    setWeekPnl(worth - start)
+    const savedPeak = Number(localStorage.getItem('si-pan:peak') ?? '')
+    const nextPeak = Math.max(Number.isFinite(savedPeak) ? savedPeak : STARTING_HKD, worth)
+    localStorage.setItem('si-pan:peak', String(nextPeak))
+    setPeak(nextPeak)
+  }, [ready, worth])
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    void navigator.serviceWorker.register('/sw.js').catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
     const previous = Number(sessionStorage.getItem('si-pan:equity') ?? '')
     if (Number.isFinite(previous) && Math.abs(previous - worth) > 0.5) {
       setPulse(worth > previous ? 'up' : 'down')
@@ -316,6 +390,26 @@ export function ExchangeApp() {
     }
     sessionStorage.setItem('si-pan:equity', String(worth))
   }, [worth])
+
+  function finishTeach() {
+    localStorage.setItem(TUTORIAL_KEY, '1')
+    setTeachOpen(false)
+  }
+
+  function chooseLeverage(value: number) {
+    if ((value === 100 || value === 500) && !warned.current.has(value)) {
+      setLevGuard(value)
+      return
+    }
+    setLeverage(value)
+  }
+
+  function acceptLeverage() {
+    if (levGuard == null) return
+    warned.current.add(levGuard)
+    setLeverage(levGuard)
+    setLevGuard(null)
+  }
 
   function say(message: string) {
     setToast(message)
@@ -394,6 +488,30 @@ export function ExchangeApp() {
 
   const working = account.orders.find((order) => order.symbol === symbol)
 
+  function boardRows(): { nickname: string; label: string }[] {
+    if (boardTab === 'loss') {
+      return rankLosses(board).map((row) => ({
+        nickname: row.nickname,
+        label: `蝕 ${show(Math.max(0, STARTING_HKD - row.equityHkd))}`,
+      }))
+    }
+    if (boardTab === 'gain') {
+      return rankGains(board).map((row) => ({ nickname: row.nickname, label: show(row.equityHkd) }))
+    }
+    const standings: Standing[] = board.flatMap((row) => {
+      const extra = row as BoardRow & { peakHkd?: number | null; weekPnlHkd?: number | null }
+      if (typeof extra.weekPnlHkd !== 'number') return []
+      return [{ nickname: row.nickname, equityHkd: row.equityHkd, peakHkd: extra.peakHkd ?? row.equityHkd, weekPnlHkd: extra.weekPnlHkd }]
+    })
+    const ranked = boardTab === 'week' ? rankWeekProfit(standings) : rankSteady(standings)
+    return ranked.map((row) => ({
+      nickname: row.nickname,
+      label: boardTab === 'week' ? showSigned(row.weekPnlHkd) : `回撤 ${(drawdown(row) * 100).toFixed(1)}%`,
+    }))
+  }
+
+  const dayDone = account.fills.some((fill) => fill.action === 'open' && hongKongDay(new Date(fill.at)) === hongKongDay(new Date()))
+
   return (
     <main className={account.positions.length || account.fills.length ? 'desk' : 'desk shut'}>
       <header className="top">
@@ -404,6 +522,16 @@ export function ExchangeApp() {
           </button>
           <button className="text-btn" type="button" onClick={() => setView('board')}>
             排行榜
+          </button>
+          <button
+            className="text-btn"
+            type="button"
+            onClick={() => {
+              setTeachStep(0)
+              setTeachOpen(true)
+            }}
+          >
+            教學
           </button>
           <button className="text-btn" type="button" onClick={() => setView('login')}>
             {auth.user ? nick || '已登入' : '登入'}
@@ -452,27 +580,40 @@ export function ExchangeApp() {
       ) : null}
       <div className="stage">
         <section className={view === 'market' ? 'pane markets on' : 'pane markets'} aria-label="市況">
+          <div className="seg groups">
+            {(
+              [
+                ['hot', '熱門'],
+                ['hk', '香港人常玩'],
+                ['us', '美股'],
+                ['metal', '商品'],
+              ] as const
+            ).map(([id, label]) => (
+              <button key={id} type="button" className={group === id ? 'chip on' : 'chip'} onClick={() => setGroup(id)}>
+                {label}
+              </button>
+            ))}
+          </div>
           <div className="list">
-            {(feed?.quotes.length ? feed.quotes : []).map((item) => {
-              const pct = changePct(item)
+            {MARKETS.filter((market) => market.groups.includes(group)).map((market) => {
+              const item = feed?.quotes.find((quoteRow) => quoteRow.symbol === market.symbol)
+              const pct = item ? changePct(item) : null
               return (
-                <button key={item.symbol} type="button" className={item.symbol === symbol ? 'row picked' : 'row'} onClick={() => pick(item.symbol)}>
+                <button key={market.symbol} type="button" className={market.symbol === symbol ? 'row picked' : 'row'} onClick={() => pick(market.symbol)}>
                   <span>
-                    <b>{item.name}</b>
+                    <b>{market.name}</b>
                     <small>
-                      {item.code}
-                      {item.session === 'close' ? ' · 收市價' : ''}
+                      {market.code} · {item ? freshnessLabel(market.feed, item.session, market.kind) : '等報價'}
                     </small>
                   </span>
-                  <Spark candles={item.candles} />
+                  <Spark candles={item?.candles ?? []} />
                   <span>
-                    <b>{show(item.hkd)}</b>
+                    <b>{item ? show(item.hkd) : '—'}</b>
                     <small className={pct != null && pct < 0 ? 'down' : 'up'}>{pct == null ? '—' : `${pct > 0 ? '+' : ''}${pct.toFixed(2)}%`}</small>
                   </span>
                 </button>
               )
             })}
-            {!feed?.quotes.length ? <p className="quiet">{offline ? '報價暫時攞唔到。' : '等緊報價。'}</p> : null}
           </div>
         </section>
         <section className={view === 'trade' ? `pane chart-col on${chartOpen ? ' chart-open' : ''}` : 'pane chart-col'} aria-label="圖">
@@ -482,9 +623,44 @@ export function ExchangeApp() {
               {quote ? show(quote.hkd) : '—'}
             </span>
           </h2>
-          <p className="quiet">{quote?.session === 'close' ? '收市價，唔係即時成交價。' : tradable ? '跟住最新成交價。' : '報價滯後，而家落唔到單。'}</p>
+          <p className="quiet">
+            {quote
+              ? freshnessLabel(quote.feed, quote.session, quote.kind)
+              : tradable
+                ? '跟住最新成交價。'
+                : '報價滯後，而家落唔到單。'}
+            {quote?.feed === 'delayed' ? '。延遲報價，唔好當即時。' : ''}
+          </p>
+          <div className="seg tf">
+            {(['1m', '5m', '15m', '1h', '4h', '1d'] as const).map((item) => (
+              <button key={item} type="button" className={tf === item ? 'chip on' : 'chip'} onClick={() => setTf(item)}>
+                {item === '1m' ? '1分' : item === '5m' ? '5分' : item === '15m' ? '15分' : item === '1h' ? '1小時' : item === '4h' ? '4小時' : '日'}
+              </button>
+            ))}
+          </div>
+          <div className="seg tf">
+            <button type="button" className={showMa ? 'chip on' : 'chip'} onClick={() => setShowMa((on) => !on)}>
+              MA
+            </button>
+            <button type="button" className={showEma ? 'chip on' : 'chip'} onClick={() => setShowEma((on) => !on)}>
+              EMA
+            </button>
+            <button type="button" className={showVolume ? 'chip on' : 'chip'} onClick={() => setShowVolume((on) => !on)}>
+              成交量
+            </button>
+          </div>
           <div className="chart-wrap">
-            <CandleChart candles={quote?.candles ?? []} />
+            <CandleChart
+              candles={tf === '5m' ? quote?.candles ?? [] : extraCandles ?? []}
+              showMa={showMa}
+              showEma={showEma}
+              showVolume={showVolume}
+              limitPrice={mode === 'limit' ? Number(limitText) || null : null}
+              onLimit={(price) => {
+                setMode('limit')
+                setLimitText(String(Math.round(price * 100) / 100))
+              }}
+            />
           </div>
         </section>
         <section className={view === 'trade' ? 'pane ticket-col on' : 'pane ticket-col'} aria-label="落單">
@@ -517,14 +693,14 @@ export function ExchangeApp() {
               </div>
               <div className="levs" aria-label="槓桿">
                 {LEVERAGES.map((value) => (
-                  <button key={value} type="button" className={leverage === value ? 'lev on' : 'lev'} onClick={() => setLeverage(value)}>
+                  <button key={value} type="button" className={leverage === value ? 'lev on' : 'lev'} onClick={() => chooseLeverage(value)}>
                     {value}倍
                   </button>
                 ))}
               </div>
               <p className="quiet">{leverageWarning(leverage)}</p>
               <label className="field">
-                金額（港元）
+                金額（{ccy === 'USD' ? '美金' : '港元'}）
                 <input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
               </label>
               <div className="chips">
@@ -536,8 +712,19 @@ export function ExchangeApp() {
               </div>
               {mode === 'limit' ? (
                 <label className="field">
-                  限價
+                  限價（拖條或者拖圖）
                   <input inputMode="decimal" value={limitText} onChange={(event) => setLimitText(event.target.value)} />
+                  {quote ? (
+                    <input
+                      className="slider"
+                      type="range"
+                      min={quote.hkd * 0.97}
+                      max={quote.hkd * 1.03}
+                      step={Math.max(quote.hkd * 0.0002, 0.01)}
+                      value={Math.min(quote.hkd * 1.03, Math.max(quote.hkd * 0.97, Number(limitText) || quote.hkd))}
+                      onChange={(event) => setLimitText(event.target.value)}
+                    />
+                  ) : null}
                 </label>
               ) : null}
               <div className="preview">
@@ -573,17 +760,33 @@ export function ExchangeApp() {
               {quote && referenceLadder(quote.hkd) ? (
                 <>
                   {referenceLadder(quote.hkd)!.asks.map((level) => (
-                    <div key={`a-${level.price}`} className="ask">
+                    <button
+                      key={`a-${level.price}`}
+                      type="button"
+                      className="ask"
+                      onClick={() => {
+                        setMode('limit')
+                        setLimitText(String(Math.round(level.price * 100) / 100))
+                      }}
+                    >
                       <span>{show(level.price)}</span>
                       <span>{level.size}</span>
-                    </div>
+                    </button>
                   ))}
                   <div className="last">{show(quote.hkd)}</div>
                   {referenceLadder(quote.hkd)!.bids.map((level) => (
-                    <div key={`b-${level.price}`} className="bid">
+                    <button
+                      key={`b-${level.price}`}
+                      type="button"
+                      className="bid"
+                      onClick={() => {
+                        setMode('limit')
+                        setLimitText(String(Math.round(level.price * 100) / 100))
+                      }}
+                    >
                       <span>{show(level.price)}</span>
                       <span>{level.size}</span>
-                    </div>
+                    </button>
                   ))}
                 </>
               ) : (
@@ -611,8 +814,11 @@ export function ExchangeApp() {
               <p className="quiet">呢隻未有倉。</p>
             ) : (
               <p className="quiet">
-                未平倉 {showSigned(unrealized(account.positions.find((position) => position.symbol === symbol)!, quote?.hkd ?? account.positions.find((position) => position.symbol === symbol)!.entry))}
-                {' · '}爆倉價 {show(liquidationPrice(account.positions.find((position) => position.symbol === symbol)!))}
+                {(() => {
+                  const position = account.positions.find((item) => item.symbol === symbol)!
+                  const mark = quote?.hkd ?? position.entry
+                  return `未平倉 ${showSigned(unrealized(position, mark))}（${movePct(position, mark).toFixed(2)}%）· 爆倉價 ${show(liquidationPrice(position))}`
+                })()}
               </p>
             )}
           </div>
@@ -620,6 +826,11 @@ export function ExchangeApp() {
         <section className={view === 'book' ? 'pane book-col on' : 'pane book-col'} aria-label="持倉">
           <div className="book">
             <p className="blotter-title">持倉</p>
+            {account.positions.length ? (
+              <button type="button" className="chip" onClick={() => setShareOpen(true)}>
+                分享模擬成績
+              </button>
+            ) : null}
             {account.positions.length === 0 ? <p>未有持倉。</p> : null}
             {account.positions.map((position) => {
               const mark = marks[position.symbol]
@@ -636,12 +847,21 @@ export function ExchangeApp() {
                       <b className={pnl != null && pnl < 0 ? 'down' : 'up'}>{pnl == null ? '未有報價' : showSigned(pnl)}</b>
                     </span>
                     <button type="button" onClick={() => flatten(position.symbol)}>
-                      平倉
+                      一鍵平倉
                     </button>
                   </div>
                   <div className="pos-meta">
                     <span>
-                      開倉價 <b>{show(position.entry)}</b>
+                      平均成本 <b>{show(position.entry)}</b>
+                    </span>
+                    <span>
+                      開倉價 <b>{show(position.firstEntry ?? position.entry)}</b>
+                    </span>
+                    <span>
+                      現價盈虧 <b>{mark == null ? '—' : `${movePct(position, mark).toFixed(2)}%`}</b>
+                    </span>
+                    <span>
+                      未平倉 <b>{pnl == null ? '未有報價' : showSigned(pnl)}</b>
                     </span>
                     <span>
                       爆倉價 <b>{show(liquidationPrice(position))}</b>
@@ -655,6 +875,7 @@ export function ExchangeApp() {
                 {account.fills.slice(0, 8).map((fill) => (
                   <li key={fill.id}>
                     <span>{fillText(fill, marketBySymbol(fill.symbol)?.name ?? fill.symbol)}</span>
+                    {tradeRecap(fill) ? <small>{tradeRecap(fill)}</small> : null}
                   </li>
                 ))}
               </ul>
@@ -671,11 +892,19 @@ export function ExchangeApp() {
             <button type="button" className={boardTab === 'gain' ? 'chip on' : 'chip'} onClick={() => setBoardTab('gain')}>
               賺最多
             </button>
+            <button type="button" className={boardTab === 'week' ? 'chip on' : 'chip'} onClick={() => setBoardTab('week')}>
+              本週最賺
+            </button>
+            <button type="button" className={boardTab === 'steady' ? 'chip on' : 'chip'} onClick={() => setBoardTab('steady')}>
+              最穩健
+            </button>
             <button type="button" className="chip" onClick={() => setView('market')}>
               返去
             </button>
           </div>
-          <p className="quiet">模擬資金。最傷係對住開波 100 萬港元蝕得最多。要登入先上榜。</p>
+          <p className="quiet">
+            模擬資金。今日任務：開一單（{dayDone ? '完成咗' : '未完成'}）。本週你部機 {showSigned(weekPnl)}。要登入先上公眾榜。
+          </p>
           {auth.user ? (
             <label className="field">
               花名
@@ -694,14 +923,37 @@ export function ExchangeApp() {
             </button>
           )}
           <ol className="ranks">
-            {(boardTab === 'loss' ? rankLosses(board) : rankGains(board)).map((row) => (
+            {boardRows().map((row) => (
               <li key={row.nickname}>
                 <span>{row.nickname}</span>
-                <span>{boardTab === 'loss' ? `蝕 ${show(Math.max(0, 1_000_000 - row.equityHkd))}` : show(row.equityHkd)}</span>
+                <span>{row.label}</span>
               </li>
             ))}
           </ol>
-          {board.length === 0 ? <p className="quiet">暫時未有人上榜。</p> : null}
+          {boardRows().length === 0 ? <p className="quiet">暫時未有人上榜。公眾週榜要資料庫加咗週欄先有數。</p> : null}
+          <div className="follow">
+            <p>睇人點做</p>
+            {DEMO_TRADERS.map((demo) => (
+              <div key={demo.id} className="follow-row">
+                <span>
+                  <b>{demo.name}</b>
+                  <small>{demo.note}</small>
+                </span>
+                <button
+                  type="button"
+                  className="chip"
+                  onClick={() => {
+                    const pct = quote ? changePct(quote) ?? 0 : 0
+                    setSide(demoSide(demo.id, pct))
+                    setView('trade')
+                    say(`模擬跟單：${demo.name}。你仍然要自己確認，唔係真跟單。`)
+                  }}
+                >
+                  模擬跟單
+                </button>
+              </div>
+            ))}
+          </div>
         </section>
       ) : null}
       {view === 'login' ? (
@@ -720,11 +972,124 @@ export function ExchangeApp() {
         </button>
         <button type="button" className={view === 'trade' ? 'on' : ''} onClick={() => setView('trade')}>
           落單
+          {account.orders.length ? <i className="dot" aria-label="有未成交" /> : null}
         </button>
         <button type="button" className={view === 'book' ? 'on' : ''} onClick={() => setView('book')}>
           持倉
+          {account.positions.length ? <i className="dot" aria-label="有持倉" /> : null}
         </button>
       </nav>
+      {teachOpen ? (
+        <div className="modal teach" role="dialog" aria-modal="true" aria-label="教學">
+          <div>
+            <p className="quiet">第 {teachStep + 1} / {TUTORIAL_STEPS.length} 步 · 大約半分鐘</p>
+            <h2>{TUTORIAL_STEPS[teachStep].title}</h2>
+            <p>{TUTORIAL_STEPS[teachStep].body}</p>
+            <div className="seg">
+              <button type="button" className="chip" onClick={finishTeach}>
+                跳過
+              </button>
+              <button
+                type="button"
+                className="chip"
+                onClick={() => {
+                  finishTeach()
+                  setView('help')
+                }}
+              >
+                詞彙
+              </button>
+              {teachStep < TUTORIAL_STEPS.length - 1 ? (
+                <button type="button" className="chip on" onClick={() => setTeachStep((step) => step + 1)}>
+                  下一步
+                </button>
+              ) : (
+                <button type="button" className="chip on" onClick={finishTeach}>
+                  明白
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {levGuard != null ? (
+        <div className="modal teach warn" role="dialog" aria-modal="true" aria-label="高槓桿警告">
+          <div>
+            <h2>{levGuard} 倍</h2>
+            <p>{highLeverageWarning(levGuard)}</p>
+            <div className="seg">
+              <button type="button" className="chip" onClick={() => setLevGuard(null)}>
+                取消
+              </button>
+              <button type="button" className="chip on" onClick={acceptLeverage}>
+                我明，用 {levGuard} 倍
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {shareOpen ? (
+        <div className="modal" role="dialog" aria-modal="true" aria-label="分享">
+          <div className="share-card">
+            <p>試盤 · 模擬盤</p>
+            <b>{nick || '訪客'}</b>
+            <p>{quote?.name ?? '虛擬資金'}</p>
+            <strong className={openPnl + closedPnl < 0 ? 'down' : 'up'}>{showSigned(openPnl + closedPnl)}</strong>
+            <p>虛擬資金，唔係真錢</p>
+            <div className="seg">
+              <button type="button" className="chip" onClick={() => setShareOpen(false)}>
+                關閉
+              </button>
+              <button
+                type="button"
+                className="chip on"
+                onClick={() => {
+                  const canvas = document.createElement('canvas')
+                  canvas.width = 1080
+                  canvas.height = 1080
+                  const ctx = canvas.getContext('2d')
+                  if (!ctx) return
+                  ctx.fillStyle = '#10151c'
+                  ctx.fillRect(0, 0, 1080, 1080)
+                  ctx.fillStyle = '#d5dde6'
+                  ctx.font = '42px sans-serif'
+                  ctx.fillText('試盤 · 模擬盤', 72, 160)
+                  ctx.fillStyle = '#e7edf4'
+                  ctx.font = '72px sans-serif'
+                  ctx.fillText(nick || '訪客', 72, 280)
+                  ctx.font = '48px sans-serif'
+                  ctx.fillText(quote?.name ?? '虛擬資金', 72, 380)
+                  ctx.fillStyle = openPnl + closedPnl < 0 ? '#ff5c6a' : '#3dd68c'
+                  ctx.font = '84px sans-serif'
+                  ctx.fillText(showSigned(openPnl + closedPnl), 72, 520)
+                  ctx.fillStyle = '#d5dde6'
+                  ctx.font = '36px sans-serif'
+                  ctx.fillText('虛擬資金，唔係真錢', 72, 640)
+                  const link = document.createElement('a')
+                  link.href = canvas.toDataURL('image/png')
+                  link.download = 'si-pan.png'
+                  link.click()
+                }}
+              >
+                儲存圖片
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {view === 'help' ? (
+        <section className="sheet" aria-label="詞彙">
+          <button type="button" className="chip" onClick={() => setView('market')}>
+            返去
+          </button>
+          {GLOSSARY.map((tip) => (
+            <p key={tip.title}>
+              <b>{tip.title}</b>
+              <span className="quiet">{tip.body}</span>
+            </p>
+          ))}
+        </section>
+      ) : null}
       {resetOpen ? (
         <div className="modal" role="dialog" aria-modal="true">
           <div>
@@ -754,8 +1119,9 @@ function LoginSheet({
   onDone: (name: string | null) => void
 }) {
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
-  const [sent, setSent] = useState(false)
+  const [sent, setSent] = useState<'email' | 'phone' | null>(null)
   const [note, setNote] = useState<string | null>(initialNote ?? null)
   const [busy, setBusy] = useState(false)
 
@@ -770,10 +1136,30 @@ function LoginSheet({
       const supabase = createClient()
       const { error } = await supabase.auth.signInWithOtp({ email: trimmed, options: { shouldCreateUser: true } })
       if (error) throw error
-      setSent(true)
+      setSent('email')
       setNote('六位數字寄咗去你電郵。喺下面填，唔使撳電郵入面個連結。')
     } catch (error) {
       setNote(error instanceof Error ? error.message : '寄唔到')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const sendPhone = async () => {
+    const trimmed = phone.trim()
+    if (!trimmed.startsWith('+')) {
+      setNote('手機要加國碼，例如 +852。')
+      return
+    }
+    setBusy(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithOtp({ phone: trimmed, options: { channel: 'sms' } })
+      if (error) throw error
+      setSent('phone')
+      setNote('六位數字會以短訊寄出。如果後台未開手機登入，就改用 Google 或者電郵。')
+    } catch (error) {
+      setNote(error instanceof Error ? `手機登入未開好：${error.message}` : '手機登入未開好')
     } finally {
       setBusy(false)
     }
@@ -787,12 +1173,10 @@ function LoginSheet({
     setBusy(true)
     try {
       const supabase = createClient()
-      const { error } = await supabase.auth.verifyOtp({
-        email: email.trim().toLowerCase(),
-        token: code.trim(),
-        type: 'email',
-      })
-      if (error) throw error
+      const result = sent === 'phone'
+        ? await supabase.auth.verifyOtp({ phone: phone.trim(), token: code.trim(), type: 'sms' })
+        : await supabase.auth.verifyOtp({ email: email.trim().toLowerCase(), token: code.trim(), type: 'email' })
+      if (result.error) throw result.error
       onDone(localStorage.getItem('si-pan:nick'))
     } catch (error) {
       setNote(error instanceof Error ? error.message : '驗證唔到')
@@ -839,6 +1223,10 @@ function LoginSheet({
         電郵
         <input value={email} onChange={(event) => setEmail(event.target.value)} inputMode="email" />
       </label>
+      <label className="field">
+        手機（要後台開短訊）
+        <input value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" placeholder="+852" />
+      </label>
       {sent ? (
         <label className="field">
           六位數字
@@ -847,7 +1235,10 @@ function LoginSheet({
       ) : null}
       <div className="seg">
         <button type="button" className="chip" onClick={() => void (sent ? verify() : send())} disabled={busy}>
-          {sent ? '確認' : '寄六位數字'}
+          {sent ? '確認' : '寄去電郵'}
+        </button>
+        <button type="button" className="chip" onClick={() => void sendPhone()} disabled={busy}>
+          寄去手機
         </button>
         <button type="button" className="chip" onClick={onClose}>
           返去
