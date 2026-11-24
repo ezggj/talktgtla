@@ -161,6 +161,7 @@ export function ExchangeApp() {
   const [boardTab, setBoardTab] = useState<'loss' | 'gain'>('loss')
   const [underTab, setUnderTab] = useState<'orders' | 'pos'>('pos')
   const [chartOpen, setChartOpen] = useState(false)
+  const [authNote, setAuthNote] = useState<string | null>(null)
   const auth = useUser()
   const accountRef = useRef(account)
   accountRef.current = account
@@ -172,6 +173,14 @@ export function ExchangeApp() {
     const savedNick = localStorage.getItem('si-pan:nick')
     if (savedNick) setNick(savedNick)
     setReady(true)
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('auth') === 'error') {
+      setAuthNote('Google 登入唔成功，唔該再試過。')
+      setView('login')
+      params.delete('auth')
+      const next = params.toString()
+      window.history.replaceState(null, '', next ? `/?${next}` : '/')
+    }
   }, [])
 
   useEffect(() => {
@@ -697,6 +706,7 @@ export function ExchangeApp() {
       ) : null}
       {view === 'login' ? (
         <LoginSheet
+          initialNote={authNote}
           onClose={() => setView('market')}
           onDone={(name) => {
             if (name) setNick(name)
@@ -734,11 +744,19 @@ export function ExchangeApp() {
   )
 }
 
-function LoginSheet({ onClose, onDone }: { onClose: () => void; onDone: (name: string | null) => void }) {
+function LoginSheet({
+  initialNote,
+  onClose,
+  onDone,
+}: {
+  initialNote?: string | null
+  onClose: () => void
+  onDone: (name: string | null) => void
+}) {
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [sent, setSent] = useState(false)
-  const [note, setNote] = useState<string | null>(null)
+  const [note, setNote] = useState<string | null>(initialNote ?? null)
   const [busy, setBusy] = useState(false)
 
   const send = async () => {
@@ -801,6 +819,7 @@ function LoginSheet({ onClose, onDone }: { onClose: () => void; onDone: (name: s
   if (!isSupabaseConfigured) {
     return (
       <section className="sheet">
+        {note ? <p role="alert">{note}</p> : null}
         <p>登入仲未開得。後台未設定好。</p>
         <button type="button" className="chip" onClick={onClose}>
           返去
@@ -811,6 +830,7 @@ function LoginSheet({ onClose, onDone }: { onClose: () => void; onDone: (name: s
 
   return (
     <section className="sheet" aria-label="登入">
+      {note ? <p role="alert">{note}</p> : null}
       <p>登入之後先上排行榜。訪客照玩到，資金仍然係模擬。</p>
       <button type="button" className="primary" onClick={() => void google()} disabled={busy}>
         用 Google
@@ -833,7 +853,6 @@ function LoginSheet({ onClose, onDone }: { onClose: () => void; onDone: (name: s
           返去
         </button>
       </div>
-      {note ? <p className="quiet">{note}</p> : null}
     </section>
   )
 }
