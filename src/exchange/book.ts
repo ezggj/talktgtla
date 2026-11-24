@@ -12,6 +12,8 @@ export interface Position {
   side: Side
   qty: number
   entry: number
+  /** First fill price. Stays put when later adds change the average entry. */
+  firstEntry?: number
   margin: number
   openedAt: number
 }
@@ -72,6 +74,12 @@ function nid(now: number): string {
 
 export function freshAccount(): Account {
   return { cash: STARTING_HKD, positions: [], orders: [], fills: [], streak: 0 }
+}
+
+export function movePct(position: Position, mark: number): number {
+  if (!(position.entry > 0)) return 0
+  const raw = ((mark - position.entry) / position.entry) * 100
+  return position.side === 'long' ? raw : -raw
 }
 
 export function unrealized(position: Position, mark: number): number {
@@ -163,9 +171,10 @@ function addTo(
         ...existing,
         qty: existing.qty + qty,
         entry: (existing.qty * existing.entry + qty * price) / (existing.qty + qty),
+        firstEntry: existing.firstEntry ?? existing.entry,
         margin: existing.margin + margin,
       }
-    : { symbol: input.symbol, side: input.side, qty, entry: price, margin, openedAt: now }
+    : { symbol: input.symbol, side: input.side, qty, entry: price, firstEntry: price, margin, openedAt: now }
   const fill: Fill = {
     id: nid(now),
     symbol: input.symbol,

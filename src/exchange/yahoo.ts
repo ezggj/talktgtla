@@ -4,6 +4,7 @@ export interface Candle {
   h: number
   l: number
   c: number
+  v: number
 }
 
 export interface ParsedQuote {
@@ -23,13 +24,13 @@ interface YahooChart {
         previousClose?: number
         regularMarketTime?: number
       }
-      indicators?: { quote?: Array<{ open?: Array<number | null>; high?: Array<number | null>; low?: Array<number | null>; close?: Array<number | null> }> }
+      indicators?: { quote?: Array<{ open?: Array<number | null>; high?: Array<number | null>; low?: Array<number | null>; close?: Array<number | null>; volume?: Array<number | null> }> }
     }> | null
   }
 }
 
 /** Pull a real last price and candles out of a Yahoo chart payload. Returns null if the price is missing. */
-export function parseYahooChart(body: unknown): ParsedQuote | null {
+export function parseYahooChart(body: unknown, limit = 180): ParsedQuote | null {
   const result = (body as YahooChart).chart?.result?.[0]
   const price = result?.meta?.regularMarketPrice
   if (!result || price == null || !Number.isFinite(price) || price <= 0) return null
@@ -41,9 +42,17 @@ export function parseYahooChart(body: unknown): ParsedQuote | null {
     const high = quote?.high?.[i]
     const low = quote?.low?.[i]
     const close = quote?.close?.[i]
+    const volume = quote?.volume?.[i]
     if (open == null || high == null || low == null || close == null) continue
     if (![open, high, low, close].every((value) => Number.isFinite(value) && value > 0)) continue
-    candles.push({ t: times[i] * 1000, o: open, h: high, l: low, c: close })
+    candles.push({
+      t: times[i] * 1000,
+      o: open,
+      h: high,
+      l: low,
+      c: close,
+      v: volume != null && Number.isFinite(volume) && volume > 0 ? volume : 0,
+    })
   }
   const sessionOpen = candles[0]?.o
   const prev = sessionOpen && sessionOpen > 0 ? sessionOpen : result.meta?.chartPreviousClose ?? result.meta?.previousClose ?? price
@@ -51,7 +60,7 @@ export function parseYahooChart(body: unknown): ParsedQuote | null {
     usd: price,
     prevUsd: Number.isFinite(prev) && prev > 0 ? prev : price,
     at: (result.meta?.regularMarketTime ?? Math.floor(Date.now() / 1000)) * 1000,
-    candles: candles.slice(-78),
+    candles: candles.slice(-limit),
   }
 }
 

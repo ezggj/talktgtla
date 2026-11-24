@@ -13,6 +13,18 @@ export function marketLine(moves: readonly Move[]): string {
   return `${top.name}而家${dir} ${Math.abs(top.pct).toFixed(1)}%，係今日郁得最多。`
 }
 
+/** One or two sentences, only from the percentages on the desk. */
+export function deskHighlight(moves: readonly Move[]): string {
+  const line = marketLine(moves)
+  const known = moves.filter((move): move is { name: string; pct: number } => move.pct != null && Number.isFinite(move.pct))
+  if (known.length < 2) return line
+  const sorted = [...known].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))
+  const second = sorted[1]
+  if (Math.abs(second.pct) < 0.05) return line
+  const dir = second.pct > 0 ? '升' : '跌'
+  return `${line} ${second.name}就${dir} ${Math.abs(second.pct).toFixed(1)}%。`
+}
+
 export function streakLine(streak: number): string | null {
   if (streak >= 2) return `連續 ${streak} 單賺到。`
   return null

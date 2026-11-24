@@ -1,16 +1,16 @@
 {
-  "name": "我座城",
-  "short_name": "我座城",
-  "description": "瀏覽器入面起一座城。香港日常風味，免費，唔使登入。",
+  "name": "試盤",
+  "short_name": "試盤",
+  "description": "模擬盤，用虛擬資金練習買賣。唔係真錢。",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#10242c",
-  "theme_color": "#10242c",
+  "background_color": "#07090c",
+  "theme_color": "#07090c",
   "lang": "zh-HK",
   "dir": "ltr",
-  "categories": ["games", "entertainment"],
+  "categories": ["finance"],
   "icons": [
     {
       "src": "/icons/icon-192.png",
