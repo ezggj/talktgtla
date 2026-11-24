@@ -3,30 +3,30 @@ import { GeistSans } from 'geist/font/sans'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: '我座城',
-  description: '瀏覽器入面起一座城。香港日常風味，免費，唔使登入。原創城市遊戲。',
-  applicationName: '我座城',
+  title: '試盤',
+  description: '模擬盤，用虛擬資金練習買賣。唔係真錢，唔使登入。',
+  applicationName: '試盤',
   metadataBase: new URL('https://talktgtla.com'),
   openGraph: {
-    title: '我座城',
-    description: '灣邊一塊地，你嚟起。免費，記喺呢部機。',
+    title: '試盤',
+    description: '模擬盤，用虛擬資金。唔係真錢交易。',
     url: 'https://talktgtla.com',
-    siteName: '我座城',
+    siteName: '試盤',
     locale: 'zh_HK',
     type: 'website',
-    images: [{ url: '/og.png', width: 1200, height: 630, alt: '我座城' }],
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: '試盤' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: '我座城',
-    description: '灣邊一塊地，你嚟起。',
+    title: '試盤',
+    description: '模擬盤，用虛擬資金。唔係真錢交易。',
     images: ['/og.png'],
   },
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: '我座城',
+    title: '試盤',
   },
   icons: {
     icon: [

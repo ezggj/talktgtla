@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --import ./scripts/register-ts.mjs --test src/lib/fitness/*.test.ts src/lib/chat/*.test.ts src/game/*.test.ts"
+    "test": "node --experimental-strip-types --import ./scripts/register-ts.mjs --test src/lib/fitness/*.test.ts src/lib/chat/*.test.ts src/game/*.test.ts src/exchange/*.test.ts"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.2.2",
