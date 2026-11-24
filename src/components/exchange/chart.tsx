@@ -11,7 +11,7 @@ export function CandleChart({ candles }: { candles: Candle[] }) {
     if (!canvas) return
     const draw = () => {
       const width = canvas.parentElement?.clientWidth || 320
-      const height = width < 520 ? 96 : 260
+      const height = width < 520 ? 84 : 280
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
       canvas.width = Math.floor(width * dpr)
       canvas.height = Math.floor(height * dpr)
@@ -21,10 +21,10 @@ export function CandleChart({ candles }: { candles: Candle[] }) {
       if (!ctx) return
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, width, height)
-      ctx.fillStyle = '#fffdf8'
+      ctx.fillStyle = '#10151c'
       ctx.fillRect(0, 0, width, height)
       if (candles.length < 2) {
-        ctx.fillStyle = '#6d665c'
+        ctx.fillStyle = '#8b95a3'
         ctx.font = '15px "PingFang HK", sans-serif'
         ctx.fillText('圖暫時冇', 16, 36)
         return
@@ -36,7 +36,7 @@ export function CandleChart({ candles }: { candles: Candle[] }) {
       const padY = 12
       const slot = (width - padX * 2) / candles.length
       const yOf = (value: number) => padY + ((max - value) / span) * (height - padY * 2)
-      ctx.strokeStyle = 'rgba(28, 25, 21, 0.08)'
+      ctx.strokeStyle = 'rgba(232, 237, 242, 0.08)'
       ctx.lineWidth = 1
       for (let i = 1; i <= 3; i += 1) {
         const y = (height / 4) * i
@@ -48,7 +48,7 @@ export function CandleChart({ candles }: { candles: Candle[] }) {
       for (const [index, candle] of candles.entries()) {
         const x = padX + index * slot + slot / 2
         const up = candle.c >= candle.o
-        ctx.strokeStyle = up ? '#0c7a45' : '#c2342b'
+        ctx.strokeStyle = up ? '#3dd68c' : '#ff5c6a'
         ctx.fillStyle = ctx.strokeStyle
         ctx.lineWidth = 1
         ctx.beginPath()

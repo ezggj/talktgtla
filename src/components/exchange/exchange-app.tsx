@@ -128,7 +128,7 @@ function Spark({ candles }: { candles: Candle[] }) {
   const up = points[points.length - 1].c >= points[0].c
   return (
     <svg className="spark" viewBox="0 0 72 28" aria-hidden="true">
-      <path d={d} fill="none" stroke={up ? '#0c7a45' : '#c2342b'} strokeWidth="1.6" />
+      <path d={d} fill="none" stroke={up ? '#3dd68c' : '#ff5c6a'} strokeWidth="1.6" />
     </svg>
   )
 }

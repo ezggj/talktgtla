@@ -2,18 +2,26 @@ nextjs-portal {
   display: none !important;
 }
 
+body:has(.desk) {
+  background: #07090c;
+}
+
 .desk {
-  --ink: #1c1915;
-  --muted: #6d665c;
-  --paper: #f3efe4;
-  --card: #fffdf8;
-  --line: rgba(28, 25, 21, 0.12);
-  --up: #0c7a45;
-  --down: #c2342b;
-  --brass: #8d5b2a;
+  --ink: #e7edf4;
+  --muted: #8b95a3;
+  --floor: #07090c;
+  --card: #12171f;
+  --card-2: #1a212c;
+  --line: rgba(231, 237, 244, 0.12);
+  --up: #3dd68c;
+  --down: #ff5c6a;
+  --steel: #9eb6d4;
   min-height: 100dvh;
-  background: var(--paper);
+  background:
+    radial-gradient(1200px 420px at 80% -10%, rgba(62, 92, 130, 0.28), transparent 55%),
+    var(--floor);
   color: var(--ink);
+  color-scheme: dark;
   font-family: "PingFang HK", "PingFang TC", "Noto Sans TC", "Noto Sans CJK TC", "Microsoft JhengHei", sans-serif;
   word-break: keep-all;
   line-break: strict;
@@ -24,47 +32,50 @@ nextjs-portal {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding: max(12px, env(safe-area-inset-top)) 16px 0;
+  padding: max(14px, env(safe-area-inset-top)) 16px 0;
 }
 
 .top h1 {
   margin: 0;
-  font-size: 1.6rem;
-  letter-spacing: 0.08em;
+  font-size: 1.45rem;
+  font-weight: 720;
+  letter-spacing: 0.18em;
 }
 
 .clock {
-  color: var(--muted);
+  color: var(--steel);
   font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
   white-space: nowrap;
 }
 
 .disclaimer {
-  margin: 8px 16px 0;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(141, 91, 42, 0.12);
-  color: var(--brass);
-  font-size: 0.86rem;
+  margin: 10px 16px 0;
+  padding: 7px 0 8px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  color: var(--steel);
+  font-size: 0.84rem;
+  letter-spacing: 0.01em;
 }
 
 .story {
-  margin: 8px 16px 0;
+  margin: 10px 16px 0;
   min-height: 1.4em;
-  font-size: 1rem;
+  font-size: 0.98rem;
 }
 
 .equity-row {
   display: flex;
   gap: 8px;
-  padding: 10px 16px 0;
+  padding: 12px 16px 0;
 }
 
 .equity,
 .mini-stat {
-  background: var(--card);
+  background: linear-gradient(180deg, var(--card-2), var(--card));
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 6px;
   padding: 8px 12px;
 }
 
@@ -83,14 +94,16 @@ nextjs-portal {
 .quiet {
   display: block;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
 }
 
 .equity strong,
 .mini-stat strong,
 .price {
   font-variant-numeric: tabular-nums;
-  font-size: 1.35rem;
+  font-size: 1.28rem;
+  font-weight: 650;
   white-space: nowrap;
 }
 
@@ -115,9 +128,10 @@ nextjs-portal {
 .banner {
   margin: 10px 16px 0;
   padding: 12px 14px;
-  border-radius: 14px;
-  background: var(--down);
-  color: #fffdf8;
+  border-radius: 6px;
+  background: #3a1218;
+  border: 1px solid rgba(255, 92, 106, 0.45);
+  color: #ffd7db;
   display: flex;
   justify-content: space-between;
   gap: 8px;
@@ -174,23 +188,24 @@ nextjs-portal {
   width: 100%;
   text-align: left;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: 6px;
   border: 1px solid var(--line);
   background: var(--card);
   color: inherit;
 }
 
 .row.picked {
-  border-color: var(--brass);
+  border-color: transparent;
+  box-shadow: inset 2px 0 0 var(--steel);
+  background: var(--card-2);
 }
 
 .row b,
 .pos b,
-.trade-grid h2,
-.ticket h2 {
-  margin: 0 0 4px;
-  font-size: 1.2rem;
-  font-weight: 650;
+.trade-grid h2 {
+  margin: 0 0 2px;
+  font-size: 1.05rem;
+  font-weight: 680;
 }
 
 .up {
@@ -208,26 +223,29 @@ nextjs-portal {
 
 .chart-wrap {
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 6px;
   overflow: hidden;
-  background: var(--card);
+  background: #10151c;
 }
 
 .trade-grid h2 {
   margin: 0 0 4px;
-  font-size: 1.2rem;
+  font-size: 1.15rem;
 }
 
 .ticket {
   margin-top: 10px;
   padding: 12px;
-  border-radius: 16px;
+  border-radius: 6px;
   border: 1px solid var(--line);
   background: var(--card);
 }
 
-.seg {
+.seg,
+.levs,
+.chips {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -236,8 +254,8 @@ nextjs-portal {
 .chip {
   border: 1px solid var(--line);
   background: transparent;
-  color: inherit;
-  border-radius: 999px;
+  color: var(--ink);
+  border-radius: 4px;
   min-height: 36px;
   padding: 0 10px;
 }
@@ -250,21 +268,14 @@ nextjs-portal {
 .lev.on,
 .chip.on {
   background: var(--ink);
-  color: var(--paper);
+  color: #10151c;
   border-color: transparent;
 }
 
 .side.on.short {
   background: var(--down);
-  color: white;
+  color: #1a0a0d;
   border-color: transparent;
-}
-
-.levs,
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
 .field {
@@ -274,9 +285,9 @@ nextjs-portal {
 
 .field input {
   min-height: 44px;
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid var(--line);
-  background: var(--paper);
+  background: #0c1016;
   color: inherit;
   font: inherit;
   font-size: 1.05rem;
@@ -302,15 +313,15 @@ nextjs-portal {
 .primary {
   min-height: 48px;
   border: 0;
-  border-radius: 14px;
-  background: var(--brass);
-  color: #fffdf8;
+  border-radius: 4px;
+  background: var(--ink);
+  color: #10151c;
   font-size: 1.05rem;
-  font-weight: 700;
+  font-weight: 720;
 }
 
 .primary:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
 }
 
 .pos {
@@ -322,7 +333,7 @@ nextjs-portal {
   border: 1px solid var(--line);
   background: transparent;
   color: inherit;
-  border-radius: 999px;
+  border-radius: 4px;
   min-height: 36px;
   padding: 0 12px;
 }
@@ -347,6 +358,8 @@ nextjs-portal {
   display: flex;
   justify-content: space-between;
   gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
   white-space: nowrap;
 }
 
@@ -355,60 +368,86 @@ nextjs-portal {
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 5;
   display: flex;
-  gap: 6px;
-  padding: 8px 10px max(8px, env(safe-area-inset-bottom));
-  background: rgba(243, 239, 228, 0.96);
+  gap: 0;
+  padding: 0 8px max(6px, env(safe-area-inset-bottom));
+  background: rgba(7, 9, 12, 0.94);
   border-top: 1px solid var(--line);
+  backdrop-filter: blur(10px);
 }
 
 .nav button {
   flex: 1;
-  min-height: 48px;
-  border-radius: 12px;
-  border: 1px solid transparent;
+  min-height: 52px;
+  border: 0;
+  border-radius: 0;
   background: transparent;
   color: var(--muted);
 }
 
 .nav button.on {
-  background: var(--ink);
-  color: var(--paper);
+  color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--steel);
 }
 
 .toast {
   position: fixed;
   left: 50%;
-  top: max(72px, calc(env(safe-area-inset-top) + 60px));
+  z-index: 7;
+  bottom: calc(132px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
+  max-width: calc(100% - 32px);
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: 4px;
   background: var(--ink);
-  color: var(--paper);
+  color: #10151c;
+  font-weight: 650;
   white-space: nowrap;
 }
 
 .modal {
   position: fixed;
   inset: 0;
+  z-index: 8;
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(28, 25, 21, 0.4);
+  background: rgba(0, 0, 0, 0.62);
 }
 
 .modal div {
   width: min(360px, 100%);
   padding: 18px;
-  border-radius: 16px;
-  background: var(--card);
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--card-2);
 }
 
 .modal .seg {
   margin-top: 12px;
 }
 
+@media (max-width: 959px) {
+  .ticket .primary {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(70px + env(safe-area-inset-bottom));
+    z-index: 6;
+  }
+
+  .stage {
+    padding-bottom: calc(132px + env(safe-area-inset-bottom));
+  }
+}
+
 @media (max-width: 719px) {
+  .equity,
+  .mini-stat {
+    padding: 6px 8px;
+  }
+
   .equity strong,
   .mini-stat strong,
   .price {
@@ -418,6 +457,19 @@ nextjs-portal {
   .disclaimer {
     font-size: 0.78rem;
   }
+
+  .ticket {
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+  }
+
+  .ticket > :not(.seg) {
+    grid-column: 1 / -1;
+  }
+
+  .field input {
+    min-height: 40px;
+  }
 }
 
 @media (min-width: 960px) {
@@ -426,7 +478,7 @@ nextjs-portal {
     grid-template-columns: 300px minmax(0, 1fr) 320px;
     gap: 12px;
     align-items: start;
-    padding-bottom: 24px;
+    padding-bottom: 28px;
   }
 
   .pane {
@@ -435,6 +487,10 @@ nextjs-portal {
 
   .nav {
     display: none;
+  }
+
+  .toast {
+    bottom: 24px;
   }
 
   .trade-grid {
