@@ -455,6 +455,77 @@ body:has(.desk) {
   background: #0c1016;
 }
 
+.trade-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px;
+  gap: 8px;
+  align-items: start;
+}
+
+.ladder {
+  display: grid;
+  gap: 2px;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ladder p {
+  margin: 0;
+}
+
+.ladder .ask,
+.ladder .bid,
+.ladder .last {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.ladder .ask {
+  color: var(--down);
+}
+
+.ladder .bid {
+  color: var(--up);
+}
+
+.ladder .last {
+  color: var(--ink);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 2px 0;
+}
+
+.sheet {
+  margin: 8px 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #10151c;
+  display: grid;
+  gap: 10px;
+}
+
+.ranks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0;
+}
+
+.ranks li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.chart-toggle {
+  display: none;
+}
+
 .modal {
   position: fixed;
   inset: 0;
@@ -478,6 +549,19 @@ body:has(.desk) {
 }
 
 @media (max-width: 959px) {
+  .chart-toggle {
+    display: inline-flex;
+    margin: 8px 12px 0;
+  }
+
+  .chart-col {
+    display: none;
+  }
+
+  .chart-col.chart-open.on {
+    display: flex;
+  }
+
   .ticket .primary {
     position: fixed;
     left: 12px;
