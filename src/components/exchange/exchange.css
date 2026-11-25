@@ -33,11 +33,41 @@ body:has(.desk) {
   padding: max(8px, env(safe-area-inset-top)) 12px 0;
 }
 
-.top h1 {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 720;
-  letter-spacing: 0.16em;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #12171f;
+  color: inherit;
+  padding: 4px 10px 4px 12px;
+}
+
+.brand b {
+  letter-spacing: 0.12em;
+}
+
+.brand small,
+.brand strong {
+  display: block;
+}
+
+.brand small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.brand strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.tape {
+  display: none;
+}
+
+.tape.open {
+  display: flex;
 }
 
 .top-side {
@@ -80,8 +110,8 @@ body:has(.desk) {
   white-space: nowrap;
 }
 
-.tape {
-  display: flex;
+.tape,
+.tape.open {
   gap: 0;
   margin-top: 6px;
   border-top: 1px solid var(--line);
@@ -533,11 +563,56 @@ body:has(.desk) {
 }
 
 .pill {
+  position: relative;
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 4px 8px;
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.pill select {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.goes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pos button.flat {
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--down);
+  color: #1a0709;
+  font-weight: 760;
+  padding: 0 14px;
+}
+
+.big-pct {
+  display: block;
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.share-card {
+  min-height: 420px;
+  background:
+    radial-gradient(circle at 80% 20%, rgba(46, 229, 154, 0.16), transparent 42%),
+    #10151c;
+}
+
+.share-card .watermark {
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.chart-close {
+  display: none;
 }
 
 .go {
@@ -663,6 +738,7 @@ body:has(.desk) {
 .ladder .ask,
 .ladder .bid,
 .ladder .last {
+  position: relative;
   display: flex;
   justify-content: space-between;
   gap: 4px;
@@ -671,8 +747,30 @@ body:has(.desk) {
   background: transparent;
   color: inherit;
   font: inherit;
-  padding: 0;
+  padding: 1px 0;
   text-align: left;
+  overflow: hidden;
+}
+
+.ladder .depth {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0.45;
+  z-index: 0;
+}
+
+.ladder .ask span,
+.ladder .bid span,
+.ladder .last {
+  position: relative;
+  z-index: 1;
+}
+
+.ladder .hint {
+  color: var(--muted);
+  font-size: 0.72rem;
 }
 
 .ladder .ask {
@@ -687,8 +785,8 @@ body:has(.desk) {
   color: var(--ink);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  padding: 4px 0;
-  font-size: 1rem;
+  padding: 6px 0;
+  font-size: 1.2rem;
   font-weight: 760;
 }
 
@@ -738,14 +836,19 @@ body:has(.desk) {
 
 .share-card {
   display: grid;
-  gap: 8px;
+  align-content: start;
+  gap: 10px;
   min-width: min(100%, 320px);
-  padding: 8px;
-  background: #10151c;
+  min-height: 460px;
+  padding: 22px 18px;
+  background:
+    radial-gradient(circle at 80% 12%, rgba(46, 229, 154, 0.18), transparent 40%),
+    #10151c;
 }
 
 .share-card strong {
-  font-size: 1.8rem;
+  font-size: 3rem;
+  line-height: 1;
 }
 
 .slider {
@@ -833,6 +936,24 @@ body:has(.desk) {
 
   .pane.chart-col.chart-open.on {
     display: flex;
+    position: fixed;
+    z-index: 7;
+    left: 0;
+    right: 0;
+    top: 22%;
+    bottom: calc(58px + env(safe-area-inset-bottom));
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.55);
+    background: #10151c;
+  }
+
+  .chart-close {
+    display: inline-flex;
+    align-self: flex-end;
+    margin: 8px 12px 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
   }
 }
 
@@ -885,20 +1006,24 @@ body:has(.desk) {
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-columns: 250px minmax(0, 1fr) 300px;
-    grid-template-rows: minmax(0, 1fr) 196px;
+    grid-template-columns: 240px minmax(0, 1fr) 340px;
+    grid-template-rows: minmax(0, 1fr) auto;
     gap: 8px;
     align-items: stretch;
     padding: 0;
+  }
+
+  .tape,
+  .tape.open {
+    display: flex;
   }
 
   .desk.shut .book-col {
     display: none;
   }
 
-  .desk.shut .chart-col {
-    grid-column: 2 / span 2;
-    grid-row: 2;
+  .desk.shut .ticket-col {
+    grid-row: 1 / span 2;
   }
 
   .pane,
@@ -917,12 +1042,12 @@ body:has(.desk) {
 
   .chart-col {
     grid-column: 2;
-    grid-row: 2;
+    grid-row: 1 / span 2;
     padding: 8px 12px 0;
   }
 
   .ticket-col {
-    grid-column: 2 / span 2;
+    grid-column: 3;
     grid-row: 1;
     overflow: auto;
     border-left: 1px solid var(--line);
@@ -931,6 +1056,7 @@ body:has(.desk) {
   .book-col {
     grid-column: 3;
     grid-row: 2;
+    max-height: 220px;
     overflow: auto;
     border-top: 1px solid var(--line);
     padding: 8px 12px;

@@ -44,8 +44,6 @@ import './exchange.css'
 const SAVE_KEY = 'si-pan:v1'
 const BASE_LEVERAGES = [1, 5, 10, 20, 50]
 const HIGH_LEVERAGES = [100, 500]
-const AMOUNTS = [10_000, 50_000, 100_000]
-
 interface PublicQuote {
   symbol: string
   name: string
@@ -139,7 +137,7 @@ function Mark({ kind, down }: { kind: MarketKind; down: boolean }) {
   )
 }
 
-function Spark({ candles }: { candles: Candle[] }) {
+function Spark({ candles, down }: { candles: Candle[]; down: boolean }) {
   const points = candles.slice(-24)
   if (points.length < 2) return <svg className="spark" />
   const min = Math.min(...points.map((candle) => candle.l))
@@ -152,10 +150,9 @@ function Spark({ candles }: { candles: Candle[] }) {
       return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`
     })
     .join(' ')
-  const up = points[points.length - 1].c >= points[0].c
   return (
     <svg className="spark" viewBox="0 0 72 28" aria-hidden="true">
-      <path d={d} fill="none" stroke={up ? '#3dd68c' : '#ff5c6a'} strokeWidth="1.6" />
+      <path d={d} fill="none" stroke={down ? 'var(--down)' : 'var(--up)'} strokeWidth="1.6" />
     </svg>
   )
 }
@@ -171,6 +168,8 @@ export function ExchangeApp() {
   const [mode, setMode] = useState<'market' | 'limit'>('market')
   const [leverage, setLeverage] = useState(5)
   const [highLev, setHighLev] = useState(false)
+  const [tapeOpen, setTapeOpen] = useState(false)
+  const [mineOpen, setMineOpen] = useState(false)
   const [amount, setAmount] = useState('10000')
   const [limitText, setLimitText] = useState('')
   const [toast, setToast] = useState<string | null>(null)
@@ -588,40 +587,26 @@ export function ExchangeApp() {
   return (
     <main className={account.positions.length || account.fills.length ? 'desk' : 'desk shut'}>
       <header className="top">
-        <h1>試盤</h1>
-        <span className="top-side">
-          <button className="text-btn" type="button" onClick={() => setCcy((current) => (current === 'HKD' ? 'USD' : 'HKD'))}>
-            {ccy === 'HKD' ? 'HK$' : 'US$'}
-          </button>
-          <button className="text-btn" type="button" onClick={() => setView('board')}>
-            排行榜
-          </button>
-          <button
-            className="text-btn"
-            type="button"
-            onClick={() => {
-              setTeachStep(0)
-              setTeachOpen(true)
-            }}
-          >
-            教學
-          </button>
-          <button className="text-btn" type="button" onClick={() => setView('login')}>
-            {auth.user ? nick || '已登入' : '登入'}
-          </button>
-          <button className="text-btn" type="button" onClick={() => setResetOpen(true)}>
-            重新開始
-          </button>
-          <span className="clock">{clock ? `${clock} 港時` : '等緊報價'}</span>
-        </span>
+        <button className="brand" type="button" onClick={() => setTapeOpen((open) => !open)}>
+          <span>
+            <b>試盤</b>
+            <small>模擬盤</small>
+          </span>
+          <strong className={openPnl > 0 ? 'up' : openPnl < 0 ? 'down' : ''}>{show(worth)}</strong>
+        </button>
+        <button className="text-btn mine" type="button" onClick={() => setMineOpen(true)}>
+          我的
+        </button>
       </header>
-      <p className="disclaimer">呢個係模擬盤，用虛擬資金，唔係真錢交易</p>
+      <p className="disclaimer">虛擬資金，唔係真錢交易</p>
       {toast ? <p className="toast">{toast}</p> : null}
-      <p className="story" aria-live="polite">
-        {offline && !feed?.quotes.length ? '報價暫時攞唔到，市況暫停。' : line}
-        {streak ? ` ${streak}` : ''}
-      </p>
-      <div className="tape">
+      {view === 'market' ? (
+        <p className="story" aria-live="polite">
+          {offline && !feed?.quotes.length ? '報價暫時攞唔到，市況暫停。' : line}
+          {streak ? ` ${streak}` : ''}
+        </p>
+      ) : null}
+      <div className={tapeOpen ? 'tape open' : 'tape'}>
         <div className={`equity ${pulse} ${openPnl > 0 ? 'up' : openPnl < 0 ? 'down' : ''}`}>
           <span>權益</span>
           <strong>{show(worth)}</strong>
@@ -680,7 +665,7 @@ export function ExchangeApp() {
                       {market.code} · {item ? freshnessLabel(market.feed, item.session, market.kind) : '等報價'}
                     </small>
                   </span>
-                  <Spark candles={item?.candles ?? []} />
+                  <Spark candles={item?.candles ?? []} down={pct != null && pct < 0} />
                   <span>
                     <b>{item ? show(item.hkd) : '—'}</b>
                     <small className={pct != null && pct < 0 ? 'down' : 'up'}>{pct == null ? '—' : `${pct > 0 ? '+' : ''}${pct.toFixed(2)}%`}</small>
@@ -691,6 +676,9 @@ export function ExchangeApp() {
           </div>
         </section>
         <section className={view === 'trade' ? `pane chart-col on${chartOpen ? ' chart-open' : ''}` : 'pane chart-col'} aria-label="圖">
+          <button className="chart-close" type="button" onClick={() => setChartOpen(false)}>
+            收起圖
+          </button>
           <h2>
             {quote?.name ?? marketBySymbol(symbol)?.name}{' '}
             <span className={quote && changePct(quote) != null && changePct(quote)! < 0 ? 'down price' : 'up price'}>
@@ -746,34 +734,35 @@ export function ExchangeApp() {
               </span>
             </div>
             <div className="pair-tools">
-              <span className="pill">逐倉</span>
-              <span className="pill">{leverage}倍</span>
+              <label className="pill">
+                逐倉
+                <select aria-label="保證金模式" value="iso" onChange={() => undefined}>
+                  <option value="iso">逐倉</option>
+                </select>
+              </label>
+              <label className="pill">
+                {leverage}倍
+                <select aria-label="槓桿" value={leverage} onChange={(event) => chooseLeverage(Number(event.target.value))}>
+                  {[...BASE_LEVERAGES, ...(highLev ? HIGH_LEVERAGES : [])].map((value) => (
+                    <option key={value} value={value}>
+                      {value}倍
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {highLev ? null : (
+                <button
+                  type="button"
+                  className="lev unlock"
+                  onClick={() => {
+                    setHighLev(true)
+                    localStorage.setItem('si-pan:high-lev', '1')
+                  }}
+                >
+                  更高
+                </button>
+              )}
             </div>
-          </div>
-          <div className="levs" aria-label="槓桿">
-            {BASE_LEVERAGES.map((value) => (
-              <button key={value} type="button" className={leverage === value ? 'lev on' : 'lev'} onClick={() => chooseLeverage(value)}>
-                {value}倍
-              </button>
-            ))}
-            {highLev
-              ? HIGH_LEVERAGES.map((value) => (
-                  <button key={value} type="button" className={leverage === value ? 'lev hot on' : 'lev hot'} onClick={() => chooseLeverage(value)}>
-                    {value}倍
-                  </button>
-                ))
-              : (
-                  <button
-                    type="button"
-                    className="lev unlock"
-                    onClick={() => {
-                      setHighLev(true)
-                      localStorage.setItem('si-pan:high-lev', '1')
-                    }}
-                  >
-                    更高
-                  </button>
-                )}
           </div>
           <p className={leverage >= 50 ? 'quiet warn' : 'quiet'}>{leverageWarning(leverage)}</p>
           <div className="trade-split">
@@ -797,12 +786,24 @@ export function ExchangeApp() {
                 <input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
               </label>
               <div className="chips">
-                {AMOUNTS.map((value) => (
-                  <button key={value} type="button" className={Number(amount) === value ? 'chip on' : 'chip'} onClick={() => setAmount(String(value))}>
-                    {value / 10000}萬
+                {[0.25, 0.5, 0.75, 1].map((portion) => (
+                  <button
+                    key={portion}
+                    type="button"
+                    className="chip"
+                    onClick={() => {
+                      const cash = toDisplay(account.cash, ccy, fx)
+                      if (cash == null) return
+                      setAmount(String(Math.max(0, Math.floor(cash * portion))))
+                    }}
+                  >
+                    {portion === 1 ? '全部' : `${portion * 100}%`}
                   </button>
                 ))}
               </div>
+              <p className="quiet">
+                {quote && notional != null && quote.hkd > 0 ? `約 ${(notional / quote.hkd).toLocaleString('en-HK', { maximumFractionDigits: notional / quote.hkd >= 100 ? 2 : 4 })} 個` : '未有數量'}
+              </p>
               {mode === 'limit' ? (
                 <label className="field">
                   限價（拖條或者拖圖）
@@ -850,12 +851,14 @@ export function ExchangeApp() {
                   <b>{liq != null ? show(liq) : '—'}</b>
                 </div>
               </div>
-              <button className="go long" type="button" disabled={!tradable} onClick={() => submit('long')}>
-                開多
-              </button>
-              <button className="go short" type="button" disabled={!tradable} onClick={() => submit('short')}>
-                開空
-              </button>
+              <div className="goes">
+                <button className="go long" type="button" disabled={!tradable} onClick={() => submit('long')}>
+                  開多
+                </button>
+                <button className="go short" type="button" disabled={!tradable} onClick={() => submit('short')}>
+                  開空
+                </button>
+              </div>
               {working ? (
                 <div className="order-line">
                   <span>
@@ -868,42 +871,54 @@ export function ExchangeApp() {
               ) : null}
             </form>
             <aside className="ladder" aria-label="參考盤口">
-              <p>參考盤口 <span>唔係真盤</span></p>
+              <p>
+                參考盤口 <span className="hint">唔係真盤</span>
+              </p>
               <div className="ladder-head">
                 <span>價格</span>
                 <span>數量</span>
               </div>
               {quote && referenceLadder(quote.hkd) ? (
                 <>
-                  {referenceLadder(quote.hkd)!.asks.map((level) => (
-                    <button
-                      key={`a-${level.price}`}
-                      type="button"
-                      className="ask"
-                      onClick={() => {
-                        setMode('limit')
-                        setLimitText(String(Math.round(level.price * 100) / 100))
-                      }}
-                    >
-                      <span>{show(level.price)}</span>
-                      <span>{level.size}</span>
-                    </button>
-                  ))}
-                  <div className="last">{show(quote.hkd)}</div>
-                  {referenceLadder(quote.hkd)!.bids.map((level) => (
-                    <button
-                      key={`b-${level.price}`}
-                      type="button"
-                      className="bid"
-                      onClick={() => {
-                        setMode('limit')
-                        setLimitText(String(Math.round(level.price * 100) / 100))
-                      }}
-                    >
-                      <span>{show(level.price)}</span>
-                      <span>{level.size}</span>
-                    </button>
-                  ))}
+                  {(() => {
+                    const book = referenceLadder(quote.hkd)!
+                    const maxSize = Math.max(...book.asks.map((level) => level.size), ...book.bids.map((level) => level.size), 1)
+                    return (
+                      <>
+                        {book.asks.map((level) => (
+                          <button
+                            key={`a-${level.price}`}
+                            type="button"
+                            className="ask"
+                            onClick={() => {
+                              setMode('limit')
+                              setLimitText(String(Math.round(level.price * 100) / 100))
+                            }}
+                          >
+                            <i className="depth ask-bar" style={{ width: `${(level.size / maxSize) * 100}%` }} />
+                            <span>{show(level.price)}</span>
+                            <span>{level.size}</span>
+                          </button>
+                        ))}
+                        <div className="last">{show(quote.hkd)}</div>
+                        {book.bids.map((level) => (
+                          <button
+                            key={`b-${level.price}`}
+                            type="button"
+                            className="bid"
+                            onClick={() => {
+                              setMode('limit')
+                              setLimitText(String(Math.round(level.price * 100) / 100))
+                            }}
+                          >
+                            <i className="depth bid-bar" style={{ width: `${(level.size / maxSize) * 100}%` }} />
+                            <span>{show(level.price)}</span>
+                            <span>{level.size}</span>
+                          </button>
+                        ))}
+                      </>
+                    )
+                  })()}
                   {(() => {
                     const book = referenceLadder(quote.hkd)!
                     const ask = book.asks.reduce((sum, level) => sum + level.size, 0)
@@ -977,11 +992,11 @@ export function ExchangeApp() {
                     <b>
                       {name} {position.side === 'long' ? '多' : '空'} {Math.max(1, Math.round(effectiveLeverage(position)))}倍
                     </b>
-                    <span className="pos-pnl">
-                      <small>未平倉</small>
-                      <b className={pnl != null && pnl < 0 ? 'down' : 'up'}>{pnl == null ? '未有報價' : showSigned(pnl)}</b>
+                    <span className={`pos-pnl ${pnl != null && pnl < 0 ? 'down' : 'up'}`}>
+                      <b className="big-pct">{mark == null ? '—' : `${movePct(position, mark) > 0 ? '+' : ''}${movePct(position, mark).toFixed(2)}%`}</b>
+                      <small>{pnl == null ? '未有報價' : showSigned(pnl)}</small>
                     </span>
-                    <button type="button" onClick={() => flatten(position.symbol)}>
+                    <button className="flat" type="button" onClick={() => flatten(position.symbol)}>
                       一鍵平倉
                     </button>
                   </div>
@@ -1038,7 +1053,7 @@ export function ExchangeApp() {
             </button>
           </div>
           <p className="quiet">
-            模擬資金。今日任務：開一單（{dayDone ? '完成咗' : '未完成'}）。本週你部機 {showSigned(weekPnl)}。要登入先上公眾榜。
+            模擬資金。今日任務：開一單（{dayDone ? '完成咗' : '未完成'}）。你部機本週 {showSigned(weekPnl)}。登入先會出現喺公眾榜。
           </p>
           {auth.user ? (
             <label className="field">
@@ -1065,7 +1080,7 @@ export function ExchangeApp() {
               </li>
             ))}
           </ol>
-          {boardRows().length === 0 ? <p className="quiet">暫時未有人上榜。公眾週榜要資料庫加咗週欄先有數。</p> : null}
+          {boardRows().length === 0 ? <p className="quiet">暫時未有人上榜。你部機本週 {showSigned(weekPnl)}。</p> : null}
           <div className="follow">
             <p>睇人點做</p>
             {DEMO_TRADERS.map((demo) => (
@@ -1112,6 +1127,9 @@ export function ExchangeApp() {
         <button type="button" className={view === 'book' ? 'on' : ''} onClick={() => setView('book')}>
           持倉
           {account.positions.length ? <i className="dot" aria-label="有持倉" /> : null}
+        </button>
+        <button type="button" className={view === 'board' ? 'on' : ''} onClick={() => setView('board')}>
+          排行榜
         </button>
       </nav>
       {teachOpen ? (
@@ -1163,13 +1181,66 @@ export function ExchangeApp() {
           </div>
         </div>
       ) : null}
+      {mineOpen ? (
+        <div className="modal" role="dialog" aria-modal="true" aria-label="我的">
+          <div>
+            <h2>我的</h2>
+            <div className="seg">
+              <button type="button" className="chip on" onClick={() => setCcy((current) => (current === 'HKD' ? 'USD' : 'HKD'))}>
+                {ccy === 'HKD' ? '而家 HK$' : '而家 US$'}
+              </button>
+              <button
+                type="button"
+                className="chip"
+                onClick={() => {
+                  setMineOpen(false)
+                  setTeachStep(0)
+                  setTeachOpen(true)
+                }}
+              >
+                教學
+              </button>
+              <button
+                type="button"
+                className="chip"
+                onClick={() => {
+                  setMineOpen(false)
+                  setView('login')
+                }}
+              >
+                {auth.user ? nick || '已登入' : '登入'}
+              </button>
+              <button
+                type="button"
+                className="chip"
+                onClick={() => {
+                  setMineOpen(false)
+                  setResetOpen(true)
+                }}
+              >
+                重新開始
+              </button>
+              <button type="button" className="chip" onClick={() => setMineOpen(false)}>
+                關閉
+              </button>
+            </div>
+            <p className="quiet">{clock ? `${clock} 港時` : '等緊報價'}</p>
+          </div>
+        </div>
+      ) : null}
       {shareOpen ? (
         <div className="modal" role="dialog" aria-modal="true" aria-label="分享">
           <div className="share-card">
-            <p>試盤 · 模擬盤</p>
+            <p className="watermark">試盤 · 模擬盤</p>
             <b>{nick || '訪客'}</b>
-            <p>{quote?.name ?? '虛擬資金'}</p>
-            <strong className={openPnl + closedPnl < 0 ? 'down' : 'up'}>{showSigned(openPnl + closedPnl)}</strong>
+            <p>
+              {account.positions[0] ? `${marketBySymbol(account.positions[0].symbol)?.name ?? account.positions[0].symbol} · ${Math.max(1, Math.round(effectiveLeverage(account.positions[0])))}倍` : quote?.name ?? '虛擬資金'}
+            </p>
+            <strong className={(account.positions[0] && marks[account.positions[0].symbol] != null ? movePct(account.positions[0], marks[account.positions[0].symbol]!) : openPnl + closedPnl) < 0 ? 'down' : 'up'}>
+              {account.positions[0] && marks[account.positions[0].symbol] != null
+                ? `${movePct(account.positions[0], marks[account.positions[0].symbol]!) > 0 ? '+' : ''}${movePct(account.positions[0], marks[account.positions[0].symbol]!).toFixed(2)}%`
+                : showSigned(openPnl + closedPnl)}
+            </strong>
             <p>虛擬資金，唔係真錢</p>
             <div className="seg">
               <button type="button" className="chip" onClick={() => setShareOpen(false)}>
@@ -1181,25 +1252,28 @@ export function ExchangeApp() {
                 onClick={() => {
                   const canvas = document.createElement('canvas')
                   canvas.width = 1080
-                  canvas.height = 1080
+                  canvas.height = 1920
                   const ctx = canvas.getContext('2d')
                   if (!ctx) return
-                  ctx.fillStyle = '#10151c'
-                  ctx.fillRect(0, 0, 1080, 1080)
-                  ctx.fillStyle = '#d5dde6'
-                  ctx.font = '42px sans-serif'
-                  ctx.fillText('試盤 · 模擬盤', 72, 160)
-                  ctx.fillStyle = '#e7edf4'
-                  ctx.font = '72px sans-serif'
-                  ctx.fillText(nick || '訪客', 72, 280)
+                  ctx.fillStyle = '#07090c'
+                  ctx.fillRect(0, 0, 1080, 1920)
+                  ctx.fillStyle = '#9eb0c3'
+                  ctx.font = '40px sans-serif'
+                  ctx.fillText('試盤 · 模擬盤', 80, 180)
+                  ctx.fillStyle = '#f2f5f8'
+                  ctx.font = '64px sans-serif'
+                  ctx.fillText(nick || '訪客', 80, 320)
+                  const held = account.positions[0]
+                  const heldMark = held ? marks[held.symbol] : null
+                  const heldPct = held && heldMark != null ? movePct(held, heldMark) : null
                   ctx.font = '48px sans-serif'
-                  ctx.fillText(quote?.name ?? '虛擬資金', 72, 380)
-                  ctx.fillStyle = openPnl + closedPnl < 0 ? '#ff5c6a' : '#3dd68c'
-                  ctx.font = '84px sans-serif'
-                  ctx.fillText(showSigned(openPnl + closedPnl), 72, 520)
-                  ctx.fillStyle = '#d5dde6'
+                  ctx.fillText(held ? `${marketBySymbol(held.symbol)?.name ?? held.symbol} · ${Math.max(1, Math.round(effectiveLeverage(held)))}倍` : quote?.name ?? '虛擬資金', 80, 440)
+                  ctx.fillStyle = (heldPct ?? openPnl + closedPnl) < 0 ? '#ff4d5e' : '#2ee59a'
+                  ctx.font = '140px sans-serif'
+                  ctx.fillText(heldPct != null ? `${heldPct > 0 ? '+' : ''}${heldPct.toFixed(2)}%` : showSigned(openPnl + closedPnl), 80, 680)
+                  ctx.fillStyle = 'rgba(242,245,248,0.35)'
                   ctx.font = '36px sans-serif'
-                  ctx.fillText('虛擬資金，唔係真錢', 72, 640)
+                  ctx.fillText('虛擬資金，唔係真錢', 80, 1760)
                   const link = document.createElement('a')
                   link.href = canvas.toDataURL('image/png')
                   link.download = 'si-pan.png'
