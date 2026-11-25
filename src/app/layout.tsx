@@ -3,30 +3,30 @@ import { GeistSans } from 'geist/font/sans'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: '試盤',
-  description: '模擬盤，用虛擬資金練習買賣。唔係真錢，唔使登入。',
-  applicationName: '試盤',
+  title: '今晚食乜',
+  description: '香港街頭食店示範。茶餐廳、火鍋、壽司，睇下今晚食乜。唔係真店，唔使俾錢。',
+  applicationName: '今晚食乜',
   metadataBase: new URL('https://talktgtla.com'),
   openGraph: {
-    title: '試盤',
-    description: '模擬盤，用虛擬資金。唔係真錢交易。',
+    title: '今晚食乜',
+    description: '香港街頭食店示範。唔係真店，唔使俾錢。',
     url: 'https://talktgtla.com',
-    siteName: '試盤',
+    siteName: '今晚食乜',
     locale: 'zh_HK',
     type: 'website',
-    images: [{ url: '/og.png', width: 1200, height: 630, alt: '試盤' }],
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: '今晚食乜' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: '試盤',
-    description: '模擬盤，用虛擬資金。唔係真錢交易。',
+    title: '今晚食乜',
+    description: '香港街頭食店示範。唔係真店，唔使俾錢。',
     images: ['/og.png'],
   },
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: '試盤',
+    title: '今晚食乜',
   },
   icons: {
     icon: [
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#07090c',
+  themeColor: '#140818',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
