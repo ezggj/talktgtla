@@ -533,10 +533,16 @@ body:has(.desk) {
 
 .trade-split {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(108px, 0.85fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 132px);
   gap: 8px;
   align-items: start;
   padding: 0 12px;
+  min-width: 0;
+}
+
+.ticket,
+.ladder {
+  min-width: 0;
 }
 
 .pair {
@@ -720,8 +726,9 @@ body:has(.desk) {
 .ladder {
   display: grid;
   gap: 2px;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
 }
 
 .ladder-head,
@@ -1006,7 +1013,7 @@ body:has(.desk) {
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-columns: 240px minmax(0, 1fr) 340px;
+    grid-template-columns: 220px minmax(0, 1fr) 420px;
     grid-template-rows: minmax(0, 1fr) auto;
     gap: 8px;
     align-items: stretch;
