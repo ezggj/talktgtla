@@ -41,7 +41,7 @@ export function ShopView({ shop }: { shop: Shop }) {
     <TonightShell>
       <article className="shop">
         <div className="shop-hero">
-          <img src={`/food/${shop.tone}.png`} alt="" />
+          <img src={`/food/${shop.id}-hero.jpg`} alt="" />
           <span className="badge">{shop.badge}</span>
         </div>
         <h1>{shop.name}</h1>

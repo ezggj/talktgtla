@@ -9,7 +9,7 @@ export function ShopCard({ shop }: { shop: Shop }) {
   return (
     <Link className="card" href={`/shop/${shop.id}`}>
       <div className="plate">
-        <img src={`/food/${shop.tone}.png`} alt="" />
+        <img src={`/food/${shop.id}-dish.jpg`} alt="" />
       </div>
       <div>
         <span className="badge">{shop.badge}</span>
