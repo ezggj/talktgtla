@@ -4,12 +4,12 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: '今晚食乜',
-  description: '香港街頭食店示範。茶餐廳、火鍋、壽司，睇下今晚食乜。唔係真店，唔使俾錢。',
+  description: '香港食店名單，資料來自 OpenStreetMap。可能冇 Google 地圖咁齊。訂位只係記喺呢部機。',
   applicationName: '今晚食乜',
   metadataBase: new URL('https://talktgtla.com'),
   openGraph: {
     title: '今晚食乜',
-    description: '香港街頭食店示範。唔係真店，唔使俾錢。',
+    description: '香港食店名單，資料來自 OpenStreetMap。可能冇 Google 地圖咁齊。',
     url: 'https://talktgtla.com',
     siteName: '今晚食乜',
     locale: 'zh_HK',
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: '今晚食乜',
-    description: '香港街頭食店示範。唔係真店，唔使俾錢。',
+    description: '香港食店名單，資料來自 OpenStreetMap。可能冇 Google 地圖咁齊。',
     images: ['/og.png'],
   },
   manifest: '/manifest.webmanifest',

@@ -1,27 +1,8 @@
-export type Cuisine = '茶餐廳' | '火鍋' | '壽司' | '拉麵' | '燒味' | '咖啡'
-
 export interface Area {
   id: string
   name: string
   lat: number
   lng: number
-}
-
-export interface Shop {
-  id: string
-  name: string
-  nameEn: string
-  area: string
-  cuisine: Cuisine
-  price: '$' | '$$' | '$$$'
-  lat: number
-  lng: number
-  hours: string
-  mtr: string
-  badge: '街坊推介' | '排隊名店' | '今晚有位' | '夜消夜'
-  dishes: string[]
-  blurb: string
-  tone: 'tea' | 'pot' | 'fish' | 'noodle' | 'roast' | 'cup'
 }
 
 export const AREAS: readonly Area[] = [
@@ -35,253 +16,208 @@ export const AREAS: readonly Area[] = [
   { id: 'shamshui', name: '深水埗', lat: 22.3308, lng: 114.1622 },
   { id: 'jordan', name: '佐敦', lat: 22.3048, lng: 114.1716 },
   { id: 'tsim', name: '尖沙咀', lat: 22.2976, lng: 114.1722 },
+  { id: 'shatin', name: '沙田', lat: 22.381, lng: 114.188 },
+  { id: 'tuenmun', name: '屯門', lat: 22.391, lng: 113.977 },
+  { id: 'yuenlong', name: '元朗', lat: 22.445, lng: 114.022 },
+  { id: 'tsuenwan', name: '荃灣', lat: 22.371, lng: 114.114 },
+  { id: 'tkw', name: '將軍澳', lat: 22.318, lng: 114.26 },
 ]
 
-export const CUISINES: readonly Cuisine[] = ['茶餐廳', '火鍋', '壽司', '拉麵', '燒味', '咖啡']
+export const CUISINES = ['茶餐廳', '火鍋', '壽司', '拉麵', '燒味', '咖啡'] as const
+export type CuisineChip = (typeof CUISINES)[number]
 
-/** Original demo shops. Names, dishes and hours are invented, not real businesses. */
-export const SHOPS: readonly Shop[] = [
-  {
-    id: 'night-lamp',
-    name: '夜燈冰室',
-    nameEn: 'Night Lamp Cafe',
-    area: '銅鑼灣',
-    cuisine: '茶餐廳',
-    price: '$',
-    lat: 22.2809,
-    lng: 114.1836,
-    hours: '07:00–23:30',
-    mtr: '銅鑼灣站 D 出，行四分鐘',
-    badge: '街坊推介',
-    dishes: ['絲襪奶茶', '菠蘿油', '乾炒牛河'],
-    blurb: '霓虹底下飲奶茶，窗邊位最搶手。',
-    tone: 'tea',
-  },
-  {
-    id: 'side-pot',
-    name: '橫街鍋氣',
-    nameEn: 'Side Street Pot',
-    area: '旺角',
-    cuisine: '火鍋',
-    price: '$$',
-    lat: 22.3184,
-    lng: 114.1706,
-    hours: '17:00–01:00',
-    mtr: '旺角站 E2 出，行六分鐘',
-    badge: '排隊名店',
-    dishes: ['手打蝦滑', '清湯鍋底', '脆豆腐'],
-    blurb: '橫街窄舖，湯底夠清，唔使行商場。',
-    tone: 'pot',
-  },
-  {
-    id: 'harbour-breeze',
-    name: '海風握',
-    nameEn: 'Harbour Breeze',
-    area: '尖沙咀',
-    cuisine: '壽司',
-    price: '$$$',
-    lat: 22.2968,
-    lng: 114.1738,
-    hours: '12:00–22:00',
-    mtr: '尖沙咀站 A1 出，向海行八分鐘',
-    badge: '今晚有位',
-    dishes: ['炙燒三文魚', '甜蝦', '玉子'],
-    blurb: '細櫃檯，師傅握完即刻食。',
-    tone: 'fish',
-  },
-  {
-    id: 'late-bowl',
-    name: '深夜湯麵',
-    nameEn: 'Late Bowl',
-    area: '深水埗',
-    cuisine: '拉麵',
-    price: '$$',
-    lat: 22.3314,
-    lng: 114.1614,
-    hours: '18:00–02:00',
-    mtr: '深水埗站 D2 出，行三分鐘',
-    badge: '夜消夜',
-    dishes: ['豚骨拉麵', '味玉', '炸雞'],
-    blurb: '收工先至旺，湯頭鹹香，坐到半夜。',
-    tone: 'noodle',
-  },
-  {
-    id: 'roast-lane',
-    name: '叉燒巷',
-    nameEn: 'Roast Lane',
-    area: '中環',
-    cuisine: '燒味',
-    price: '$$',
-    lat: 22.2832,
-    lng: 114.1554,
-    hours: '11:00–21:00',
-    mtr: '中環站 D2 出，行五分鐘',
-    badge: '街坊推介',
-    dishes: ['蜜汁叉燒', '燒肉', '例湯'],
-    blurb: '巷仔舖頭，叉燒切到見火位。',
-    tone: 'roast',
-  },
-  {
-    id: 'window-seat',
-    name: '窗邊咖啡',
-    nameEn: 'Window Seat',
-    area: '灣仔',
-    cuisine: '咖啡',
-    price: '$$',
-    lat: 22.2764,
-    lng: 114.1736,
-    hours: '08:00–19:00',
-    mtr: '灣仔站 A3 出，行四分鐘',
-    badge: '今晚有位',
-    dishes: ['奶咖', '巴斯克蛋糕', '蛋沙律多士'],
-    blurb: '舊唐樓窗位，下午先至有陽光。',
-    tone: 'cup',
-  },
-  {
-    id: 'neon-booth',
-    name: '霓虹冰室',
-    nameEn: 'Neon Booth',
-    area: '旺角',
-    cuisine: '茶餐廳',
-    price: '$',
-    lat: 22.3206,
-    lng: 114.1682,
-    hours: '06:30–00:30',
-    mtr: '太子站 B2 出，行五分鐘',
-    badge: '夜消夜',
-    dishes: ['凍奶茶', '西多', '茄汁撈丁'],
-    blurb: '招牌夠耀，宵夜檔最熱鬧。',
-    tone: 'tea',
-  },
-  {
-    id: 'wok-whisper',
-    name: '鑊氣小館',
-    nameEn: 'Wok Whisper',
-    area: '深水埗',
-    cuisine: '燒味',
-    price: '$',
-    lat: 22.3296,
-    lng: 114.1634,
-    hours: '10:30–20:30',
-    mtr: '深水埗站 B2 出，行七分鐘',
-    badge: '街坊推介',
-    dishes: ['油雞', '燒鴨脾', '白飯'],
-    blurb: '鑊氣重，白飯要加倍。',
-    tone: 'roast',
-  },
-  {
-    id: 'paper-lantern',
-    name: '紙燈拉麵',
-    nameEn: 'Paper Lantern',
-    area: '銅鑼灣',
-    cuisine: '拉麵',
-    price: '$$',
-    lat: 22.2792,
-    lng: 114.1856,
-    hours: '12:00–22:30',
-    mtr: '銅鑼灣站 F1 出，行三分鐘',
-    badge: '排隊名店',
-    dishes: ['醬油拉麵', '叉燒', '葱油'],
-    blurb: '燈色暖，隊唔長就入到。',
-    tone: 'noodle',
-  },
-  {
-    id: 'harbour-ember',
-    name: '維港小火',
-    nameEn: 'Harbour Ember',
-    area: '中環',
-    cuisine: '火鍋',
-    price: '$$$',
-    lat: 22.2826,
-    lng: 114.1594,
-    hours: '17:30–23:00',
-    mtr: '香港站 E 出，行六分鐘',
-    badge: '今晚有位',
-    dishes: ['番茄鍋', '肥牛', '手工麵'],
-    blurb: '細火鍋，兩個人剛剛好。',
-    tone: 'pot',
-  },
-  {
-    id: 'three-tide',
-    name: '三色壽司',
-    nameEn: 'Three Tide',
-    area: '灣仔',
-    cuisine: '壽司',
-    price: '$$',
-    lat: 22.2782,
-    lng: 114.1748,
-    hours: '12:00–21:30',
-    mtr: '灣仔站 A4 出，行五分鐘',
-    badge: '街坊推介',
-    dishes: ['吞拿魚', '八爪魚', '黄瓜卷'],
-    blurb: '午市定食夠快，收工都趕得切。',
-    tone: 'fish',
-  },
-  {
-    id: 'sugar-lane',
-    name: '糖街咖啡',
-    nameEn: 'Sugar Lane',
-    area: '太子',
-    cuisine: '咖啡',
-    price: '$',
-    lat: 22.3254,
-    lng: 114.1672,
-    hours: '09:00–20:00',
-    mtr: '太子站 B1 出，行兩分鐘',
-    badge: '街坊推介',
-    dishes: ['髒髒咖啡', '菠蘿包', '梳乎厘'],
-    blurb: '街角細枱，帶本書都坐得耐。',
-    tone: 'cup',
-  },
-  {
-    id: 'pier-roast',
-    name: '碼頭燒味',
-    nameEn: 'Pier Roast',
-    area: '佐敦',
-    cuisine: '燒味',
-    price: '$$',
-    lat: 22.3056,
-    lng: 114.1702,
-    hours: '11:00–21:30',
-    mtr: '佐敦站 C 出，行六分鐘',
-    badge: '排隊名店',
-    dishes: ['脆皮燒肉', '叉燒飯', '例湯'],
-    blurb: '皮脆，飯香，收舖前最好味。',
-    tone: 'roast',
-  },
-  {
-    id: 'north-booth',
-    name: '北角冰室',
-    nameEn: 'North Booth',
-    area: '北角',
-    cuisine: '茶餐廳',
-    price: '$',
-    lat: 22.291,
-    lng: 114.1992,
-    hours: '07:00–22:00',
-    mtr: '北角站 A 出，行三分鐘',
-    badge: '街坊推介',
-    dishes: ['熱奶茶', '公仔麵', '煎蛋多士'],
-    blurb: '朝早最旺，阿叔阿嬸坐滿一櫃。',
-    tone: 'tea',
-  },
-]
-
-export function shopById(id: string): Shop | undefined {
-  return SHOPS.find((shop) => shop.id === id)
+export interface Place {
+  id: string
+  name: string
+  nameEn: string | null
+  area: string | null
+  kind: string
+  cuisine: string | null
+  price: string | null
+  lat: number
+  lng: number
+  hours: string | null
+  phone: string | null
+  website: string | null
+  address: string | null
+  image: string | null
+  imageCredit: string | null
 }
 
-export function filterShops(input: { query?: string; area?: string; cuisine?: string }): Shop[] {
-  const query = input.query?.trim().toLowerCase() ?? ''
-  return SHOPS.filter((shop) => {
-    if (input.area && shop.area !== input.area) return false
-    if (input.cuisine && shop.cuisine !== input.cuisine) return false
-    if (!query) return true
-    const haystack = `${shop.name} ${shop.nameEn} ${shop.area} ${shop.cuisine} ${shop.dishes.join(' ')}`.toLowerCase()
-    return haystack.includes(query)
+export interface OverpassElement {
+  type: string
+  id: number
+  lat?: number
+  lon?: number
+  center?: { lat: number; lon: number }
+  tags?: Record<string, string>
+}
+
+const KIND_LABEL: Record<string, string> = {
+  restaurant: '餐廳',
+  cafe: '咖啡店',
+  fast_food: '快餐',
+  food_court: '美食廣場',
+  ice_cream: '雪糕',
+  bar: '酒吧',
+  pub: '酒吧',
+  biergarten: '啤酒園',
+  bakery: '麵包店',
+  tea: '茶',
+}
+
+const CHIP_NEEDLES: Record<CuisineChip, string[]> = {
+  茶餐廳: ['茶餐廳', '冰室', 'cha_chaan', 'cha chaan', 'hong_kong'],
+  火鍋: ['火鍋', 'hotpot', 'hot_pot', 'shabu'],
+  壽司: ['壽司', 'sushi'],
+  拉麵: ['拉麵', '拉面', 'ramen'],
+  燒味: ['燒味', '叉燒', 'siu_mei', 'siu mei', 'char_siu'],
+  咖啡: ['咖啡', 'coffee', 'cafe'],
+}
+
+const CUISINE_LABEL: Record<string, string> = {
+  chinese: '中菜',
+  cantonese: '粵菜',
+  hong_kong: '港式',
+  hong_kong_style: '港式',
+  noodle: '麵',
+  noodles: '麵',
+  coffee: '咖啡',
+  coffee_shop: '咖啡',
+  burger: '漢堡',
+  hotpot: '火鍋',
+  hot_pot: '火鍋',
+  regional: '地方菜',
+  beef_bowl: '牛肉飯',
+  chicken: '雞',
+  pizza: '薄餅',
+  japanese: '日本菜',
+  sushi: '壽司',
+  ramen: '拉麵',
+  thai: '泰國菜',
+  indian: '印度菜',
+  korean: '韓國菜',
+  vietnamese: '越南菜',
+  italian: '意大利菜',
+  french: '法國菜',
+  tea: '茶',
+  bakery: '麵包',
+  dessert: '甜品',
+  ice_cream: '雪糕',
+  seafood: '海鮮',
+  bbq: '燒烤',
+  asian: '亞洲菜',
+  international: '多國菜',
+  local: '本地',
+}
+
+export function kindLabel(kind: string): string {
+  return KIND_LABEL[kind] ?? kind
+}
+
+export function cuisineLabel(raw: string | null): string | null {
+  if (!raw) return null
+  const labels = raw.split(/[;,]/).flatMap((part) => {
+    const token = part.trim()
+    if (!token) return []
+    if (/[\u4e00-\u9fff]/.test(token)) return [token]
+    return CUISINE_LABEL[token.toLowerCase()] ? [CUISINE_LABEL[token.toLowerCase()]] : []
   })
+  return labels.length ? [...new Set(labels)].join('、') : null
 }
 
-export function todaysPicks(): Shop[] {
-  return SHOPS.filter((shop) => shop.badge === '街坊推介' || shop.badge === '排隊名店').slice(0, 6)
+export function matchesChip(place: Place, chip: string): boolean {
+  const needles = CHIP_NEEDLES[chip as CuisineChip]
+  if (!needles) return false
+  const hay = `${place.name} ${place.nameEn ?? ''} ${place.cuisine ?? ''} ${place.kind}`.toLowerCase()
+  return needles.some((needle) => hay.includes(needle.toLowerCase()))
+}
+
+function pickName(tags: Record<string, string>): { name: string; nameEn: string | null } | null {
+  const zh = tags['name:zh-Hant'] || tags['name:zh'] || tags['name:zh-HK'] || ''
+  const en = tags['name:en'] || ''
+  const plain = tags.name || ''
+  const name = zh || plain || en
+  if (!name) return null
+  const nameEn = en && en !== name ? en : !zh && plain && en ? null : zh && plain && plain !== zh ? plain : en && en !== name ? en : null
+  return { name, nameEn: nameEn || null }
+}
+
+function addressOf(tags: Record<string, string>): string | null {
+  if (tags['addr:full']) return tags['addr:full']
+  const parts = [tags['addr:housenumber'], tags['addr:street'], tags['addr:suburb'], tags['addr:district']].filter(Boolean)
+  return parts.length ? parts.join(' ') : null
+}
+
+function areaOf(tags: Record<string, string>, lat: number, lng: number): string | null {
+  const tagged = `${tags['addr:suburb'] || ''} ${tags['addr:district'] || ''} ${tags['addr:city'] || ''}`
+  const named = AREAS.find((area) => tagged.includes(area.name))
+  if (named) return named.name
+  let best: { name: string; km: number } | null = null
+  for (const area of AREAS) {
+    const km = Math.hypot((lat - area.lat) * 111, (lng - area.lng) * 96)
+    if (!best || km < best.km) best = { name: area.name, km }
+  }
+  return best && best.km < 2.2 ? best.name : null
+}
+
+function imageOf(tags: Record<string, string>): { image: string; credit: string } | null {
+  const direct = tags.image || tags['image:url'] || ''
+  if (direct.startsWith('https://upload.wikimedia.org/')) return { image: direct, credit: 'Wikimedia Commons' }
+  const file = tags.wikimedia_commons || ''
+  if (file.startsWith('File:')) {
+    const name = encodeURIComponent(file.slice(5).replace(/ /g, '_'))
+    return { image: `https://commons.wikimedia.org/wiki/Special:FilePath/${name}?width=960`, credit: 'Wikimedia Commons' }
+  }
+  return null
+}
+
+export function parseElement(element: OverpassElement): Place | null {
+  const tags = element.tags
+  if (!tags) return null
+  const lat = element.lat ?? element.center?.lat
+  const lng = element.lon ?? element.center?.lon
+  if (lat == null || lng == null) return null
+  const names = pickName(tags)
+  if (!names) return null
+  const kind = tags.amenity || tags.shop || 'place'
+  const photo = imageOf(tags)
+  return {
+    id: `${element.type}-${element.id}`,
+    name: names.name,
+    nameEn: names.nameEn,
+    area: areaOf(tags, lat, lng),
+    kind,
+    cuisine: tags.cuisine || null,
+    price: tags.price_range || tags['diet:price'] || null,
+    lat,
+    lng,
+    hours: tags.opening_hours || null,
+    phone: tags.phone || tags['contact:phone'] || null,
+    website: tags.website || tags['contact:website'] || null,
+    address: addressOf(tags),
+    image: photo?.image ?? null,
+    imageCredit: photo?.credit ?? null,
+  }
+}
+
+export function filterPlaces(
+  places: readonly Place[],
+  input: { query?: string; area?: string; cuisine?: string; bbox?: [number, number, number, number]; limit?: number },
+): Place[] {
+  const query = input.query?.trim().toLowerCase() ?? ''
+  const [south, west, north, east] = input.bbox ?? []
+  const found: Place[] = []
+  for (const place of places) {
+    if (input.area && place.area !== input.area) continue
+    if (input.cuisine && !matchesChip(place, input.cuisine)) continue
+    if (south != null && (place.lat < south || place.lat > north! || place.lng < west! || place.lng > east!)) continue
+    if (query) {
+      const hay = `${place.name} ${place.nameEn ?? ''} ${place.cuisine ?? ''} ${place.area ?? ''} ${kindLabel(place.kind)}`.toLowerCase()
+      if (!hay.includes(query)) continue
+    }
+    found.push(place)
+    if (input.limit && found.length >= input.limit) break
+  }
+  return found
 }

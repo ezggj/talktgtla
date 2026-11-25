@@ -1,23 +1,24 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
-import { AREAS, CUISINES, filterShops, todaysPicks, type Shop } from '@/tonight/places'
+import { useEffect, useState } from 'react'
+import { AREAS, CUISINES, cuisineLabel, kindLabel, type Place } from '@/tonight/places'
 import { TonightShell } from './shell'
 
-export function ShopCard({ shop }: { shop: Shop }) {
+export function ShopCard({ shop }: { shop: Place }) {
   return (
     <Link className="card" href={`/shop/${shop.id}`}>
       <div className="plate">
-        <img src={`/food/${shop.id}-dish.jpg`} alt="" />
+        {shop.image ? <img src={shop.image} alt="" /> : <div className="plate-empty">未有相片</div>}
       </div>
       <div>
-        <span className="badge">{shop.badge}</span>
+        <span className="badge">{cuisineLabel(shop.cuisine) || kindLabel(shop.kind)}</span>
         <b>{shop.name}</b>
         <p className="meta">
-          {shop.area} · {shop.cuisine} · {shop.price}
+          {shop.area || '未標地區'} · {kindLabel(shop.kind)}
+          {shop.price ? ` · ${shop.price}` : ' · 未標價錢'}
         </p>
-        <p className="meta">{shop.blurb}</p>
+        {shop.address ? <p className="meta">{shop.address}</p> : null}
       </div>
     </Link>
   )
@@ -27,20 +28,45 @@ export function TonightHome() {
   const [query, setQuery] = useState('')
   const [area, setArea] = useState('')
   const [cuisine, setCuisine] = useState('')
-  const picks = useMemo(() => todaysPicks(), [])
-  const list = useMemo(() => filterShops({ query, area, cuisine }), [query, area, cuisine])
-  const showing = query || area || cuisine ? list : picks
+  const [places, setPlaces] = useState<Place[]>([])
+  const [ready, setReady] = useState(false)
+  const [note, setNote] = useState('名單載入緊…')
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      const params = new URLSearchParams({ limit: '40' })
+      if (query.trim()) params.set('q', query.trim())
+      if (area) params.set('area', area)
+      if (cuisine) params.set('cuisine', cuisine)
+      void fetch(`/api/places?${params}`, { cache: 'no-store' })
+        .then((response) => response.json())
+        .then((body: { places?: Place[]; total?: number; stale?: boolean; ok?: boolean }) => {
+          setPlaces(body.places ?? [])
+          setReady(true)
+          setNote(
+            body.ok
+              ? `名單來自 OpenStreetMap，而家收錄 ${body.total ?? 0} 間。可能冇 Google 地圖咁齊，未有嘅欄會寫明。${body.stale ? ' 用緊稍為舊嘅快取。' : ''}`
+              : '地圖資料暫時攞唔到，陣間再試。',
+          )
+        })
+        .catch(() => {
+          setReady(true)
+          setNote('地圖資料暫時攞唔到，陣間再試。')
+        })
+    }, 250)
+    return () => window.clearTimeout(handle)
+  }, [query, area, cuisine])
 
   return (
     <TonightShell>
       <header className="topbar">
         <h1 className="word">
           今晚食乜
-          <small>香港街頭</small>
+          <small>香港 · OpenStreetMap</small>
         </h1>
       </header>
       <label className="search">
-        <input value={query} placeholder="搜茶餐廳、叉燒、旺角…" onChange={(event) => setQuery(event.target.value)} />
+        <input value={query} placeholder="搜店名、菜式、地區…" onChange={(event) => setQuery(event.target.value)} />
       </label>
       <div className="areas" aria-label="地區">
         <button type="button" className={area === '' ? 'area on' : 'area'} onClick={() => setArea('')}>
@@ -59,14 +85,14 @@ export function TonightHome() {
           </button>
         ))}
       </div>
-      <h2 className="section-title">{query || area || cuisine ? '搵到呢啲' : '街坊推介'}</h2>
+      <h2 className="section-title">{query || area || cuisine ? `搵到 ${places.length} 間` : '而家睇到'}</h2>
       <div className="cards">
-        {showing.map((shop) => (
+        {places.map((shop) => (
           <ShopCard key={shop.id} shop={shop} />
         ))}
       </div>
-      {showing.length === 0 ? <p className="note">呢個組合暫時冇示範舖。試下換區或者換菜式。</p> : null}
-      <p className="note">舖頭、菜式同時間都係原創示範，唔係真店，亦唔使俾錢。</p>
+      {ready && places.length === 0 ? <p className="note">呢個組合暫時冇結果。試下換區或者換菜式。</p> : null}
+      <p className="note">{note}</p>
     </TonightShell>
   )
 }

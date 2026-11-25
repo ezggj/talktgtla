@@ -14,7 +14,7 @@ const contentSecurityPolicy = [
   // Next App Router / Framer Motion; keep permissive until nonce rollout
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://i.ytimg.com https://*.ytimg.com https://upload.wikimedia.org https://*.supabase.co https://tile.openstreetmap.org",
+  "img-src 'self' data: blob: https://i.ytimg.com https://*.ytimg.com https://upload.wikimedia.org https://commons.wikimedia.org https://*.supabase.co https://tile.openstreetmap.org",
   "font-src 'self' data:",
   "media-src 'self' blob: data:",
   "worker-src 'self' blob:",

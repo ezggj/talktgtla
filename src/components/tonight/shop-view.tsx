@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import type { Shop } from '@/tonight/places'
+import { cuisineLabel, kindLabel, type Place } from '@/tonight/places'
 import { TonightShell } from './shell'
 
 const SAVE_KEY = 'tonight:saved'
@@ -29,7 +29,15 @@ export function useSaved() {
   return { ids, toggle }
 }
 
-export function ShopView({ shop }: { shop: Shop }) {
+function row(label: string, value: string | null) {
+  return (
+    <div>
+      {label} {value || '未有'}
+    </div>
+  )
+}
+
+export function ShopView({ shop }: { shop: Place }) {
   const { ids, toggle } = useSaved()
   const [open, setOpen] = useState(false)
   const [people, setPeople] = useState('2')
@@ -41,36 +49,39 @@ export function ShopView({ shop }: { shop: Shop }) {
     <TonightShell>
       <article className="shop">
         <div className="shop-hero">
-          <img src={`/food/${shop.id}-hero.jpg`} alt="" />
-          <span className="badge">{shop.badge}</span>
+          {shop.image ? <img src={shop.image} alt="" /> : <div className="plate-empty tall">未有相片</div>}
+          <span className="badge">{cuisineLabel(shop.cuisine) || kindLabel(shop.kind)}</span>
         </div>
         <h1>{shop.name}</h1>
-        <p className="en">{shop.nameEn}</p>
+        {shop.nameEn ? <p className="en">{shop.nameEn}</p> : <p className="en">未有英文名</p>}
         <p className="note">
-          {shop.area} · {shop.cuisine} · {shop.price}
+          {shop.area || '未標地區'} · {kindLabel(shop.kind)}
+          {shop.price ? ` · ${shop.price}` : ' · 未標價錢'}
         </p>
-        <p className="note">{shop.blurb}</p>
-        <div className="facts">
-          <div>營業 {shop.hours}</div>
-          <div>點去 {shop.mtr}</div>
-        </div>
-        <div className="dishes">
-          {shop.dishes.map((dish) => (
-            <div className="dish" key={dish}>
-              {dish}
-            </div>
-          ))}
-        </div>
+        <p className="note">資料來自 OpenStreetMap。未有評分，亦冇編造招牌菜。</p>
+        {shop.imageCredit ? <p className="note">相片來源：{shop.imageCredit}</p> : null}
         <div className="actions">
           <button className="book-open" type="button" onClick={() => setOpen(true)}>
             訂位
           </button>
+          {shop.phone ? (
+            <a className="save" href={`tel:${shop.phone}`}>
+              打電話
+            </a>
+          ) : null}
           <button className="save" type="button" onClick={() => toggle(shop.id)}>
             {saved ? '已收藏' : '收藏'}
           </button>
           <Link className="save" href="/map">
             睇地圖
           </Link>
+        </div>
+        <div className="facts">
+          {row('菜式', shop.cuisine)}
+          {row('營業', shop.hours)}
+          {row('地址', shop.address)}
+          {row('電話', shop.phone)}
+          {row('網站', shop.website)}
         </div>
         {open ? (
           <form
@@ -80,7 +91,8 @@ export function ShopView({ shop }: { shop: Shop }) {
               setDone(true)
             }}
           >
-            <b>訂位 · 示範</b>
+            <b>訂位 · 只係呢部機</b>
+            <p>未打去舖頭，亦唔使俾錢。</p>
             <label>
               幾多位
               <input value={people} onChange={(event) => setPeople(event.target.value)} inputMode="numeric" />
@@ -93,7 +105,6 @@ export function ShopView({ shop }: { shop: Shop }) {
             {done ? <p>記低咗 {people} 位，{when}。未打去舖頭，亦唔使俾錢。</p> : null}
           </form>
         ) : null}
-        <p className="note">原創示範舖，唔係真店。冇付款，冇訂金。</p>
       </article>
     </TonightShell>
   )
