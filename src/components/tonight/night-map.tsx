@@ -10,7 +10,7 @@ import 'leaflet/dist/leaflet.css'
 function pin(shop: Shop) {
   return L.divIcon({
     className: 'pin-wrap',
-    html: `<span class="pin pin-${shop.tone}"><span>${shop.cuisine.slice(0, 1)}</span></span>`,
+    html: `<span class="pin"><span>${shop.cuisine.slice(0, 1)}</span></span>`,
     iconSize: [34, 34],
     iconAnchor: [17, 30],
   })

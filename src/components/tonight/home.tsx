@@ -8,7 +8,9 @@ import { TonightShell } from './shell'
 export function ShopCard({ shop }: { shop: Shop }) {
   return (
     <Link className="card" href={`/shop/${shop.id}`}>
-      <div className={`plate ${shop.tone}`}>{shop.dishes[0]}</div>
+      <div className="plate">
+        <img src={`/food/${shop.tone}.png`} alt="" />
+      </div>
       <div>
         <span className="badge">{shop.badge}</span>
         <b>{shop.name}</b>

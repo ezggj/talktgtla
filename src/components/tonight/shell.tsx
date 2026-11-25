@@ -14,7 +14,9 @@ export function TonightShell({ children }: { children: React.ReactNode }) {
   const path = usePathname()
   return (
     <div className="tonight">
-      {children}
+      <div key={path} className="page">
+        {children}
+      </div>
       <nav className="nav" aria-label="今晚食乜">
         {LINKS.map((link) => {
           const on = link.href === '/' ? path === '/' : path.startsWith(link.href)
