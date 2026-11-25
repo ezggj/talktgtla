@@ -26,7 +26,7 @@ import {
 } from '@/exchange/book'
 import { canPublishRank, cleanNick, mergeStanding, rankGains, rankLosses, type BoardRow } from '@/exchange/board'
 import { drawdown, hongKongDay, hongKongWeek, rankSteady, rankWeekProfit, type Standing } from '@/exchange/challenges'
-import { fromDisplay, toDisplay, type DisplayCcy } from '@/exchange/display'
+import { formatDisplay, fromDisplay, toDisplay, type DisplayCcy } from '@/exchange/display'
 import { DEMO_TRADERS, demoSide } from '@/exchange/follow'
 import { referenceLadder } from '@/exchange/ladder'
 import { freshnessLabel, marketBySymbol, MARKETS, type MarketGroup, type MarketKind } from '@/exchange/markets'
@@ -42,7 +42,8 @@ import { CandleChart } from './chart'
 import './exchange.css'
 
 const SAVE_KEY = 'si-pan:v1'
-const LEVERAGES = [1, 5, 10, 20, 50, 100, 500]
+const BASE_LEVERAGES = [1, 5, 10, 20, 50]
+const HIGH_LEVERAGES = [100, 500]
 const AMOUNTS = [10_000, 50_000, 100_000]
 
 interface PublicQuote {
@@ -72,7 +73,7 @@ function money(value: number): string {
   const abs = Math.abs(value)
   const digits = abs === 0 || abs >= 1000 ? 0 : 2
   const body = abs.toLocaleString('en-HK', { minimumFractionDigits: digits, maximumFractionDigits: digits })
-  return `${value < 0 ? '-' : ''}$${body}`
+  return `${value < 0 ? '-' : ''}HK$${body}`
 }
 
 function signed(value: number): string {
@@ -119,10 +120,23 @@ function reasonText(error: TradeError): string {
   return '槓桿要喺 1 到 500 倍。'
 }
 
-function fillText(fill: Fill, name: string): string {
-  if (fill.action === 'liq') return `${name} 爆倉 ${signed(fill.pnl)}`
-  if (fill.action === 'close') return `${name} 平倉 ${signed(fill.pnl)}`
-  return `${name} ${fill.side === 'long' ? '開多' : '開空'} ${money(fill.qty * fill.price)}`
+function fillText(fill: Fill, name: string, plain: (value: number) => string, signedFmt: (value: number) => string): string {
+  if (fill.action === 'liq') return `${name} 爆倉 ${signedFmt(fill.pnl)}`
+  if (fill.action === 'close') return `${name} 平倉 ${signedFmt(fill.pnl)}`
+  return `${name} ${fill.side === 'long' ? '開多' : '開空'} ${plain(fill.qty * fill.price)}`
+}
+
+function Mark({ kind, down }: { kind: MarketKind; down: boolean }) {
+  const ink = down ? 'var(--down)' : 'var(--up)'
+  return (
+    <svg className="mark" viewBox="0 0 28 28" aria-hidden="true">
+      <rect width="28" height="28" rx="8" fill={down ? 'rgba(255,77,94,0.16)' : 'rgba(46,229,154,0.16)'} />
+      {kind === 'crypto' ? <circle cx="14" cy="14" r="5.5" fill={ink} /> : null}
+      {kind === 'index' ? <path d="M7 18h3V11h4v7h3V8h4v10" fill={ink} /> : null}
+      {kind === 'stock' ? <path d="M8 18l4-6 3 3 5-8" fill="none" stroke={ink} strokeWidth="2" /> : null}
+      {kind === 'future' ? <path d="M14 7l6 5v8H8v-8z" fill={ink} /> : null}
+    </svg>
+  )
 }
 
 function Spark({ candles }: { candles: Candle[] }) {
@@ -156,6 +170,7 @@ export function ExchangeApp() {
   const [side, setSide] = useState<Side>('long')
   const [mode, setMode] = useState<'market' | 'limit'>('market')
   const [leverage, setLeverage] = useState(5)
+  const [highLev, setHighLev] = useState(false)
   const [amount, setAmount] = useState('10000')
   const [limitText, setLimitText] = useState('')
   const [toast, setToast] = useState<string | null>(null)
@@ -194,6 +209,7 @@ export function ExchangeApp() {
     setAccount(loadAccount())
     const saved = localStorage.getItem('si-pan:ccy')
     if (saved === 'USD' || saved === 'HKD') setCcy(saved)
+    if (localStorage.getItem('si-pan:high-lev') === '1') setHighLev(true)
     const savedNick = localStorage.getItem('si-pan:nick')
     if (savedNick) setNick(savedNick)
     setTeachOpen(!isTutorialDone(localStorage.getItem(TUTORIAL_KEY)))
@@ -256,15 +272,7 @@ export function ExchangeApp() {
 
   const quote = feed?.quotes.find((item) => item.symbol === symbol) ?? null
   const fx = feed?.fx ?? null
-  const show = (hkd: number) => {
-    const shown = toDisplay(hkd, ccy, fx)
-    if (shown == null) return ccy === 'USD' ? '匯率未到' : '—'
-    const abs = Math.abs(shown)
-    const digits = abs === 0 || abs >= 1000 ? 0 : 2
-    const body = abs.toLocaleString('en-HK', { minimumFractionDigits: digits, maximumFractionDigits: digits })
-    const unit = ccy === 'USD' ? 'US$' : '$'
-    return `${shown < 0 ? '-' : ''}${unit}${body}`
-  }
+  const show = (hkd: number) => formatDisplay(hkd, ccy, fx)
   const showSigned = (hkd: number) => {
     const shown = toDisplay(hkd, ccy, fx)
     if (shown == null) return '—'
@@ -407,7 +415,7 @@ export function ExchangeApp() {
   }
 
   function chooseLeverage(value: number) {
-    if ((value === 100 || value === 500) && !warned.current.has(value)) {
+    if (value >= 50 && !warned.current.has(value)) {
       setLevGuard(value)
       return
     }
@@ -470,7 +478,7 @@ export function ExchangeApp() {
       }
     }
     const verb = result.fill.action === 'close' ? '平咗倉' : nextSide === 'long' ? '開咗多' : '開咗空'
-    const extra = result.fill.action === 'close' ? signed(result.fill.pnl) : `${leverage} 倍`
+    const extra = result.fill.action === 'close' ? showSigned(result.fill.pnl) : `${leverage} 倍`
     say(`${verb}，${quote.name}，${extra}。`)
   }
 
@@ -500,7 +508,7 @@ export function ExchangeApp() {
       localStorage.setItem('si-pan:exits', JSON.stringify(next))
       return next
     })
-    say(`平咗倉，${marketBySymbol(target)?.name ?? target}，${signed(result.fill.pnl)}。`)
+    say(`平咗倉，${marketBySymbol(target)?.name ?? target}，${showSigned(result.fill.pnl)}。`)
   }
 
   const exitLock = useRef('')
@@ -539,7 +547,7 @@ export function ExchangeApp() {
       localStorage.setItem('si-pan:exits', JSON.stringify(next))
       return next
     })
-    say(`${position.side === 'long' ? '止盈止損平咗多倉' : '止盈止損平咗空倉'}，${marketBySymbol(position.symbol)?.name ?? position.symbol}，${signed(result.fill.pnl)}。`)
+    say(`${position.side === 'long' ? '止盈止損平咗多倉' : '止盈止損平咗空倉'}，${marketBySymbol(position.symbol)?.name ?? position.symbol}，${showSigned(result.fill.pnl)}。`)
   }, [marks, exits])
 
   function reset() {
@@ -583,7 +591,7 @@ export function ExchangeApp() {
         <h1>試盤</h1>
         <span className="top-side">
           <button className="text-btn" type="button" onClick={() => setCcy((current) => (current === 'HKD' ? 'USD' : 'HKD'))}>
-            {ccy === 'HKD' ? '港幣' : '美金'}
+            {ccy === 'HKD' ? 'HK$' : 'US$'}
           </button>
           <button className="text-btn" type="button" onClick={() => setView('board')}>
             排行榜
@@ -665,6 +673,7 @@ export function ExchangeApp() {
               const pct = item ? changePct(item) : null
               return (
                 <button key={market.symbol} type="button" className={market.symbol === symbol ? 'row picked' : 'row'} onClick={() => pick(market.symbol)}>
+                  <Mark kind={market.kind} down={pct != null && pct < 0} />
                   <span>
                     <b>{market.name}</b>
                     <small>
@@ -742,13 +751,31 @@ export function ExchangeApp() {
             </div>
           </div>
           <div className="levs" aria-label="槓桿">
-            {LEVERAGES.map((value) => (
+            {BASE_LEVERAGES.map((value) => (
               <button key={value} type="button" className={leverage === value ? 'lev on' : 'lev'} onClick={() => chooseLeverage(value)}>
                 {value}倍
               </button>
             ))}
+            {highLev
+              ? HIGH_LEVERAGES.map((value) => (
+                  <button key={value} type="button" className={leverage === value ? 'lev hot on' : 'lev hot'} onClick={() => chooseLeverage(value)}>
+                    {value}倍
+                  </button>
+                ))
+              : (
+                  <button
+                    type="button"
+                    className="lev unlock"
+                    onClick={() => {
+                      setHighLev(true)
+                      localStorage.setItem('si-pan:high-lev', '1')
+                    }}
+                  >
+                    更高
+                  </button>
+                )}
           </div>
-          <p className="quiet">{leverageWarning(leverage)}</p>
+          <p className={leverage >= 50 ? 'quiet warn' : 'quiet'}>{leverageWarning(leverage)}</p>
           <div className="trade-split">
           <form
               className="ticket"
@@ -766,7 +793,7 @@ export function ExchangeApp() {
                 </button>
               </div>
               <label className="field">
-                金額（{ccy === 'USD' ? '美金' : '港元'}）
+                金額（{ccy === 'USD' ? 'US$' : 'HK$'}）
                 <input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
               </label>
               <div className="chips">
@@ -899,10 +926,6 @@ export function ExchangeApp() {
               )}
             </aside>
           </div>
-          <button className="chart-bar" type="button" onClick={() => setChartOpen((open) => !open)}>
-            <span>{quote?.name ?? marketBySymbol(symbol)?.name} 圖</span>
-            <span>{chartOpen ? '收起' : '展開'}</span>
-          </button>
           <div className="under">
             <div className="seg">
               <button type="button" className={underTab === 'orders' ? 'chip on' : 'chip'} onClick={() => setUnderTab('orders')}>
@@ -930,6 +953,10 @@ export function ExchangeApp() {
               </p>
             )}
           </div>
+          <button className="chart-bar" type="button" onClick={() => setChartOpen((open) => !open)}>
+            <span>{quote?.name ?? marketBySymbol(symbol)?.name} 圖</span>
+            <span>{chartOpen ? '收起' : '展開'}</span>
+          </button>
         </section>
         <section className={view === 'book' ? 'pane book-col on' : 'pane book-col'} aria-label="持倉">
           <div className="book">
@@ -982,7 +1009,7 @@ export function ExchangeApp() {
               <ul className="fills">
                 {account.fills.slice(0, 8).map((fill) => (
                   <li key={fill.id}>
-                    <span>{fillText(fill, marketBySymbol(fill.symbol)?.name ?? fill.symbol)}</span>
+                    <span>{fillText(fill, marketBySymbol(fill.symbol)?.name ?? fill.symbol, show, showSigned)}</span>
                     {tradeRecap(fill) ? <small>{tradeRecap(fill)}</small> : null}
                   </li>
                 ))}

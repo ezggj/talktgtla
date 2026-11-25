@@ -208,7 +208,7 @@ body:has(.desk) {
 .row,
 .pos {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto;
   gap: 8px;
   align-items: center;
   width: 100%;
@@ -224,6 +224,11 @@ body:has(.desk) {
 .pos {
   grid-template-columns: 1fr;
   gap: 4px;
+}
+
+.mark {
+  width: 28px;
+  height: 28px;
 }
 
 .pos-top,
@@ -317,6 +322,20 @@ body:has(.desk) {
 .ticket-col > .quiet {
   margin-left: 12px;
   margin-right: 12px;
+}
+
+.ticket-col > .quiet.warn {
+  color: var(--down);
+  font-weight: 720;
+}
+
+.lev.hot {
+  color: var(--down);
+  border-color: var(--down);
+}
+
+.lev.unlock {
+  border-style: dashed;
 }
 
 .side,
@@ -560,6 +579,9 @@ body:has(.desk) {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: sticky;
+  bottom: calc(62px + env(safe-area-inset-bottom));
+  z-index: 4;
   margin: 8px 12px 0;
   min-height: 44px;
   padding: 0 12px;
@@ -596,12 +618,20 @@ body:has(.desk) {
 }
 
 .row small.up,
-.row small.down {
+.row small.down,
+.pair .up,
+.pair .down {
   display: inline-block;
   margin-top: 4px;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
-  font-weight: 720;
+  font-weight: 760;
+}
+
+.pair .up,
+.pair .down {
+  margin-top: 0;
+  margin-left: 8px;
 }
 
 .row small.up {
@@ -777,6 +807,18 @@ body:has(.desk) {
     padding-bottom: calc(84px + env(safe-area-inset-bottom));
   }
 
+  .preview {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .trade-split {
+    grid-template-columns: minmax(0, 1.3fr) 108px;
+  }
+
+  .under {
+    display: none;
+  }
+
   .ticket-col.on {
     order: 1;
   }
@@ -896,6 +938,10 @@ body:has(.desk) {
 
   .chart-bar {
     display: none;
+  }
+
+  .ticket-col .chart-bar {
+    position: static;
   }
 
   .chart-col,

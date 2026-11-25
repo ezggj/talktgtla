@@ -17,9 +17,9 @@ export function isTutorialDone(stored: string | null): boolean {
   return stored === '1'
 }
 
-/** Modal copy for 100x and 500x. Other levers stay on the quiet line. */
+/** Modal copy from 50x up. Lower levers stay on the quiet line. */
 export function highLeverageWarning(leverage: number): string | null {
-  if (leverage !== 100 && leverage !== 500) return null
+  if (leverage < 50) return null
   const move = 100 / leverage
   const text = move >= 1 ? move.toFixed(0) : move.toFixed(1)
   return `${leverage} 倍唔係玩吓。反向郁大約 ${text}% 就爆倉，保證金會蝕清。`

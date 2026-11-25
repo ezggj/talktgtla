@@ -9,7 +9,8 @@ import { deskHighlight } from './story'
 import { highLeverageWarning, isTutorialDone, TUTORIAL_STEPS } from './tutorial'
 import { bucketCandles, parseTimeframe, yahooWindow } from './timeframes'
 
-test('100x and 500x warnings state the liquidation distance', () => {
+test('50x, 100x and 500x warnings state the liquidation distance', () => {
+  assert.match(highLeverageWarning(50) ?? '', /2%/)
   assert.match(highLeverageWarning(100) ?? '', /1%/)
   assert.match(highLeverageWarning(500) ?? '', /0\.2%/)
   assert.equal(highLeverageWarning(5), null)
