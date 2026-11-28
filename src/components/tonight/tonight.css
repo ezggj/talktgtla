@@ -1,0 +1,374 @@
+.tonight {
+  --ink: #3a2418;
+  --muted: #8d6b56;
+  --paper: #f6efe6;
+  --card: #fffaf4;
+  --tea: #c9894a;
+  --accent: #c46a4a;
+  --line: rgba(58, 36, 24, 0.08);
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(201, 137, 74, 0.18), transparent 34%),
+    var(--paper);
+  color: var(--ink);
+  font-family: "PingFang HK", "PingFang TC", "Noto Sans TC", "Noto Sans CJK TC", sans-serif;
+  padding-bottom: calc(92px + env(safe-area-inset-bottom));
+}
+
+.tonight a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.page {
+  animation: settle 0.38s ease;
+}
+
+.topbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: max(18px, env(safe-area-inset-top)) 20px 0;
+}
+
+.word {
+  margin: 0;
+  font-size: 1.7rem;
+  font-weight: 680;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+}
+
+.word small {
+  display: block;
+  margin-top: 6px;
+  color: var(--tea);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+}
+
+.search {
+  margin: 18px 20px 0;
+  display: block;
+}
+
+.search input {
+  width: 100%;
+  min-height: 50px;
+  border: 0;
+  border-radius: 16px;
+  padding: 0 16px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 1rem;
+  box-shadow: 0 8px 24px rgba(58, 36, 24, 0.06);
+}
+
+.chips,
+.areas {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 16px 20px 0;
+}
+
+.chip,
+.area {
+  flex: 0 0 auto;
+  border: 0;
+  background: rgba(255, 250, 244, 0.8);
+  color: var(--muted);
+  border-radius: 999px;
+  min-height: 38px;
+  padding: 0 14px;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.chip.on,
+.area.on {
+  background: var(--ink);
+  color: #fffaf4;
+  font-weight: 680;
+}
+
+.section-title {
+  margin: 26px 20px 12px;
+  font-size: 1.02rem;
+  font-weight: 680;
+  letter-spacing: 0.04em;
+}
+
+.cards {
+  display: grid;
+  gap: 16px;
+  padding: 0 20px;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 22px;
+  background: var(--card);
+  box-shadow: 0 10px 28px rgba(58, 36, 24, 0.06);
+  animation: settle 0.45s ease both;
+}
+
+.card:nth-child(2) { animation-delay: 0.05s; }
+.card:nth-child(3) { animation-delay: 0.1s; }
+.card:nth-child(4) { animation-delay: 0.15s; }
+
+.plate {
+  height: 112px;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.plate img,
+.shop-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.plate-empty {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.plate-empty {
+  background: #f3e2cf;
+  color: #7a4b2a;
+  font-size: 0.85rem;
+}
+
+.plate-empty.tall {
+  min-height: 168px;
+}
+
+.badge {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #f3e2cf;
+  color: #7a4b2a;
+  font-size: 0.75rem;
+  font-weight: 680;
+}
+
+.meta {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.nav {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 5;
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 20px;
+  background: rgba(255, 250, 244, 0.94);
+  box-shadow: 0 10px 30px rgba(58, 36, 24, 0.12);
+}
+
+.nav a {
+  flex: 1;
+  min-height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: var(--muted);
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+.nav a.on {
+  background: var(--ink);
+  color: #fffaf4;
+  font-weight: 680;
+}
+
+.map-frame {
+  height: min(62dvh, 560px);
+  margin: 16px 20px 0;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(58, 36, 24, 0.08);
+}
+
+.map-frame .leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: #efe4d6;
+}
+
+.map-frame .leaflet-tile-pane {
+  filter: sepia(0.45) saturate(0.65) contrast(0.92) brightness(1.05);
+}
+
+.pin-wrap {
+  background: transparent;
+  border: 0;
+}
+
+.pin {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #fffaf4;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(58, 36, 24, 0.2);
+}
+
+.pin-tea,
+.pin-pot,
+.pin-fish,
+.pin-noodle,
+.pin-roast,
+.pin-cup {
+  background: #fffaf4;
+}
+
+.preview {
+  margin: 14px 20px;
+}
+
+.shop-hero {
+  position: relative;
+  height: 168px;
+  margin: 16px 20px 0;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(58, 36, 24, 0.08);
+}
+
+.shop-hero .badge {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+}
+
+.shop h1 {
+  margin: 18px 20px 0;
+  font-size: 1.85rem;
+  font-weight: 680;
+  letter-spacing: 0.01em;
+}
+
+.shop .en {
+  margin: 4px 20px 0;
+  color: var(--tea);
+}
+
+.facts,
+.dishes {
+  margin: 16px 20px 0;
+  display: grid;
+  gap: 10px;
+}
+
+.facts div,
+.dish {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 250, 244, 0.8);
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin: 18px 20px 0;
+}
+
+.actions a,
+.actions button,
+.sheet button {
+  min-height: 46px;
+  border: 0;
+  border-radius: 16px;
+  padding: 0 16px;
+  font-weight: 680;
+}
+
+.book-open,
+.sheet button {
+  background: var(--accent);
+  color: #fffaf4;
+}
+
+.save {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid rgba(58, 36, 24, 0.12);
+  display: grid;
+  place-items: center;
+}
+
+.sheet {
+  margin: 16px 20px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--card);
+  display: grid;
+  gap: 10px;
+  box-shadow: 0 10px 28px rgba(58, 36, 24, 0.06);
+}
+
+.sheet input,
+.sheet select {
+  min-height: 44px;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(58, 36, 24, 0.1);
+  padding: 0 12px;
+  background: #fff;
+}
+
+.note {
+  margin: 14px 20px 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+@keyframes settle {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page,
+  .card {
+    animation: none;
+  }
+}
+
+@media (min-width: 900px) {
+  .tonight {
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+
+  .cards {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .map-frame {
+    height: 68dvh;
+  }
+}

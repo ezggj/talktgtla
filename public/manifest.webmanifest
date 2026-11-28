@@ -1,40 +1,20 @@
 {
-  "name": "試盤",
-  "short_name": "試盤",
-  "description": "模擬盤，用虛擬資金練習買賣。唔係真錢。",
+  "name": "今晚食乜",
+  "short_name": "今晚食乜",
+  "description": "香港食店名單，資料來自 OpenStreetMap。",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "any",
-  "background_color": "#07090c",
-  "theme_color": "#07090c",
+  "orientation": "portrait",
+  "background_color": "#f6efe6",
+  "theme_color": "#f6efe6",
   "lang": "zh-HK",
   "dir": "ltr",
-  "categories": ["finance"],
+  "categories": ["food", "lifestyle"],
   "icons": [
-    {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-maskable-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/icons/icon-maskable-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

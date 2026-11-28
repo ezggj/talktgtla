@@ -1,5 +1,5 @@
-import { ExchangeApp } from '@/components/exchange/exchange-app'
+import { TonightHome } from '@/components/tonight/home'
 
 export default function Home() {
-  return <ExchangeApp />
+  return <TonightHome />
 }
