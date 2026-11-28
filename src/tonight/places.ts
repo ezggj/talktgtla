@@ -1,3 +1,6 @@
+import { distanceMeters } from './geo'
+import { isOpenAt } from './hours'
+
 export interface Area {
   id: string
   name: string
@@ -23,6 +26,7 @@ export const AREAS: readonly Area[] = [
   { id: 'tkw', name: '將軍澳', lat: 22.318, lng: 114.26 },
 ]
 
+export const HOT_AREAS = ['中環', '旺角', '銅鑼灣', '尖沙咀', '沙田'] as const
 export const CUISINES = ['茶餐廳', '火鍋', '壽司', '拉麵', '燒味', '咖啡'] as const
 export type CuisineChip = (typeof CUISINES)[number]
 
@@ -201,23 +205,66 @@ export function parseElement(element: OverpassElement): Place | null {
   }
 }
 
+export type PlaceSort = 'near' | 'hot' | 'photo' | 'rated'
+
+/**
+ * 熱門 is not a crowd or Google rank.
+ * It scores how complete the public tags are: photo 3, hours 2, phone 2,
+ * website 1, cuisine 1, price 1, address 1, district 1.
+ */
+export function hotScore(place: Place): number {
+  let score = 0
+  if (place.image) score += 3
+  if (place.hours) score += 2
+  if (place.phone) score += 2
+  if (place.website) score += 1
+  if (place.cuisine) score += 1
+  if (place.price) score += 1
+  if (place.address) score += 1
+  if (place.area) score += 1
+  return score
+}
+
 export function filterPlaces(
   places: readonly Place[],
-  input: { query?: string; area?: string; cuisine?: string; bbox?: [number, number, number, number]; limit?: number },
+  input: {
+    query?: string
+    area?: string
+    cuisine?: string
+    bbox?: [number, number, number, number]
+    near?: { lat: number; lng: number; radiusM: number }
+    openNow?: boolean
+    now?: Date
+    hideIncomplete?: boolean
+    sort?: PlaceSort
+    ratedIds?: ReadonlySet<string>
+    limit?: number
+  },
 ): Place[] {
   const query = input.query?.trim().toLowerCase() ?? ''
+  const now = input.now ?? new Date()
   const [south, west, north, east] = input.bbox ?? []
   const found: Place[] = []
   for (const place of places) {
+    if (input.hideIncomplete && !input.near && !place.area) continue
     if (input.area && place.area !== input.area) continue
     if (input.cuisine && !matchesChip(place, input.cuisine)) continue
     if (south != null && (place.lat < south || place.lat > north! || place.lng < west! || place.lng > east!)) continue
+    if (input.near && distanceMeters(input.near.lat, input.near.lng, place.lat, place.lng) > input.near.radiusM) continue
     if (query) {
       const hay = `${place.name} ${place.nameEn ?? ''} ${place.cuisine ?? ''} ${place.area ?? ''} ${kindLabel(place.kind)}`.toLowerCase()
       if (!hay.includes(query)) continue
     }
+    if (input.openNow && isOpenAt(place.hours, now) !== true) continue
+    if (input.sort === 'photo' && !place.image) continue
+    if (input.sort === 'rated' && !input.ratedIds?.has(place.id)) continue
     found.push(place)
-    if (input.limit && found.length >= input.limit) break
   }
-  return found
+  if (input.sort === 'near' && input.near) {
+    const { lat, lng } = input.near
+    found.sort((a, b) => distanceMeters(lat, lng, a.lat, a.lng) - distanceMeters(lat, lng, b.lat, b.lng))
+  } else if (input.sort === 'hot' || input.sort === 'photo') {
+    found.sort((a, b) => hotScore(b) - hotScore(a) || a.name.localeCompare(b.name, 'zh-HK'))
+  }
+  return input.limit ? found.slice(0, input.limit) : found
 }
