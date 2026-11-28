@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { cuisineLabel, filterPlaces, matchesChip, parseElement, type Place } from './places'
+import { mergePlace } from './contrib'
+import { formatDistance, walkMinutes } from './geo'
+import { isOpenAt } from './hours'
+import { filterPlaces, hotScore, matchesChip, parseElement, cuisineLabel, type Place } from './places'
 
 const element = {
   type: 'node',
@@ -49,6 +52,69 @@ test('a wikimedia file is kept and a nameless node is dropped', () => {
 test('known cuisine tags get a Cantonese label and unknown tags stay out of that label', () => {
   assert.equal(cuisineLabel('chinese;hotpot'), '中菜、火鍋')
   assert.equal(cuisineLabel('not_a_real_cuisine'), null)
+})
+
+function sample(id: string, patch: Partial<Place>): Place {
+  return {
+    id,
+    name: id,
+    nameEn: null,
+    area: '中環',
+    kind: 'restaurant',
+    cuisine: null,
+    price: null,
+    lat: 22.28,
+    lng: 114.16,
+    hours: null,
+    phone: null,
+    website: null,
+    address: null,
+    image: null,
+    imageCredit: null,
+    ...patch,
+  }
+}
+
+test('nearby results sort by distance and still include shops with no district', () => {
+  const near = { lat: 22.28, lng: 114.16, radiusM: 1000 }
+  const places = [
+    sample('far', { name: '遠', area: '旺角', lat: 22.32, lng: 114.17 }),
+    sample('close-bare', { name: '近', area: null, lat: 22.281, lng: 114.161 }),
+    sample('mid', { name: '中', area: '中環', lat: 22.285, lng: 114.165 }),
+  ]
+  const ids = filterPlaces(places, { near, hideIncomplete: true, sort: 'near' }).map((place) => place.id)
+  assert.deepEqual(ids, ['close-bare', 'mid'])
+  assert.equal(formatDistance(350), '350m')
+  assert.equal(formatDistance(1200), '1.2km')
+  assert.equal(walkMinutes(350), 4)
+})
+
+test('browse hides shops with no district, and open-now ignores missing hours', () => {
+  const wednesdayNoon = new Date('2026-11-25T04:00:00.000Z')
+  const saturdayNoon = new Date('2026-11-28T04:00:00.000Z')
+  const places = [
+    sample('bare', { area: null, hours: 'Mo-Su 00:00-23:59' }),
+    sample('open', { hours: 'Mo-Fr 09:00-18:00', phone: '+852 1', image: 'https://upload.wikimedia.org/a.jpg' }),
+    sample('shut', { hours: 'Sa-Su 09:00-18:00' }),
+    sample('unknown', { hours: null }),
+  ]
+  assert.deepEqual(
+    filterPlaces(places, { hideIncomplete: true, openNow: true, now: wednesdayNoon }).map((place) => place.id),
+    ['open'],
+  )
+  assert.equal(filterPlaces(places, { hideIncomplete: true, openNow: true, now: saturdayNoon }).some((place) => place.id === 'open'), false)
+  assert.equal(isOpenAt('24/7', wednesdayNoon), true)
+  assert.equal(isOpenAt('Mo-Su,PH 11:00-22:00', wednesdayNoon), true)
+  assert.equal(isOpenAt(null, wednesdayNoon), null)
+  assert.equal(isOpenAt('not hours', wednesdayNoon), null)
+  const fridayNight = new Date('2026-11-27T12:00:00.000Z')
+  const saturdayEarly = new Date('2026-11-27T17:00:00.000Z')
+  assert.equal(isOpenAt('Fr 18:00-02:00', fridayNight), true)
+  assert.equal(isOpenAt('Fr 18:00-02:00', saturdayEarly), true)
+  assert.ok(hotScore(places[1]) > hotScore(places[3]))
+  const contributed = mergePlace(sample('user', { hours: null, image: null }), { hours: '24/7', photo: 'data:image/jpeg;base64,abc' })
+  assert.equal(filterPlaces([contributed], { openNow: true, now: wednesdayNoon, sort: 'photo' }).length, 1)
+  assert.equal(contributed.imageCredit, '你補充 · 只係呢部機')
 })
 
 test('filters stay inside the requested district and box', () => {
