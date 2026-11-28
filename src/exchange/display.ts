@@ -14,3 +14,14 @@ export function fromDisplay(amount: number, ccy: DisplayCcy, fx: number | null):
   if (fx == null || !Number.isFinite(fx) || fx <= 0) return null
   return amount * fx
 }
+
+/** Presentational only. The book itself stays in HKD. */
+export function formatDisplay(hkd: number, ccy: DisplayCcy, fx: number | null): string {
+  const shown = toDisplay(hkd, ccy, fx)
+  if (shown == null) return ccy === 'USD' ? '匯率未到' : '—'
+  const abs = Math.abs(shown)
+  const digits = abs === 0 || abs >= 1000 ? 0 : 2
+  const body = abs.toLocaleString('en-HK', { minimumFractionDigits: digits, maximumFractionDigits: digits })
+  const unit = ccy === 'USD' ? 'US$' : 'HK$'
+  return `${shown < 0 ? '-' : ''}${unit}${body}`
+}

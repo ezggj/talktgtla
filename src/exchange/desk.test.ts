@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { canPublishRank, cleanNick, lossHkd, mergeStanding, rankGains, rankLosses } from './board'
-import { fromDisplay, toDisplay } from './display'
+import { formatDisplay, fromDisplay, toDisplay } from './display'
 import { referenceLadder } from './ladder'
 
 test('display currency converts with the live rate and does not invent one', () => {
@@ -10,6 +10,9 @@ test('display currency converts with the live rate and does not invent one', () 
   assert.equal(toDisplay(7800, 'USD', null), null)
   assert.equal(fromDisplay(1000, 'USD', 7.8), 7800)
   assert.equal(fromDisplay(1000, 'USD', 0), null)
+  assert.equal(formatDisplay(1_000_000, 'HKD', 7.8), 'HK$1,000,000')
+  assert.equal(formatDisplay(7800, 'USD', 7.8), 'US$1,000')
+  assert.equal(formatDisplay(7800, 'USD', null), '匯率未到')
 })
 
 test('the loss board ranks who is down the most, and guests cannot publish', () => {
